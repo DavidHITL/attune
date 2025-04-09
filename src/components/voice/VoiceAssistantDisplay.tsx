@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Message } from '@/utils/types';
 import { VoiceActivityState } from '../VoiceActivityIndicator';
@@ -33,7 +34,7 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
 }) => {
   return <div className="flex flex-col h-full">
       {/* Logo and Header */}
-      <div className="mb-6 flex justify-center">
+      <div className="mb-8 flex justify-center">
         <AttuneLogo />
       </div>
       

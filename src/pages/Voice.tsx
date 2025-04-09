@@ -33,7 +33,7 @@ const Voice = () => {
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-center">
             <AttuneLogo />
-            <h2 className="text-xl font-semibold mb-4 text-attune-purple">
+            <h2 className="text-xl font-semibold mb-4 mt-8 text-attune-purple">
               Feel like talking?
             </h2>
             <p className="text-attune-purple/80 mb-6">
