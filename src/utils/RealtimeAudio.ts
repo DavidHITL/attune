@@ -36,6 +36,8 @@ export class RealtimeChat {
   // Debug tracking
   private eventLog: {type: string, timestamp: number, contentPreview?: string}[] = [];
   private lastResponseDelta: number = 0;
+  private eventCounts: Record<string, number> = {};
+  private rawResponseEvents: any[] = [];
   
   constructor(
     messageCallback: MessageCallback,
@@ -144,7 +146,23 @@ export class RealtimeChat {
             }
           }
           
-          // Process events for assistant messages - UPDATED LOGIC
+          // UPDATED LOGIC FOR ASSISTANT RESPONSE HANDLING
+          
+          // Store raw events for debugging
+          if (parsedEvent.type.startsWith('response.')) {
+            this.rawResponseEvents.push({
+              type: parsedEvent.type,
+              timestamp: Date.now(),
+              data: parsedEvent
+            });
+            
+            // Limit stored events to avoid memory issues
+            if (this.rawResponseEvents.length > 100) {
+              this.rawResponseEvents.shift();
+            }
+          }
+          
+          // Handle assistant response start
           if (parsedEvent.type === "response.created") {
             console.log("Assistant response started, setting pendingAssistantMessage flag");
             this.pendingAssistantMessage = true;
@@ -152,89 +170,59 @@ export class RealtimeChat {
             this.lastResponseDelta = Date.now();
           }
           
-          // Handle response delta for text content - IMPROVED PARSING
+          // Handle assistant message content - NEW IMPROVED PARSING LOGIC
           if (parsedEvent.type === "response.delta") {
             this.lastResponseDelta = Date.now();
+            let extractedContent = this.extractContentFromDelta(parsedEvent);
             
-            // Log full event structure for debugging
-            console.log("Response delta structure:", JSON.stringify(parsedEvent));
-            
-            let deltaContent = null;
-            
-            // Try multiple paths to find the content
-            if (parsedEvent.delta?.content) {
-              deltaContent = parsedEvent.delta.content;
-            } else if (parsedEvent.delta?.item?.content?.[0]?.text) {
-              deltaContent = parsedEvent.delta.item.content[0].text;
-            } else if (parsedEvent.delta?.text) {
-              deltaContent = parsedEvent.delta.text;
-            }
-            
-            if (deltaContent) {
+            if (extractedContent) {
+              console.log(`Extracted content from delta: "${extractedContent.substring(0, 30)}${extractedContent.length > 30 ? '...' : ''}"`);
               if (this.pendingAssistantMessage) {
-                this.assistantResponse += deltaContent;
-                console.log(`Accumulating assistant response (${this.assistantResponse.length} chars): "${this.assistantResponse.substring(0, 50)}${this.assistantResponse.length > 50 ? '...' : ''}"`);
+                this.assistantResponse += extractedContent;
+                console.log(`Updated assistant response (${this.assistantResponse.length} chars): "${this.assistantResponse.substring(0, 50)}${this.assistantResponse.length > 50 ? '...' : ''}"`);
               } else {
-                console.warn("Received response delta without pending message flag");
+                console.log("Warning: Received content delta without pending message flag. Setting flag now.");
+                this.pendingAssistantMessage = true;
+                this.assistantResponse = extractedContent;
               }
             } else {
-              console.warn("Response delta received but couldn't extract content:", parsedEvent);
+              console.log("Response delta received but couldn't extract content:", JSON.stringify(parsedEvent));
             }
           }
           
-          // Handle assistant message completion - IMPROVED COMPLETION DETECTION
+          // Handle assistant message completion
           if (parsedEvent.type === "response.done") {
-            console.log("Response done event received");
+            console.log("Response done event received", JSON.stringify(parsedEvent));
             
-            // Try to extract the full response from the done event if available
-            let fullResponse = null;
+            // Extract final message from response.done event if possible
+            let finalResponse = this.extractCompletedResponseFromDoneEvent(parsedEvent);
             
-            if (parsedEvent.response?.items) {
-              // Try to find message items in the response
-              const messageItems = parsedEvent.response.items.filter((item: any) => 
-                item.type === 'message' && item.role === 'assistant'
-              );
+            // Use extracted response or fallback to accumulated response
+            const finalContent = finalResponse && finalResponse.trim() 
+              ? finalResponse 
+              : this.assistantResponse;
               
-              if (messageItems.length > 0) {
-                const latestMessage = messageItems[messageItems.length - 1];
-                if (latestMessage.content) {
-                  fullResponse = Array.isArray(latestMessage.content) 
-                    ? latestMessage.content.map((c: any) => c.text || '').join('')
-                    : latestMessage.content;
-                  
-                  console.log("Extracted full response from response.done event:", fullResponse.substring(0, 50) + (fullResponse.length > 50 ? '...' : ''));
-                }
-              }
-            }
-            
-            // Save the complete assistant response
-            if (this.pendingAssistantMessage) {
-              // Prefer the accumulated response if it has content
-              const finalContent = this.assistantResponse && this.assistantResponse.trim() 
-                ? this.assistantResponse 
-                : (fullResponse || '');
-                
-              if (finalContent && finalContent.trim()) {
-                console.log(`Saving assistant response [${finalContent.length} chars]: "${finalContent.substring(0, 50)}${finalContent.length > 50 ? '...' : ''}"`);
-                this.queueMessage('assistant', finalContent);
-              } else {
-                console.error("Empty assistant response, cannot save. Accumulated response length:", 
-                  this.assistantResponse?.length || 0, 
-                  "Full response available:", 
-                  !!fullResponse);
-              }
-              
-              this.pendingAssistantMessage = false;
-              this.assistantResponse = '';
+            if (finalContent && finalContent.trim()) {
+              console.log(`Saving assistant response [${finalContent.length} chars]: "${finalContent.substring(0, 50)}${finalContent.length > 50 ? '...' : ''}"`);
+              this.queueMessage('assistant', finalContent);
             } else {
-              // If no pending message flag but we have full response content, try to save it
-              if (fullResponse && fullResponse.trim()) {
-                console.log("Saving assistant response from done event without pending flag.");
-                this.queueMessage('assistant', fullResponse);
+              console.error("Empty assistant response after done event. Response events:", 
+                JSON.stringify(this.rawResponseEvents.slice(-10)));
+              
+              // Emergency fallback - try to construct a message from the last few events
+              const fallbackMessage = this.constructFallbackMessage();
+              if (fallbackMessage) {
+                console.log(`Using fallback message construction: "${fallbackMessage}"`);
+                this.queueMessage('assistant', fallbackMessage);
               } else {
-                console.warn("Response done event with no pending message and no content to save");
+                console.error("Failed to construct fallback message");
               }
             }
+            
+            // Reset state
+            this.pendingAssistantMessage = false;
+            this.assistantResponse = '';
+            this.rawResponseEvents = [];
           }
         } catch (e) {
           console.error("Error parsing event data:", e);
@@ -310,8 +298,124 @@ export class RealtimeChat {
     }
   }
 
+  // NEW METHOD: Extract content from delta event with multiple fallbacks
+  private extractContentFromDelta(event: any): string | null {
+    let content = null;
+    
+    // Try all possible paths to content
+    if (event.delta?.content) {
+      content = event.delta.content;
+    } else if (event.delta?.item?.content?.[0]?.text) {
+      content = event.delta.item.content[0].text;
+    } else if (event.delta?.text) {
+      content = event.delta.text;
+    } else if (typeof event.delta === 'string') {
+      content = event.delta;
+    }
+    
+    // Log the extraction path for debugging
+    if (content) {
+      console.log(`Content extracted from event.delta structure: ${JSON.stringify(event).substring(0, 100)}...`);
+    }
+    
+    return content;
+  }
+  
+  // NEW METHOD: Extract completed response from done event
+  private extractCompletedResponseFromDoneEvent(event: any): string | null {
+    try {
+      // Log the response structure for debugging
+      console.log(`Extracting from response.done structure: ${JSON.stringify(event).substring(0, 500)}...`);
+      
+      // Try to extract from response.items first (most reliable)
+      if (event.response?.items) {
+        const messageItems = event.response.items.filter((item: any) => 
+          item.type === 'message' && item.role === 'assistant'
+        );
+        
+        if (messageItems.length > 0) {
+          const latestMessage = messageItems[messageItems.length - 1];
+          
+          // Handle different content structures
+          if (latestMessage.content) {
+            if (Array.isArray(latestMessage.content)) {
+              return latestMessage.content
+                .filter((c: any) => c.type === 'text' || c.text)
+                .map((c: any) => c.text || '')
+                .join('');
+            } else if (typeof latestMessage.content === 'string') {
+              return latestMessage.content;
+            }
+          }
+        }
+      }
+      
+      // Try to extract from a different path
+      if (event.text) {
+        return event.text;
+      }
+      
+      // Try final parameters
+      if (event.transcript?.text) {
+        return event.transcript.text;
+      }
+      
+      // No content found
+      return null;
+      
+    } catch (error) {
+      console.error("Error extracting response from done event:", error);
+      return null;
+    }
+  }
+  
+  // NEW METHOD: Last-resort fallback to construct a message
+  private constructFallbackMessage(): string | null {
+    try {
+      // Only use delta events with content
+      const contentEvents = this.rawResponseEvents.filter(event => 
+        event.type === 'response.delta' && 
+        this.extractContentFromDelta(event.data)
+      );
+      
+      if (contentEvents.length === 0) {
+        return null;
+      }
+      
+      // Construct message from deltas
+      let constructedMessage = '';
+      contentEvents.forEach(event => {
+        const content = this.extractContentFromDelta(event.data);
+        if (content) constructedMessage += content;
+      });
+      
+      return constructedMessage.trim() || null;
+    } catch (error) {
+      console.error("Error constructing fallback message:", error);
+      return null;
+    }
+  }
+
   // Log event for debugging purposes
   private logEvent(event: any) {
+    // Count event types
+    if (!this.eventCounts[event.type]) {
+      this.eventCounts[event.type] = 0;
+    }
+    this.eventCounts[event.type]++;
+    
+    // Log only key events to avoid console spam
+    const keyEvents = [
+      'session.created', 
+      'response.created', 
+      'response.done',
+      'response.audio_transcript.done'
+    ];
+    
+    if (keyEvents.includes(event.type)) {
+      console.log(`EVENT [${event.type}] #${this.eventCounts[event.type]} at ${new Date().toISOString()}`);
+    }
+    
     const eventInfo = {
       type: event.type,
       timestamp: Date.now()
@@ -330,9 +434,6 @@ export class RealtimeChat {
     if (this.eventLog.length > 100) {
       this.eventLog.shift();
     }
-    
-    // Log detailed debug info for key events
-    console.log(`EVENT [${event.type}] at ${new Date().toISOString()}`);
   }
 
   // Queue message saving to prevent race conditions or failures
@@ -514,6 +615,9 @@ export class RealtimeChat {
   disconnect() {
     console.log(`Disconnecting with ${this.messageQueue.length} messages in queue`);
     console.log(`Event log summary: ${this.eventLog.length} events`);
+    
+    // Summary of event counts
+    console.log("Event type counts:", this.eventCounts);
     
     // If there's a pending assistant message, save it now
     if (this.pendingAssistantMessage && this.assistantResponse && this.assistantResponse.trim()) {

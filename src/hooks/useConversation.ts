@@ -96,10 +96,20 @@ export const useConversation = () => {
         console.log("First message:", validMessages[0].content.substring(0, 30) + "...");
         console.log("Last message:", validMessages[validMessages.length - 1].content.substring(0, 30) + "...");
         
-        // Log all messages for debugging
-        validMessages.forEach((msg, index) => {
-          console.log(`Message ${index + 1} - ${msg.role}: ${msg.content.substring(0, 30)}...`);
+        // Log message pairs to check conversation flow
+        console.log("--- CONVERSATION FLOW CHECK ---");
+        let userCount = 0;
+        let assistantCount = 0;
+        
+        validMessages.forEach((msg, i) => {
+          if (msg.role === 'user') userCount++;
+          else assistantCount++;
+          
+          console.log(`[${i+1}] ${msg.role.toUpperCase()}: ${msg.content.substring(0, 30)}...`);
         });
+        
+        console.log(`Summary: ${userCount} user messages, ${assistantCount} assistant messages`);
+        console.log("--- END FLOW CHECK ---");
       }
       
       setMessages(validMessages);
