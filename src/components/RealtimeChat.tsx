@@ -1,15 +1,13 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/RealtimeAudio';
 import CallControls from '@/components/CallControls';
-import VoiceActivityIndicator from './VoiceActivityIndicator';
+import VoiceActivityIndicator, { VoiceActivityState } from './VoiceActivityIndicator';
 
 const RealtimeChat: React.FC = () => {
   const [status, setStatus] = useState<string>("Disconnected");
   const [isConnected, setIsConnected] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isListening, setIsListening] = useState(false);
+  const [voiceActivityState, setVoiceActivityState] = useState<VoiceActivityState>(VoiceActivityState.Idle);
   const [isMicOn, setIsMicOn] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const chatClientRef = useRef<RealtimeChatClient | null>(null);
@@ -26,16 +24,16 @@ const RealtimeChat: React.FC = () => {
     
     if (event.type === 'response.audio.delta') {
       // Audio is playing
-      setIsSpeaking(true);
+      setVoiceActivityState(VoiceActivityState.Output);
     } else if (event.type === 'response.audio.done') {
       // Audio finished playing
-      setIsSpeaking(false);
+      setVoiceActivityState(VoiceActivityState.Idle);
     } else if (event.type === 'input_audio_activity_started') {
       // Microphone input is active
-      setIsListening(true);
+      setVoiceActivityState(VoiceActivityState.Input);
     } else if (event.type === 'input_audio_activity_stopped') {
       // Microphone input has stopped
-      setIsListening(false);
+      setVoiceActivityState(VoiceActivityState.Idle);
     } else if (event.type === 'session.created') {
       toast({
         title: "Connected to Voice AI",
@@ -76,8 +74,7 @@ const RealtimeChat: React.FC = () => {
   const endConversation = () => {
     chatClientRef.current?.disconnect();
     setIsConnected(false);
-    setIsSpeaking(false);
-    setIsListening(false);
+    setVoiceActivityState(VoiceActivityState.Idle);
     setIsMicOn(false);
     setStatus("Disconnected");
     
@@ -121,21 +118,13 @@ const RealtimeChat: React.FC = () => {
         <div className="text-sm flex flex-col items-center justify-center gap-2">
           <div>Status: {status}</div>
           
-          {/* Voice activity indicators */}
+          {/* Voice activity indicator - always visible */}
           <div className="flex flex-col gap-2 mt-2">
-            {isSpeaking && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs">AI speaking:</span>
-                <VoiceActivityIndicator isActive={isSpeaking} activityType="output" />
-              </div>
-            )}
-            
-            {isListening && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs">Listening:</span>
-                <VoiceActivityIndicator isActive={isListening} activityType="input" />
-              </div>
-            )}
+            <div className="flex items-center gap-2 justify-center">
+              {isConnected && (
+                <VoiceActivityIndicator state={voiceActivityState} />
+              )}
+            </div>
           </div>
         </div>
       </div>
