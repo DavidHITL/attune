@@ -55,6 +55,15 @@ export const useConversation = () => {
     getOrCreateConversation();
   }, [user]);
 
+  // Helper function to validate and convert role
+  const validateRole = (role: string): 'user' | 'assistant' => {
+    if (role === 'user' || role === 'assistant') {
+      return role;
+    }
+    console.warn(`Invalid role found in database: ${role}, defaulting to 'user'`);
+    return 'user';
+  };
+
   // Load messages for a conversation
   const loadMessages = async (convoId: string) => {
     try {
@@ -66,7 +75,15 @@ export const useConversation = () => {
       
       if (error) throw error;
       
-      setMessages(data || []);
+      // Convert database results to Message type with proper role validation
+      const validMessages: Message[] = data ? data.map(item => ({
+        id: item.id,
+        role: validateRole(item.role),
+        content: item.content,
+        created_at: item.created_at
+      })) : [];
+      
+      setMessages(validMessages);
     } catch (error) {
       console.error('Error loading messages:', error);
     }
@@ -93,9 +110,16 @@ export const useConversation = () => {
       
       if (error) throw error;
       
-      // Add the new message to the state
-      setMessages(prev => [...prev, data]);
-      return data;
+      // Add the new message to the state with validated role
+      const validatedMessage: Message = {
+        id: data.id,
+        role: validateRole(data.role),
+        content: data.content,
+        created_at: data.created_at
+      };
+      
+      setMessages(prev => [...prev, validatedMessage]);
+      return validatedMessage;
     } catch (error) {
       console.error('Error saving message:', error);
       return null;
