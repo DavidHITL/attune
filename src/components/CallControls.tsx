@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Mic, MicOff, PhoneOff, X } from 'lucide-react';
+import { Mic, MicOff, Volume, VolumeX, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 
@@ -49,12 +49,12 @@ const CallControls: React.FC<CallControlsProps> = ({
         onClick={handleToggleMic}
         variant="outline"
         size="icon"
-        className="w-20 h-20 rounded-full bg-attune-blue/30 border-none hover:bg-attune-blue/50"
+        className="w-20 h-20 rounded-full bg-attune-blue/20 border-none backdrop-blur-md shadow-lg hover:bg-attune-blue/30 transition-all"
       >
         {isMicOn ? (
-          <Mic className="h-8 w-8 text-attune-purple" />
+          <Mic className="h-10 w-10 text-attune-purple" strokeWidth={2.5} />
         ) : (
-          <MicOff className="h-8 w-8 text-attune-purple" />
+          <MicOff className="h-10 w-10 text-attune-purple" strokeWidth={2.5} />
         )}
       </Button>
 
@@ -62,39 +62,22 @@ const CallControls: React.FC<CallControlsProps> = ({
         onClick={handleToggleMute}
         variant="outline"
         size="icon"
-        className="w-20 h-20 rounded-full bg-attune-blue/30 border-none hover:bg-attune-blue/50"
+        className="w-20 h-20 rounded-full bg-attune-blue/20 border-none backdrop-blur-md shadow-lg hover:bg-attune-blue/30 transition-all"
       >
-        <div className="relative">
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            width="32" 
-            height="32" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            className="text-attune-purple"
-          >
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-          </svg>
-          {isMuted && (
-            <X 
-              className="h-5 w-5 text-attune-red absolute right-0 bottom-0" 
-              strokeWidth={3}
-            />
-          )}
-        </div>
+        {isMuted ? (
+          <VolumeX className="h-10 w-10 text-attune-purple" strokeWidth={2.5} />
+        ) : (
+          <Volume className="h-10 w-10 text-attune-purple" strokeWidth={2.5} />
+        )}
       </Button>
 
       <Button
         onClick={handleEndCall}
         variant="outline"
         size="icon"
-        className="w-20 h-20 rounded-full bg-attune-blue/30 border-none hover:bg-attune-blue/50"
+        className="w-20 h-20 rounded-full bg-attune-blue/20 border-none backdrop-blur-md shadow-lg hover:bg-attune-blue/30 transition-all"
       >
-        <X className="h-8 w-8 text-attune-purple" />
+        <X className="h-10 w-10 text-attune-purple" strokeWidth={2.5} />
       </Button>
     </div>
   );
