@@ -12,8 +12,8 @@ const Navigation = () => {
 
   return (
     <nav className="w-full bg-attune-blue shadow-sm py-2 px-4 flex justify-center fixed top-0 z-10">
-      <div className="max-w-[390px] w-full flex justify-between items-center">
-        <div className="flex gap-4">
+      <div className="max-w-[390px] w-full flex justify-center items-center">
+        <div className="w-full flex justify-between items-center">
           <Link to="/" className={`text-black hover:text-gray-700 transition-colors ${location.pathname === '/' ? 'text-gray-700' : ''}`}>
             <Home className="w-5 h-5" />
           </Link>
@@ -26,10 +26,6 @@ const Navigation = () => {
             <User className="w-5 h-5" />
           </Link>
         </div>
-        
-        <Link to="/">
-          
-        </Link>
       </div>
     </nav>
   );
