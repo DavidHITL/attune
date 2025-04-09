@@ -16,8 +16,8 @@ const AttuneContent = () => {
         </h2>
         <p className="text-attune-purple/80">
           {user 
-            ? 'Love isn\'t something that you have. It\'s something you do. And you can do it better.'
-            : 'Love isn\'t something that you have. It\'s something you do. And you can do it better.'}
+            ? '"Love isn\'t something that you have. It\'s something you do. And you can do it better." — Terry Real'
+            : '"Love isn\'t something that you have. It\'s something you do. And you can do it better." — Terry Real'}
         </p>
         
         {!user && (
