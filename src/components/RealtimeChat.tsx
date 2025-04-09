@@ -1,5 +1,5 @@
 
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { VoiceActivityState } from './VoiceActivityIndicator';
 import { useConversation } from '@/hooks/useConversation';
 import { useAuth } from '@/context/AuthContext';

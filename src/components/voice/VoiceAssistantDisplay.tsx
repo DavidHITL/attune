@@ -1,9 +1,7 @@
 
 import React from 'react';
 import { Message } from '@/utils/types';
-import ConversationHistory from './ConversationHistory';
 import { VoiceActivityState } from '../VoiceActivityIndicator';
-import StatusIndicator from './StatusIndicator';
 import CallControls from '@/components/CallControls';
 
 interface VoiceAssistantDisplayProps {
@@ -25,12 +23,8 @@ interface VoiceAssistantDisplayProps {
 
 const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   user,
-  status,
   isConnected,
   voiceActivityState,
-  messages,
-  messageCount,
-  hasContext,
   isMicOn,
   isMuted,
   conversationLoading,
@@ -41,43 +35,15 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
 }) => {
   return (
     <div className="flex flex-col h-full">
-      {/* Status indicator */}
-      <StatusIndicator 
-        status={status} 
-        isConnected={isConnected} 
-        voiceActivityState={voiceActivityState} 
-      />
-
-      {/* Conversation history indicator */}
-      {!user && !conversationLoading && (
-        <div className="text-center mb-4 p-2 bg-yellow-50 rounded-md text-yellow-700 text-sm">
-          <p>Sign in to enable conversation memory between sessions</p>
-        </div>
-      )}
-      
-      {user && hasContext && !isConnected && !conversationLoading && (
-        <div className="text-center mb-4 p-2 bg-green-50 rounded-md text-green-700 text-sm">
-          <p>The assistant will remember your previous {messageCount} message conversation</p>
-        </div>
-      )}
-
-      {/* Conversation history (if any) */}
-      {!conversationLoading && <ConversationHistory messages={messages} />}
-      
       {/* Voice interaction instructions */}
       {!isConnected && (
-        <div className="text-center mb-6 text-attune-purple/80">
+        <div className="text-center my-6 text-attune-purple/80">
           <p>Press the microphone button below to start a voice conversation with the AI assistant.</p>
-          {messages.length > 0 && user && (
-            <p className="mt-2 text-sm">
-              The assistant will remember your previous conversation.
-            </p>
-          )}
         </div>
       )}
       
       {isConnected && (
-        <div className="text-center mb-6 text-attune-purple/80">
+        <div className="text-center my-6 text-attune-purple/80">
           <p>Speak naturally to interact with the AI. The assistant will listen and respond with voice.</p>
         </div>
       )}
