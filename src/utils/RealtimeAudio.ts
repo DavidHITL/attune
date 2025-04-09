@@ -24,6 +24,8 @@ export class RealtimeChat {
   private saveMessageCallback: SaveMessageCallback;
   private isMicrophonePaused: boolean = false;
   private isMuted: boolean = false;
+  private messageQueue: {role: 'user' | 'assistant', content: string}[] = [];
+  private isProcessingQueue: boolean = false;
   
   constructor(
     messageCallback: MessageCallback,
@@ -41,8 +43,27 @@ export class RealtimeChat {
     try {
       this.statusCallback("Connecting...");
       
+      // Get auth token to pass to the edge function
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error("Failed to get auth session:", sessionError);
+      }
+      
       // Get token from edge function
-      const response = await supabase.functions.invoke('realtime-token');
+      const accessToken = session?.access_token || null;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Only add Authorization header if we have a token
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+      
+      const response = await supabase.functions.invoke('realtime-token', {
+        headers: headers
+      });
       
       if (response.error) {
         throw new Error(`Failed to get session token: ${response.error.message || 'Unknown error'}`);
@@ -52,6 +73,16 @@ export class RealtimeChat {
       
       if (!data || !data.client_secret?.value) {
         throw new Error("Invalid session token response");
+      }
+      
+      // Log conversation context for debugging
+      if (data.conversation_context) {
+        console.log(
+          "Conversation context:", 
+          data.conversation_context.has_history ? 
+            `Loaded ${data.conversation_context.message_count} previous messages` : 
+            "No previous conversation history"
+        );
       }
       
       this.statusCallback("Setting up audio...");
@@ -71,14 +102,14 @@ export class RealtimeChat {
           if (parsedEvent.type === "response.audio_transcript.done") {
             const content = parsedEvent.transcript?.text;
             if (content) {
-              this.saveMessageCallback('user', content);
+              this.queueMessage('user', content);
             }
           }
           
           // Save assistant message when response is complete
           if (parsedEvent.type === "response.done" && parsedEvent.delta?.content) {
             const content = parsedEvent.delta.content;
-            this.saveMessageCallback('assistant', content);
+            this.queueMessage('assistant', content);
           }
         } catch (e) {
           console.error("Error parsing event data:", e);
@@ -151,6 +182,38 @@ export class RealtimeChat {
       console.error("WebRTC connection error:", error);
       this.statusCallback("Connection failed");
       throw error;
+    }
+  }
+
+  // Queue message saving to prevent race conditions or failures
+  private queueMessage(role: 'user' | 'assistant', content: string) {
+    this.messageQueue.push({ role, content });
+    console.log(`Queued ${role} message: "${content.substring(0, 30)}..."`);
+    this.processMessageQueue();
+  }
+
+  // Process message queue to ensure sequential saving
+  private async processMessageQueue() {
+    if (this.isProcessingQueue || this.messageQueue.length === 0) return;
+    
+    this.isProcessingQueue = true;
+    
+    try {
+      const message = this.messageQueue.shift();
+      if (message) {
+        console.log(`Processing ${message.role} message from queue`);
+        await this.saveMessageCallback(message.role, message.content);
+        console.log(`Successfully saved ${message.role} message to database`);
+      }
+    } catch (error) {
+      console.error("Error saving message from queue:", error);
+    } finally {
+      this.isProcessingQueue = false;
+      
+      // Process next message if any
+      if (this.messageQueue.length > 0) {
+        this.processMessageQueue();
+      }
     }
   }
   
@@ -255,6 +318,24 @@ export class RealtimeChat {
   }
   
   disconnect() {
+    // Process any remaining messages in the queue
+    const remainingMessages = [...this.messageQueue];
+    this.messageQueue = [];
+    
+    // Process each remaining message synchronously
+    const processRemaining = async () => {
+      for (const msg of remainingMessages) {
+        try {
+          await this.saveMessageCallback(msg.role, msg.content);
+        } catch (error) {
+          console.error("Error saving message during disconnect:", error);
+        }
+      }
+    };
+    
+    // Start processing remaining messages
+    processRemaining();
+    
     try {
       // Close data channel
       if (this.dc) {

@@ -32,6 +32,8 @@ serve(async (req) => {
     if (authHeader) {
       try {
         const token = authHeader.replace('Bearer ', '');
+        console.log("Auth token received:", token ? "Present (not shown for security)" : "Missing");
+        
         const { data: { user }, error: userError } = await supabase.auth.getUser(token);
         
         if (userError) {
@@ -46,6 +48,8 @@ serve(async (req) => {
       } catch (authError) {
         console.error("Error parsing auth header:", authError);
       }
+    } else {
+      console.log("No Authorization header present");
     }
 
     // Get bot configuration
@@ -82,28 +86,37 @@ serve(async (req) => {
           // Fetch the most recent messages (limit to 10 for context window management)
           const { data: messages, error: messagesError } = await supabase
             .from('messages')
-            .select('role, content')
+            .select('role, content, created_at')
             .eq('conversation_id', conversationId)
-            .order('created_at', { ascending: true })
+            .order('created_at', { ascending: false })
             .limit(10);
           
           if (messagesError) {
             console.error("Error fetching messages:", messagesError);
           } else if (messages && messages.length > 0) {
-            recentMessages = messages;
+            // Reverse to get chronological order
+            recentMessages = messages.reverse();
             console.log(`Fetched ${messages.length} recent messages for context`);
             
             // Enhance instructions with conversation history
-            const historyContext = messages
-              .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
-              .join('\n');
+            const historyContext = recentMessages
+              .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content} (${new Date(msg.created_at).toLocaleString()})`)
+              .join('\n\n');
             
-            instructions = `${instructions}\n\nRecent conversation history:\n${historyContext}`;
+            instructions = `${instructions}\n\nYou have conversed with this user before. Here is the recent conversation history to maintain continuity:\n\n${historyContext}\n\nContinue the conversation naturally, acknowledging previous context when relevant. The user is expecting you to remember this history.`;
+            
+            console.log("Added conversation history to instructions");
+          } else {
+            console.log("No previous message history found");
+            instructions += "\n\nThis is your first conversation with this user.";
           }
         }
       } catch (historyError) {
         console.error("Error processing conversation history:", historyError);
       }
+    } else {
+      console.log("No authenticated user, skipping conversation history");
+      instructions += "\n\nNote: The user is not authenticated, so this conversation will not be remembered.";
     }
 
     // Request an ephemeral token from OpenAI

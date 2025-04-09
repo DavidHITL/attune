@@ -14,6 +14,7 @@ const RealtimeChat: React.FC = () => {
   const [isMicOn, setIsMicOn] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [hasContext, setHasContext] = useState(false);
+  const [messageCount, setMessageCount] = useState(0);
   const chatClientRef = useRef<RealtimeChatClient | null>(null);
   
   const { user } = useAuth();
@@ -29,6 +30,7 @@ const RealtimeChat: React.FC = () => {
   useEffect(() => {
     // Update conversation context indicator when messages change
     setHasContext(messages.length > 0);
+    setMessageCount(messages.length);
   }, [messages]);
 
   const handleMessageEvent = (event: any) => {
@@ -50,11 +52,20 @@ const RealtimeChat: React.FC = () => {
       // Microphone input has stopped
       setVoiceActivityState(VoiceActivityState.Idle);
     } else if (event.type === 'session.created') {
+      // Update context information from the response
+      if (event.hasHistory !== undefined) {
+        setHasContext(event.hasHistory);
+        setMessageCount(event.messageCount || 0);
+      }
+      
+      let toastMessage = "Connected to Voice AI";
+      let toastDescription = event.hasHistory ? 
+        `The assistant remembers your ${event.messageCount || 'previous'} message conversation.` : 
+        "Start speaking to interact with the AI";
+      
       toast({
-        title: "Connected to Voice AI",
-        description: hasContext ? 
-          "The assistant remembers your previous conversation." : 
-          "Start speaking to interact with the AI",
+        title: toastMessage,
+        description: toastDescription,
       });
     } else if (event.type === 'response.created') {
       // AI has started generating a response
@@ -75,9 +86,18 @@ const RealtimeChat: React.FC = () => {
     
     try {
       await saveMessage({ role, content });
-      console.log(`Saved ${role} message to database`);
+      console.log(`Saved ${role} message to database: "${content.substring(0, 30)}..."`);
     } catch (error) {
       console.error("Failed to save message:", error);
+      // Retry once after a short delay
+      setTimeout(async () => {
+        try {
+          await saveMessage({ role, content });
+          console.log(`Successfully retried saving ${role} message`);
+        } catch (retryError) {
+          console.error("Failed to save message after retry:", retryError);
+        }
+      }, 1000);
     }
   };
 
@@ -97,12 +117,7 @@ const RealtimeChat: React.FC = () => {
       setIsConnected(true);
       setIsMicOn(true);
       
-      toast({
-        title: "Voice assistant active",
-        description: hasContext ? 
-          "The assistant remembers your previous conversation." : 
-          "Speak to interact with the AI",
-      });
+      // The session.created event will handle showing the context-aware toast
     } catch (error) {
       console.error('Failed to start conversation:', error);
       toast({
@@ -153,10 +168,16 @@ const RealtimeChat: React.FC = () => {
   const renderMessages = () => {
     if (messages.length === 0) return null;
     
+    // Show only the last 5 messages to avoid cluttering the UI
+    const displayMessages = messages.slice(-5);
+    
     return (
       <div className="mb-8 mt-4 max-h-60 overflow-y-auto border border-attune-blue/30 rounded-lg p-4 bg-attune-blue/10">
-        <h3 className="text-sm font-medium mb-2 text-attune-purple">Conversation History</h3>
-        {messages.map((msg, index) => (
+        <h3 className="text-sm font-medium mb-2 text-attune-purple">
+          Recent Conversation History
+          {messages.length > 5 && ` (showing last ${displayMessages.length} of ${messages.length} messages)`}
+        </h3>
+        {displayMessages.map((msg, index) => (
           <div key={msg.id || index} className={`mb-3 ${msg.role === 'user' ? 'text-right' : ''}`}>
             <span className="text-xs text-attune-purple/70 block mb-1">
               {msg.role === 'user' ? 'You' : 'Assistant'}
@@ -193,6 +214,19 @@ const RealtimeChat: React.FC = () => {
         </div>
       </div>
 
+      {/* Conversation history indicator */}
+      {!user && !conversationLoading && (
+        <div className="text-center mb-4 p-2 bg-yellow-50 rounded-md text-yellow-700 text-sm">
+          <p>Sign in to enable conversation memory between sessions</p>
+        </div>
+      )}
+      
+      {user && hasContext && !isConnected && !conversationLoading && (
+        <div className="text-center mb-4 p-2 bg-green-50 rounded-md text-green-700 text-sm">
+          <p>The assistant will remember your previous {messageCount} message conversation</p>
+        </div>
+      )}
+
       {/* Conversation history (if any) */}
       {!conversationLoading && renderMessages()}
       
@@ -200,7 +234,7 @@ const RealtimeChat: React.FC = () => {
       {!isConnected && (
         <div className="text-center mb-6 text-attune-purple/80">
           <p>Press the microphone button below to start a voice conversation with the AI assistant.</p>
-          {messages.length > 0 && (
+          {messages.length > 0 && user && (
             <p className="mt-2 text-sm">
               The assistant will remember your previous conversation.
             </p>
