@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Message } from '@/utils/types';
 import { VoiceActivityState } from '../VoiceActivityIndicator';
@@ -40,8 +39,7 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
       
       {/* Voice interaction instructions */}
       {!isConnected && <div className="text-center my-6 text-attune-purple/80">
-          <p>Feel like talking?
-Attune remembers past conversations, so you can always pick up where you left off — or not.</p>
+          <p>Feel like talking? Attune remembers past conversations, and keeps them secret, so you can always pick up where you left off — or not.</p>
         </div>}
       
       {isConnected && <div className="text-center my-6 text-attune-purple/80">
