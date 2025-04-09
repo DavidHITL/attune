@@ -25,3 +25,9 @@ export const useBackground = (): BackgroundContextType => {
   }
   return context;
 };
+
+// Export common background colors for consistent use
+export const BACKGROUND_COLORS = {
+  BLUE: 'bg-attune-blue',
+  VOICE_BLUE: 'bg-[#6DAEDB]'  // Added new voice blue color
+};
