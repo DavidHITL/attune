@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -62,7 +63,7 @@ export default function Auth() {
       toast({
         title: "Logged in successfully",
       });
-      navigate("/");
+      navigate("/voice"); // Changed from "/" to "/voice"
     } catch (error: any) {
       console.error(error);
       toast({
