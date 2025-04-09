@@ -12,7 +12,7 @@ const Index = () => {
   }, [setBackgroundColor]);
 
   return (
-    <div className="min-h-screen bg-attune-blue flex flex-col items-center justify-between py-12 px-4 pt-20">
+    <div className="min-h-screen bg-attune-blue flex flex-col items-center justify-center py-12 px-4">
       <Toaster />
       <div className="w-full max-w-[390px]">
         <AttuneContent />
