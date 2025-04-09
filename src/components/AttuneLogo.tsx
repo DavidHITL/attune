@@ -11,7 +11,7 @@ const AttuneLogo: React.FC = () => {
         height="100"
         className="mb-2"
       />
-      <h1 className="text-5xl font-bold text-attune-purple">Attune</h1>
+      <h1 className="text-5xl font-bold text-attune-purple font-sans">Attune</h1>
     </div>
   );
 };
