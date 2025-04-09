@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,13 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				attune: {
+					blue: '#6DAEDB',
+					champagne: '#EEE0CB',
+					indigo: '#1B4965',
+					purple: '#310A31',
+					red: '#EA3546'
 				}
 			},
 			borderRadius: {
@@ -84,11 +92,24 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'sound-wave': {
+					'0%, 100%': {
+						height: '0.75rem'
+					},
+					'50%': {
+						height: '2rem'
+					}
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'sound-wave-1': 'sound-wave 1s ease-in-out infinite',
+				'sound-wave-2': 'sound-wave 1.2s ease-in-out infinite',
+				'sound-wave-3': 'sound-wave 1.5s ease-in-out infinite',
+				'sound-wave-4': 'sound-wave 0.8s ease-in-out infinite',
+				'sound-wave-5': 'sound-wave 1.3s ease-in-out infinite'
 			}
 		}
 	},
