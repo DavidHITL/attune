@@ -16,8 +16,8 @@ const AttuneContent = () => {
         </h2>
         <p className="text-attune-purple/80">
           {user 
-            ? 'Attune helps you stay connected through natural voice conversation with our intelligent AI assistant.'
-            : 'Experience natural voice conversation with our intelligent AI assistant. Sign in to get started.'}
+            ? 'Love isn\'t something that you have. It\'s something you do. And you can do it better.'
+            : 'Love isn\'t something that you have. It\'s something you do. And you can do it better.'}
         </p>
         
         {!user && (
