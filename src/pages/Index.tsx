@@ -12,7 +12,7 @@ const Index = () => {
       <div className="flex-1 flex flex-col items-center w-full max-w-4xl">
         <AttuneLogo />
         
-        <div className="w-full mt-10 h-[500px] max-h-[60vh]">
+        <div className="w-full mt-10 h-[500px] max-h-[60vh] flex flex-col">
           <RealtimeChat />
         </div>
       </div>
