@@ -20,51 +20,110 @@ serve(async (req) => {
       });
     }
     
-    console.log("Received update request with new instructions:");
-    console.log("Instructions length:", instructions.length);
-    console.log("Instructions excerpt:", instructions.substring(0, 200) + "...");
+    console.log("[UPDATE-INSTRUCTIONS] Received update request for new instructions");
+    console.log("[UPDATE-INSTRUCTIONS] Instructions length:", instructions.length);
+    console.log("[UPDATE-INSTRUCTIONS] Instructions excerpt:", instructions.substring(0, 200) + "...");
     
-    // Update the most recent bot config
-    const { data, error } = await supabase
+    // First, check if the instructions already exist to avoid unnecessary updates
+    const { data: existingConfig, error: checkError } = await supabase
       .from('bot_config')
-      .update({ 
-        instructions: instructions,
-        updated_at: new Date().toISOString()
-      })
+      .select('instructions, id')
       .order('created_at', { ascending: false })
       .limit(1);
-    
-    if (error) {
-      console.error("Error updating bot instructions:", error);
-      throw error;
-    }
-    
-    // After updating, verify the update by fetching the latest bot config
-    const { data: verifyConfig, error: verifyError } = await supabase
-      .from('bot_config')
-      .select('instructions')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
       
-    if (verifyError) {
-      console.error("Error verifying updated instructions:", verifyError);
-    } else {
-      console.log("Instructions updated and verified successfully");
-      console.log("Verified instructions length:", verifyConfig.instructions.length);
-      console.log("Verified instructions excerpt:", verifyConfig.instructions.substring(0, 200) + "...");
+    if (checkError) {
+      console.error("[UPDATE-INSTRUCTIONS] Error checking existing config:", checkError);
+      throw checkError;
     }
     
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: "Instructions updated successfully",
-      length: instructions.length,
-      verified: verifyError ? false : true
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    if (existingConfig && existingConfig.length > 0) {
+      const currentInstructions = existingConfig[0].instructions;
+      
+      // Check if the instructions are already set to what we want
+      if (currentInstructions.trim() === instructions.trim()) {
+        console.log("[UPDATE-INSTRUCTIONS] Instructions are already up to date, no changes needed");
+        
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: "Instructions already up to date, no changes made",
+          id: existingConfig[0].id
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      console.log("[UPDATE-INSTRUCTIONS] Updating existing instructions");
+      console.log("[UPDATE-INSTRUCTIONS] Current instructions length:", currentInstructions.length);
+      console.log("[UPDATE-INSTRUCTIONS] Current instructions excerpt:", currentInstructions.substring(0, 200) + "...");
+      
+      // Update the most recent bot config
+      const { data: updateData, error: updateError } = await supabase
+        .from('bot_config')
+        .update({ 
+          instructions: instructions,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingConfig[0].id)
+        .select();
+      
+      if (updateError) {
+        console.error("[UPDATE-INSTRUCTIONS] Error updating bot instructions:", updateError);
+        throw updateError;
+      }
+      
+      console.log("[UPDATE-INSTRUCTIONS] Instructions updated successfully for ID:", existingConfig[0].id);
+      
+      // Verify the update was successful
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('bot_config')
+        .select('instructions')
+        .eq('id', existingConfig[0].id)
+        .single();
+        
+      if (verifyError) {
+        console.error("[UPDATE-INSTRUCTIONS] Error verifying update:", verifyError);
+      } else {
+        console.log("[UPDATE-INSTRUCTIONS] Verified instructions length:", verifyData.instructions.length);
+        console.log("[UPDATE-INSTRUCTIONS] Verified instructions match:", verifyData.instructions.length === instructions.length);
+      }
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: "Instructions updated successfully",
+        id: existingConfig[0].id
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } else {
+      // If no existing config, create a new one
+      console.log("[UPDATE-INSTRUCTIONS] No existing config found, creating new one");
+      
+      const { data: insertData, error: insertError } = await supabase
+        .from('bot_config')
+        .insert([{ 
+          instructions: instructions,
+          name: 'Default Bot',
+          voice: 'alloy'
+        }])
+        .select();
+      
+      if (insertError) {
+        console.error("[UPDATE-INSTRUCTIONS] Error inserting bot instructions:", insertError);
+        throw insertError;
+      }
+      
+      console.log("[UPDATE-INSTRUCTIONS] New instructions created successfully");
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: "New instructions created successfully",
+        id: insertData[0].id
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
   } catch (error) {
-    console.error("Error:", error);
+    console.error("[UPDATE-INSTRUCTIONS] Error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
