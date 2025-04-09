@@ -6,8 +6,14 @@ export class AudioRecorder {
   private audioContext: AudioContext | null = null;
   private processor: ScriptProcessorNode | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
+  private isPaused: boolean = false;
+  private audioActivityTimeout: ReturnType<typeof setTimeout> | null = null;
+  private activityThreshold: number = 0.01;
 
-  constructor(private onAudioData: (audioData: Float32Array) => void) {}
+  constructor(
+    private onAudioData: (audioData: Float32Array) => void,
+    private onAudioActivity: (isActive: boolean) => void
+  ) {}
 
   async start() {
     try {
@@ -29,7 +35,13 @@ export class AudioRecorder {
       this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
       
       this.processor.onaudioprocess = (e) => {
+        if (this.isPaused) return;
+        
         const inputData = e.inputBuffer.getChannelData(0);
+        
+        // Check for audio activity
+        this.detectAudioActivity(inputData);
+        
         this.onAudioData(new Float32Array(inputData));
       };
       
@@ -41,7 +53,45 @@ export class AudioRecorder {
     }
   }
 
+  private detectAudioActivity(audioData: Float32Array) {
+    // Calculate RMS (root mean square) to determine audio activity
+    let sum = 0;
+    for (let i = 0; i < audioData.length; i++) {
+      sum += audioData[i] * audioData[i];
+    }
+    const rms = Math.sqrt(sum / audioData.length);
+    
+    // If RMS is above threshold, consider it as audio activity
+    if (rms > this.activityThreshold) {
+      if (this.audioActivityTimeout) {
+        clearTimeout(this.audioActivityTimeout);
+      } else {
+        // Activity just started
+        this.onAudioActivity(true);
+      }
+      
+      // Set a timeout to detect when activity stops
+      this.audioActivityTimeout = setTimeout(() => {
+        this.onAudioActivity(false);
+        this.audioActivityTimeout = null;
+      }, 500); // 500ms silence to consider activity stopped
+    }
+  }
+
+  pause() {
+    this.isPaused = true;
+  }
+
+  resume() {
+    this.isPaused = false;
+  }
+
   stop() {
+    if (this.audioActivityTimeout) {
+      clearTimeout(this.audioActivityTimeout);
+      this.audioActivityTimeout = null;
+    }
+    
     if (this.source) {
       this.source.disconnect();
       this.source = null;
@@ -67,6 +117,7 @@ export class RealtimeChat {
   private audioEl: HTMLAudioElement;
   private recorder: AudioRecorder | null = null;
   private isConnected: boolean = false;
+  private isMuted: boolean = false;
 
   constructor(private onMessage: (message: any) => void, private onStatusChange: (status: string) => void) {
     this.audioEl = document.createElement("audio");
@@ -99,6 +150,7 @@ export class RealtimeChat {
       this.pc.ontrack = e => {
         console.log("Remote track received", e);
         this.audioEl.srcObject = e.streams[0];
+        this.audioEl.muted = this.isMuted;
       };
 
       // Add local audio track
@@ -172,14 +224,25 @@ export class RealtimeChat {
       console.log("WebRTC connection established");
 
       // Start recording
-      this.recorder = new AudioRecorder((audioData) => {
-        if (this.dc?.readyState === 'open') {
-          this.dc.send(JSON.stringify({
-            type: 'input_audio_buffer.append',
-            audio: this.encodeAudioData(audioData)
-          }));
+      this.recorder = new AudioRecorder(
+        // Audio data handler
+        (audioData) => {
+          if (this.dc?.readyState === 'open') {
+            this.dc.send(JSON.stringify({
+              type: 'input_audio_buffer.append',
+              audio: this.encodeAudioData(audioData)
+            }));
+          }
+        },
+        // Audio activity handler
+        (isActive) => {
+          if (isActive) {
+            this.onMessage({ type: 'input_audio_activity_started' });
+          } else {
+            this.onMessage({ type: 'input_audio_activity_stopped' });
+          }
         }
-      });
+      );
       await this.recorder.start();
 
     } catch (error) {
@@ -262,6 +325,21 @@ export class RealtimeChat {
 
     this.dc.send(JSON.stringify(event));
     this.dc.send(JSON.stringify({type: 'response.create'}));
+  }
+
+  pauseMicrophone() {
+    this.recorder?.pause();
+  }
+
+  resumeMicrophone() {
+    this.recorder?.resume();
+  }
+
+  setMuted(muted: boolean) {
+    this.isMuted = muted;
+    if (this.audioEl) {
+      this.audioEl.muted = muted;
+    }
   }
 
   disconnect() {

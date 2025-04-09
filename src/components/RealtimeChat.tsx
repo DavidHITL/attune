@@ -3,11 +3,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/RealtimeAudio';
 import CallControls from '@/components/CallControls';
+import VoiceActivityIndicator from './VoiceActivityIndicator';
 
 const RealtimeChat: React.FC = () => {
   const [status, setStatus] = useState<string>("Disconnected");
   const [isConnected, setIsConnected] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [isMicOn, setIsMicOn] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const chatClientRef = useRef<RealtimeChatClient | null>(null);
@@ -28,6 +30,12 @@ const RealtimeChat: React.FC = () => {
     } else if (event.type === 'response.audio.done') {
       // Audio finished playing
       setIsSpeaking(false);
+    } else if (event.type === 'input_audio_activity_started') {
+      // Microphone input is active
+      setIsListening(true);
+    } else if (event.type === 'input_audio_activity_stopped') {
+      // Microphone input has stopped
+      setIsListening(false);
     } else if (event.type === 'session.created') {
       toast({
         title: "Connected to Voice AI",
@@ -69,6 +77,7 @@ const RealtimeChat: React.FC = () => {
     chatClientRef.current?.disconnect();
     setIsConnected(false);
     setIsSpeaking(false);
+    setIsListening(false);
     setIsMicOn(false);
     setStatus("Disconnected");
     
@@ -83,15 +92,23 @@ const RealtimeChat: React.FC = () => {
       startConversation();
     } else {
       setIsMicOn(!isMicOn);
-      // Here you would add logic to actually mute the microphone input
-      // This would need to be implemented in the RealtimeAudio.ts utility
+      if (chatClientRef.current) {
+        // Toggle microphone state in the RealtimeAudio utility
+        if (isMicOn) {
+          chatClientRef.current.pauseMicrophone();
+        } else {
+          chatClientRef.current.resumeMicrophone();
+        }
+      }
     }
   };
 
   const toggleMute = () => {
     setIsMuted(!isMuted);
-    // Here you would add logic to actually mute the audio output
-    // This would need to be implemented in the RealtimeAudio.ts utility
+    if (chatClientRef.current) {
+      // Toggle audio output mute state in the RealtimeAudio utility
+      chatClientRef.current.setMuted(!isMuted);
+    }
   };
 
   return (
@@ -101,8 +118,25 @@ const RealtimeChat: React.FC = () => {
         <div className="text-xl font-semibold mb-2">
           {isConnected ? "Voice Assistant Active" : "Voice Assistant"}
         </div>
-        <div className="text-sm">
-          Status: {status} {isSpeaking && " (Speaking...)"}
+        <div className="text-sm flex flex-col items-center justify-center gap-2">
+          <div>Status: {status}</div>
+          
+          {/* Voice activity indicators */}
+          <div className="flex flex-col gap-2 mt-2">
+            {isSpeaking && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs">AI speaking:</span>
+                <VoiceActivityIndicator isActive={isSpeaking} activityType="output" />
+              </div>
+            )}
+            
+            {isListening && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs">Listening:</span>
+                <VoiceActivityIndicator isActive={isListening} activityType="input" />
+              </div>
+            )}
+          </div>
         </div>
       </div>
       
