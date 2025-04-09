@@ -7,27 +7,46 @@ export async function requestOpenAIToken(instructions: string, voice: string): P
 
   console.log("[REALTIME-TOKEN] Preparing to send instructions to OpenAI");
   console.log("[REALTIME-TOKEN] Instructions length:", instructions.length);
-  console.log("[REALTIME-TOKEN] Instructions first 200 chars:", instructions.substring(0, 200));
-  console.log("[REALTIME-TOKEN] Instructions last 200 chars:", instructions.substring(instructions.length - 200));
+  console.log("[REALTIME-TOKEN] Instructions first 100 chars:", instructions.substring(0, 100));
+  console.log("[REALTIME-TOKEN] Instructions last 100 chars:", instructions.substring(instructions.length - 100));
   console.log("[REALTIME-TOKEN] Voice setting:", voice);
-
-  // Check if instructions contain key phrases from Terry Real approach
-  const terryRealPhrases = [
-    "Terry Real", "harmony-disharmony-repair", "adaptive child", "wise adult", "losing strategies"
-  ];
   
-  terryRealPhrases.forEach(phrase => {
-    const containsPhrase = instructions.includes(phrase);
-    console.log(`[REALTIME-TOKEN] Final instructions contain "${phrase}": ${containsPhrase}`);
-  });
+  // Ensure the Terry Real therapy approach is explicitly included
+  const terryRealApproach = "Act as a couples coach using Terry Real's approach, blending direct advice and thought-provoking questions. Focus on core concepts like the harmony-disharmony-repair cycle, the adaptive child versus the wise adult, and the five losing strategies.";
+  
+  // Check if instructions already contain Terry Real approach
+  const containsTerryReal = instructions.includes("Terry Real") && 
+    instructions.includes("harmony-disharmony-repair");
+    
+  console.log(`[REALTIME-TOKEN] Instructions already contain Terry Real approach: ${containsTerryReal}`);
+  
+  // If Terry Real approach is not in the instructions, prepend it
+  let finalInstructions = instructions;
+  if (!containsTerryReal) {
+    console.log("[REALTIME-TOKEN] Adding Terry Real approach to instructions");
+    finalInstructions = terryRealApproach + "\n\n" + instructions;
+    console.log("[REALTIME-TOKEN] New instructions length:", finalInstructions.length);
+  }
 
   try {
-    console.log("[REALTIME-TOKEN] Sending request to OpenAI API");
+    console.log("[REALTIME-TOKEN] Sending request to OpenAI API with final instructions");
+    console.log("[REALTIME-TOKEN] Final instructions first 200 chars:", finalInstructions.substring(0, 200));
+    console.log("[REALTIME-TOKEN] Final instructions last 200 chars:", finalInstructions.substring(finalInstructions.length - 200));
+    
+    // Check if final instructions contain key phrases from Terry Real approach
+    const terryRealPhrases = [
+      "Terry Real", "harmony-disharmony-repair", "adaptive child", "wise adult", "losing strategies"
+    ];
+    
+    terryRealPhrases.forEach(phrase => {
+      const containsPhrase = finalInstructions.includes(phrase);
+      console.log(`[REALTIME-TOKEN] Final instructions contain "${phrase}": ${containsPhrase}`);
+    });
     
     const requestBody = {
       model: "gpt-4o-realtime-preview-2024-12-17",
       voice: voice,
-      instructions: instructions
+      instructions: finalInstructions
     };
     
     const response = await fetch("https://api.openai.com/v1/realtime/sessions", {

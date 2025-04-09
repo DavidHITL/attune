@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -158,6 +159,7 @@ const Admin = () => {
             <Button 
               onClick={updateInstructionsWithTerryReal} 
               disabled={updatingInstructions}
+              className="bg-green-600 hover:bg-green-700"
             >
               {updatingInstructions ? 'Updating...' : 'Update to Terry Real Approach'}
             </Button>
