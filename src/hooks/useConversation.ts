@@ -95,6 +95,11 @@ export const useConversation = () => {
       if (validMessages.length > 0) {
         console.log("First message:", validMessages[0].content.substring(0, 30) + "...");
         console.log("Last message:", validMessages[validMessages.length - 1].content.substring(0, 30) + "...");
+        
+        // Log all messages for debugging
+        validMessages.forEach((msg, index) => {
+          console.log(`Message ${index + 1} - ${msg.role}: ${msg.content.substring(0, 30)}...`);
+        });
       }
       
       setMessages(validMessages);
@@ -141,6 +146,20 @@ export const useConversation = () => {
       
       console.log(`Message saved successfully with ID: ${validatedMessage.id}`);
       setMessages(prev => [...prev, validatedMessage]);
+      
+      // Check database to verify the message was actually stored
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('messages')
+        .select('id, role, content')
+        .eq('id', validatedMessage.id)
+        .single();
+        
+      if (verifyError) {
+        console.error('Error verifying message was saved:', verifyError);
+      } else {
+        console.log('Verified message in database:', verifyData);
+      }
+      
       return validatedMessage;
     } catch (error) {
       console.error('Error saving message:', error);

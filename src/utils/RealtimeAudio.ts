@@ -31,6 +31,8 @@ export class RealtimeChat {
   private hasReceivedSessionCreated: boolean = false;
   private userTranscript: string = '';
   private assistantResponse: string = '';
+  private pendingAssistantMessage: boolean = false;
+  private savedCurrentAssistantId: string | null = null;
   
   constructor(
     messageCallback: MessageCallback,
@@ -47,6 +49,7 @@ export class RealtimeChat {
   async init() {
     try {
       this.statusCallback("Connecting...");
+      console.log("Initializing WebRTC connection");
       
       // Get auth token to pass to the edge function
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -104,7 +107,7 @@ export class RealtimeChat {
       this.dc.onmessage = (event) => {
         try {
           const parsedEvent = JSON.parse(event.data);
-          console.log("WebRTC event:", parsedEvent);
+          console.log("WebRTC event:", parsedEvent.type);
           this.messageCallback(parsedEvent);
 
           // Mark session as created when we receive that event
@@ -113,7 +116,7 @@ export class RealtimeChat {
             console.log("Session created event received");
           }
           
-          // Process events for user messages (improved event handling)
+          // Process events for user messages
           if (parsedEvent.type === "response.audio_transcript.delta" && parsedEvent.delta?.text) {
             // Accumulate transcript text
             this.userTranscript += parsedEvent.delta.text;
@@ -138,22 +141,30 @@ export class RealtimeChat {
             }
           }
           
-          // Process events for assistant messages (improved event handling)
+          // Process events for assistant messages
+          if (parsedEvent.type === "response.created") {
+            console.log("Assistant response started, setting pendingAssistantMessage flag");
+            this.pendingAssistantMessage = true;
+            this.assistantResponse = '';
+          }
+          
           if (parsedEvent.type === "response.delta" && parsedEvent.delta?.content) {
             // Accumulate assistant response
-            this.assistantResponse += parsedEvent.delta.content;
-            console.log(`Accumulating assistant response: ${this.assistantResponse.substring(0, 50)}${this.assistantResponse.length > 50 ? '...' : ''}`);
+            if (this.pendingAssistantMessage) {
+              this.assistantResponse += parsedEvent.delta.content;
+              console.log(`Accumulating assistant response: ${this.assistantResponse.substring(0, 50)}${this.assistantResponse.length > 50 ? '...' : ''}`);
+            }
           }
           
           if (parsedEvent.type === "response.done") {
             // Save the complete assistant response
-            if (this.assistantResponse && this.assistantResponse.trim()) {
+            if (this.pendingAssistantMessage && this.assistantResponse && this.assistantResponse.trim()) {
               console.log("Saving complete assistant response:", this.assistantResponse.substring(0, 50) + (this.assistantResponse.length > 50 ? '...' : ''));
               this.queueMessage('assistant', this.assistantResponse);
-              // Reset response accumulator
+              this.pendingAssistantMessage = false;
               this.assistantResponse = '';
             } else {
-              console.log("Empty assistant response, not saving");
+              console.log("Empty assistant response, not saving. pendingFlag:", this.pendingAssistantMessage, "content length:", this.assistantResponse?.length || 0);
             }
           }
         } catch (e) {
@@ -241,7 +252,16 @@ export class RealtimeChat {
     // Check if we've saved the same message recently (debounce)
     const now = Date.now();
     if (now - this.lastMessageSentTime < this.minTimeBetweenMessages) {
-      console.log(`Message received too quickly after previous one, might be duplicate`);
+      console.log(`Message received too quickly after previous one, checking for duplicates`);
+      
+      // Check for duplicate content in queue
+      if (this.messageQueue.some(msg => 
+        msg.role === role && 
+        msg.content.trim() === content.trim()
+      )) {
+        console.log(`Duplicate ${role} message detected, skipping`);
+        return;
+      }
     }
     
     this.lastMessageSentTime = now;
@@ -398,10 +418,21 @@ export class RealtimeChat {
   }
   
   disconnect() {
-    // Force process any remaining messages in the queue synchronously
     console.log(`Disconnecting with ${this.messageQueue.length} messages in queue`);
     
-    // Process any remaining messages in the queue
+    // If there's a pending assistant message, save it now
+    if (this.pendingAssistantMessage && this.assistantResponse && this.assistantResponse.trim()) {
+      console.log("Saving pending assistant response during disconnect:", this.assistantResponse.substring(0, 30) + "...");
+      // Add directly to queue for processing
+      this.messageQueue.push({ 
+        role: 'assistant', 
+        content: this.assistantResponse 
+      });
+      this.assistantResponse = '';
+      this.pendingAssistantMessage = false;
+    }
+    
+    // Process any remaining messages in the queue synchronously
     const remainingMessages = [...this.messageQueue];
     this.messageQueue = [];
     
@@ -424,15 +455,6 @@ export class RealtimeChat {
           await this.saveMessageCallback('user', this.userTranscript);
         } catch (error) {
           console.error("Error saving partial user transcript during disconnect:", error);
-        }
-      }
-      
-      if (this.assistantResponse && this.assistantResponse.trim()) {
-        try {
-          console.log("Saving partial assistant response during disconnect:", this.assistantResponse);
-          await this.saveMessageCallback('assistant', this.assistantResponse);
-        } catch (error) {
-          console.error("Error saving partial assistant response during disconnect:", error);
         }
       }
     };

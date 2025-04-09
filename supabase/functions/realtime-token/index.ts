@@ -85,13 +85,13 @@ serve(async (req) => {
           const conversationId = conversationResult;
           console.log("Using conversation ID:", conversationId);
           
-          // Fetch the messages (increased from 20 to 30 for better context)
+          // Fetch the messages (increased from 30 to 50 for better context)
           const { data: messages, error: messagesError } = await supabase
             .from('messages')
             .select('role, content, created_at')
             .eq('conversation_id', conversationId)
             .order('created_at', { ascending: false })
-            .limit(30);
+            .limit(50);
           
           if (messagesError) {
             console.error("Error fetching messages:", messagesError);
@@ -112,6 +112,13 @@ serve(async (req) => {
             console.log("History length:", historyContext.length, "characters");
             console.log("First message:", recentMessages[0]?.content?.substring(0, 30) || "None");
             console.log("Last message:", recentMessages[recentMessages.length - 1]?.content?.substring(0, 30) || "None");
+            
+            // Log complete message list for debugging
+            console.log("Full message list:", recentMessages.map(m => ({
+              role: m.role,
+              content_preview: m.content.substring(0, 20) + "...",
+              time: m.created_at
+            })));
           } else {
             console.log("No previous message history found");
             instructions += "\n\nThis is your first conversation with this user.";
