@@ -1,4 +1,7 @@
+
 import { MediaRecorderState } from '@/utils/types';
+import { SilenceDetector } from './SilenceDetector';
+import { ActivityMonitor } from './ActivityMonitor';
 
 export class AudioProcessor {
   private mediaRecorder: MediaRecorder | null = null;
@@ -6,11 +9,8 @@ export class AudioProcessor {
   private audioChunks: Blob[] = [];
   private microphoneActive: boolean = false;
   private activityCallback: (state: 'start' | 'stop') => void;
-  private audioContext: AudioContext | null = null;
-  private analyser: AnalyserNode | null = null;
-  private microphone: MediaStreamAudioSourceNode | null = null;
-  private processorNode: AudioWorkletNode | null = null;
-  private silenceDetectionInterval: number | null = null;
+  private silenceDetector: SilenceDetector | null = null;
+  private activityMonitor: ActivityMonitor | null = null;
   
   constructor(activityCallback: (state: 'start' | 'stop') => void) {
     this.activityCallback = activityCallback;
@@ -33,24 +33,17 @@ export class AudioProcessor {
       throw new Error("Audio stream is not initialized. Call initMicrophone first.");
     }
     
-    this.audioContext = new AudioContext();
-    await this.audioContext.audioWorklet.addModule('/silence-detect.js');
+    // Create silence detector with the audio stream
+    this.silenceDetector = new SilenceDetector(this.audioStream);
+    await this.silenceDetector.initialize();
     
-    this.analyser = this.audioContext.createAnalyser();
-    this.analyser.fftSize = 2048;
+    // Set up callback from silence detector to stop recording when silence is detected
+    this.silenceDetector.onSilenceDetected(() => {
+      this.stopRecording();
+    });
     
-    this.microphone = this.audioContext.createMediaStreamSource(this.audioStream);
-    this.processorNode = new AudioWorkletNode(this.audioContext, 'silence-detect');
-    
-    this.microphone.connect(this.analyser);
-    this.analyser.connect(this.processorNode);
-    this.processorNode.connect(this.audioContext.destination);
-    
-    this.processorNode.port.onmessage = (event) => {
-      if (event.data.silenceDetected) {
-        this.stopRecording();
-      }
-    };
+    // Create activity monitor
+    this.activityMonitor = new ActivityMonitor(this.audioStream);
   }
   
   startRecording() {
@@ -132,30 +125,18 @@ export class AudioProcessor {
       this.audioStream = null;
     }
     
-    if (this.audioContext) {
-      this.audioContext.close();
-      this.audioContext = null;
-    }
-    
     if (this.mediaRecorder) {
       this.mediaRecorder = null;
     }
     
-    if (this.analyser) {
-      this.analyser = null;
+    if (this.silenceDetector) {
+      this.silenceDetector.cleanup();
+      this.silenceDetector = null;
     }
     
-    if (this.microphone) {
-      this.microphone = null;
-    }
-    
-    if (this.processorNode) {
-      this.processorNode = null;
-    }
-    
-    if (this.silenceDetectionInterval) {
-      clearInterval(this.silenceDetectionInterval);
-      this.silenceDetectionInterval = null;
+    if (this.activityMonitor) {
+      this.activityMonitor.cleanup();
+      this.activityMonitor = null;
     }
     
     this.audioChunks = [];
