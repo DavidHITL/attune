@@ -1,8 +1,7 @@
 
 import React from 'react';
-import { MessageCircle, UserRound } from 'lucide-react';
 import AttuneLogo from './AttuneLogo';
-import { Avatar, AvatarFallback } from './ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 
 const Navigation: React.FC = () => {
   return (
@@ -26,7 +25,11 @@ const Navigation: React.FC = () => {
       <div className="flex items-center">
         <Avatar className="h-8 w-8 bg-attune-blue/30">
           <AvatarFallback>
-            <UserRound className="h-5 w-5 text-attune-purple" />
+            <img 
+              src="/lovable-uploads/45c09431-d0ed-467e-b0f5-40024c798d85.png"
+              alt="User Icon"
+              className="h-5 w-5"
+            />
           </AvatarFallback>
         </Avatar>
       </div>
