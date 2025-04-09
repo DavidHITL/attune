@@ -1,6 +1,7 @@
 
 import React from 'react';
 import VoiceActivityIndicator, { VoiceActivityState } from '../VoiceActivityIndicator';
+import AttuneLogo from '@/components/AttuneLogo';
 
 interface StatusIndicatorProps {
   status: string;
@@ -15,8 +16,8 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({
 }) => {
   return (
     <div className="text-center text-attune-purple mb-4 mt-4">
-      <div className="text-xl font-semibold mb-2">
-        {isConnected ? "Voice Assistant Active" : "Voice Assistant"}
+      <div className="mb-2">
+        <AttuneLogo />
       </div>
       <div className="text-sm flex flex-col items-center justify-center gap-2">
         <div>Status: {status}</div>
