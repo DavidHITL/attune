@@ -36,12 +36,12 @@ const CallControls: React.FC<CallControlsProps> = ({
         onClick={handleToggleMic}
         variant="outline"
         size="icon"
-        className="w-20 h-20 rounded-full bg-attune-blue/20 border-none backdrop-blur-md shadow-lg hover:bg-attune-blue/30 transition-all"
+        className="w-24 h-24 rounded-full bg-attune-blue/20 border-none backdrop-blur-md shadow-lg hover:bg-attune-blue/30 transition-all"
       >
         {isMicOn ? (
-          <Mic className="h-12 w-12 text-attune-purple" strokeWidth={2.5} />
+          <Mic className="h-14 w-14 text-attune-purple" strokeWidth={2.5} />
         ) : (
-          <MicOff className="h-12 w-12 text-attune-purple" strokeWidth={2.5} />
+          <MicOff className="h-14 w-14 text-attune-purple" strokeWidth={2.5} />
         )}
       </Button>
 
@@ -49,12 +49,12 @@ const CallControls: React.FC<CallControlsProps> = ({
         onClick={handleToggleMute}
         variant="outline"
         size="icon"
-        className="w-20 h-20 rounded-full bg-attune-blue/20 border-none backdrop-blur-md shadow-lg hover:bg-attune-blue/30 transition-all"
+        className="w-24 h-24 rounded-full bg-attune-blue/20 border-none backdrop-blur-md shadow-lg hover:bg-attune-blue/30 transition-all"
       >
         {isMuted ? (
-          <VolumeX className="h-12 w-12 text-attune-purple" strokeWidth={2.5} />
+          <VolumeX className="h-14 w-14 text-attune-purple" strokeWidth={2.5} />
         ) : (
-          <Volume className="h-12 w-12 text-attune-purple" strokeWidth={2.5} />
+          <Volume className="h-14 w-14 text-attune-purple" strokeWidth={2.5} />
         )}
       </Button>
 
@@ -62,9 +62,9 @@ const CallControls: React.FC<CallControlsProps> = ({
         onClick={handleEndCall}
         variant="outline"
         size="icon"
-        className="w-20 h-20 rounded-full bg-attune-blue/20 border-none backdrop-blur-md shadow-lg hover:bg-attune-blue/30 transition-all"
+        className="w-24 h-24 rounded-full bg-attune-blue/20 border-none backdrop-blur-md shadow-lg hover:bg-attune-blue/30 transition-all"
       >
-        <X className="h-12 w-12 text-attune-purple" strokeWidth={2.5} />
+        <X className="h-14 w-14 text-attune-purple" strokeWidth={2.5} />
       </Button>
     </div>
   );

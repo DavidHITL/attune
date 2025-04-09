@@ -4,6 +4,7 @@ import { Message } from '@/utils/types';
 import { VoiceActivityState } from '../VoiceActivityIndicator';
 import CallControls from '@/components/CallControls';
 import AttuneLogo from '@/components/AttuneLogo';
+
 interface VoiceAssistantDisplayProps {
   user: any;
   status: string;
@@ -49,8 +50,8 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
 
       {/* Call controls */}
       <div className="flex justify-center mt-auto mb-6">
-        {!isConnected ? <div onClick={onStartConversation} className="w-20 h-20 rounded-full bg-attune-blue/20 border-none shadow-lg hover:bg-attune-blue/30 transition-all cursor-pointer flex items-center justify-center">
-            <div className="h-12 w-12 text-attune-purple">
+        {!isConnected ? <div onClick={onStartConversation} className="w-24 h-24 rounded-full bg-attune-blue/20 border-none shadow-lg hover:bg-attune-blue/30 transition-all cursor-pointer flex items-center justify-center">
+            <div className="h-14 w-14 text-attune-purple">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
