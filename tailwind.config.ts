@@ -24,7 +24,7 @@ const config = {
         sans: ["system-ui", "sans-serif", ...fontFamily.sans],
       },
       colors: {
-        "attune-blue": "#EBF9FA",
+        "attune-blue": "#EEE0CB", // Updated from EBF9FA to EEE0CB
         "attune-purple": "#000000",
         "attune-indigo": "#000000",
         border: "hsl(var(--border))",
