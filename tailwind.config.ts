@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss"
 import { fontFamily } from "tailwindcss/defaultTheme"
 
@@ -20,6 +19,9 @@ const config = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Arial', ...fontFamily.sans],
+      },
       colors: {
         "attune-blue": "#EBF9FA",
         "attune-purple": "#7E22CD",
