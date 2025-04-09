@@ -11,6 +11,7 @@ export class RealtimeChat {
   private responseParser: ResponseParser;
   private eventHandler: EventHandler;
   private isMuted: boolean = false;
+  private microphonePaused: boolean = false;
   
   constructor(
     private messageCallback: MessageCallback,
@@ -60,28 +61,49 @@ export class RealtimeChat {
   }
   
   pauseMicrophone() {
-    console.log("RealtimeChat: Pausing microphone");
+    console.log("[RealtimeChat] Pausing microphone - standard pause");
+    this.microphonePaused = true;
     this.connectionManager.pauseMicrophone();
   }
   
   resumeMicrophone() {
     // Only resume if not muted
     if (!this.isMuted) {
-      console.log("RealtimeChat: Resuming microphone");
+      console.log("[RealtimeChat] Resuming microphone - standard resume");
+      this.microphonePaused = false;
       this.connectionManager.resumeMicrophone();
     } else {
-      console.log("RealtimeChat: Not resuming microphone because audio is muted");
+      console.log("[RealtimeChat] Not resuming microphone because audio is muted");
+    }
+  }
+
+  // Force methods to ensure microphone state
+  forceStopMicrophone() {
+    console.log("[RealtimeChat] Force stopping microphone");
+    this.microphonePaused = true;
+    this.connectionManager.forcePauseMicrophone();
+  }
+  
+  forceResumeMicrophone() {
+    if (!this.isMuted) {
+      console.log("[RealtimeChat] Force resuming microphone");
+      this.microphonePaused = false;
+      this.connectionManager.forceResumeMicrophone();
     }
   }
   
+  isMicrophonePaused() {
+    return this.microphonePaused;
+  }
+  
   setMuted(muted: boolean) {
-    console.log("RealtimeChat: Setting muted state to", muted);
+    console.log("[RealtimeChat] Setting muted state to", muted);
     this.isMuted = muted;
     this.connectionManager.setMuted(muted);
     
     // When muting, always pause microphone
     if (muted) {
-      this.pauseMicrophone();
+      this.forceStopMicrophone();
     }
     // When unmuting, the microphone state will be managed by the calling code
   }

@@ -43,6 +43,15 @@ export class ConnectionManager {
     this.audioProcessor.resumeMicrophone();
   }
   
+  // Force methods to ensure microphone state is set correctly
+  forcePauseMicrophone(): void {
+    this.audioProcessor.forcePauseMicrophone();
+  }
+  
+  forceResumeMicrophone(): void {
+    this.audioProcessor.forceResumeMicrophone();
+  }
+  
   setMuted(muted: boolean): void {
     this.webRTCConnection.setMuted(muted);
   }

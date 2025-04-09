@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
 import { toast } from '@/components/ui/use-toast';
 
@@ -14,6 +14,14 @@ export const useMicrophoneControls = (
   const [isMicOn, setIsMicOn] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
 
+  // Synchronize mic state with chatClient's state
+  useEffect(() => {
+    if (chatClientRef.current && isConnected) {
+      // Set initial state based on current chatClient state
+      setIsMicOn(!chatClientRef.current.isMicrophonePaused());
+    }
+  }, [chatClientRef, isConnected]);
+
   const toggleMicrophone = useCallback(() => {
     if (!isConnected) {
       startConversation();
@@ -24,8 +32,10 @@ export const useMicrophoneControls = (
         // Toggle microphone state in the RealtimeAudio utility
         if (!newMicState) {
           chatClientRef.current.pauseMicrophone();
+          console.log("[useMicrophoneControls] Mic turned OFF");
         } else {
           chatClientRef.current.resumeMicrophone();
+          console.log("[useMicrophoneControls] Mic turned ON");
         }
       }
     }
@@ -36,18 +46,19 @@ export const useMicrophoneControls = (
     setIsMuted(newMuteState);
     
     if (chatClientRef.current) {
-      // First, toggle the audio output mute state
+      // Apply the mute state to the chat client
       chatClientRef.current.setMuted(newMuteState);
+      console.log(`[useMicrophoneControls] Mute toggled to: ${newMuteState}`);
       
-      // Now properly handle microphone state when muting
+      // Force microphone state to match our expectations
       if (newMuteState) {
-        // When muting, always pause the microphone regardless of current mic state
-        chatClientRef.current.pauseMicrophone();
-        console.log("Muted: Pausing microphone input");
+        // Always ensure microphone is paused when muting
+        chatClientRef.current.forceStopMicrophone();
+        console.log("[useMicrophoneControls] Force stopping microphone due to mute");
       } else if (isMicOn) {
-        // When unmuting, only resume the microphone if it was previously on
-        chatClientRef.current.resumeMicrophone();
-        console.log("Unmuted: Resuming microphone input because mic was on");
+        // Only resume microphone when unmuting if mic was previously on
+        chatClientRef.current.forceResumeMicrophone();
+        console.log("[useMicrophoneControls] Force resuming microphone after unmute");
       }
     }
   }, [isMuted, chatClientRef, isMicOn]);
