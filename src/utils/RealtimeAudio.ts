@@ -118,10 +118,20 @@ export class RealtimeChat {
   private recorder: AudioRecorder | null = null;
   private isConnected: boolean = false;
   private isMuted: boolean = false;
+  private lastUserMessage: string = "";
+  private lastAIMessage: string = "";
+  private saveMessageCallback: ((role: 'user' | 'assistant', content: string) => Promise<void>) | null = null;
 
-  constructor(private onMessage: (message: any) => void, private onStatusChange: (status: string) => void) {
+  constructor(
+    private onMessage: (message: any) => void, 
+    private onStatusChange: (status: string) => void,
+    saveMessageCallback?: (role: 'user' | 'assistant', content: string) => Promise<void>
+  ) {
     this.audioEl = document.createElement("audio");
     this.audioEl.autoplay = true;
+    
+    // Store the callback to save messages if provided
+    this.saveMessageCallback = saveMessageCallback || null;
   }
 
   async init() {
@@ -129,19 +139,13 @@ export class RealtimeChat {
       this.onStatusChange("Connecting...");
       
       // Get ephemeral token from our Supabase Edge Function
-      const tokenResponse = await supabase.functions.invoke("realtime-token");
+      const token = await this.fetchToken();
       
-      if (tokenResponse.error) {
-        throw new Error(`Failed to get token: ${tokenResponse.error.message}`);
-      }
-      
-      const data = tokenResponse.data;
-      
-      if (!data?.client_secret?.value) {
+      if (!token || !token.client_secret?.value) {
         throw new Error("Failed to get ephemeral token from OpenAI");
       }
 
-      const EPHEMERAL_KEY = data.client_secret.value;
+      const EPHEMERAL_KEY = token.client_secret.value;
 
       // Create peer connection
       this.pc = new RTCPeerConnection();
@@ -175,9 +179,19 @@ export class RealtimeChat {
         }, 500);
       });
       
-      this.dc.addEventListener("message", (e) => {
+      this.dc.addEventListener("message", async (e) => {
         const event = JSON.parse(e.data);
         console.log("Received event:", event);
+        
+        // Handle transcript events for message storage
+        if (event.type === 'input_audio_transcript.delta' || 
+            event.type === 'input_audio_transcript.done') {
+          this.handleTranscriptEvent(event);
+        } else if (event.type === 'response.text.done') {
+          // Store completed AI text responses
+          this.handleAIResponseEvent(event);
+        }
+        
         this.onMessage(event);
       });
 
@@ -249,6 +263,53 @@ export class RealtimeChat {
       console.error("Error initializing chat:", error);
       this.onStatusChange("Error: " + (error instanceof Error ? error.message : String(error)));
       throw error;
+    }
+  }
+
+  private async fetchToken() {
+    // Get auth token if the user is logged in
+    let authHeader = {};
+    const session = await supabase.auth.getSession();
+    if (session?.data?.session?.access_token) {
+      authHeader = {
+        Authorization: `Bearer ${session.data.session.access_token}`
+      };
+    }
+    
+    const tokenResponse = await supabase.functions.invoke("realtime-token", {
+      headers: authHeader
+    });
+    
+    if (tokenResponse.error) {
+      throw new Error(`Failed to get token: ${tokenResponse.error.message}`);
+    }
+    
+    return tokenResponse.data;
+  }
+
+  private handleTranscriptEvent(event: any) {
+    // Handle final transcript to capture complete user message
+    if (event.type === 'input_audio_transcript.done' && event.transcript) {
+      this.lastUserMessage = event.transcript;
+      
+      // Save user message if callback is provided
+      if (this.saveMessageCallback && this.lastUserMessage.trim()) {
+        this.saveMessageCallback('user', this.lastUserMessage)
+          .catch(err => console.error('Error saving user message:', err));
+      }
+    }
+  }
+
+  private handleAIResponseEvent(event: any) {
+    // Handle completed AI text responses
+    if (event.text) {
+      this.lastAIMessage = event.text;
+      
+      // Save AI response if callback is provided
+      if (this.saveMessageCallback && this.lastAIMessage.trim()) {
+        this.saveMessageCallback('assistant', this.lastAIMessage)
+          .catch(err => console.error('Error saving AI message:', err));
+      }
     }
   }
 

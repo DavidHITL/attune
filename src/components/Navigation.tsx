@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { Home, User, Info } from 'lucide-react';
+import { Home, User, Mic } from 'lucide-react';
 
 const Navigation = () => {
   const location = useLocation();
@@ -17,7 +17,7 @@ const Navigation = () => {
           </Link>
           
           <Link to="/voice" className={`text-black hover:text-gray-700 transition-colors ${location.pathname === '/voice' ? 'text-gray-700' : ''}`}>
-            <Info className="w-6 h-6" />
+            <Mic className="w-6 h-6" />
           </Link>
           
           <Link to={user ? '/profile' : '/auth'} className={`text-black hover:text-gray-700 transition-colors ${location.pathname === '/profile' || location.pathname === '/auth' ? 'text-gray-700' : ''}`}>

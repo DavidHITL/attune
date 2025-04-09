@@ -1,8 +1,11 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/RealtimeAudio';
 import CallControls from '@/components/CallControls';
 import VoiceActivityIndicator, { VoiceActivityState } from './VoiceActivityIndicator';
+import { useConversation, Message } from '@/hooks/useConversation';
+import { useAuth } from '@/context/AuthContext';
 
 const RealtimeChat: React.FC = () => {
   const [status, setStatus] = useState<string>("Disconnected");
@@ -10,14 +13,23 @@ const RealtimeChat: React.FC = () => {
   const [voiceActivityState, setVoiceActivityState] = useState<VoiceActivityState>(VoiceActivityState.Idle);
   const [isMicOn, setIsMicOn] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [hasContext, setHasContext] = useState(false);
   const chatClientRef = useRef<RealtimeChatClient | null>(null);
   
+  const { user } = useAuth();
+  const { messages, saveMessage, conversationId, loading: conversationLoading } = useConversation();
+
   useEffect(() => {
     // Clean up on component unmount
     return () => {
       chatClientRef.current?.disconnect();
     };
   }, []);
+
+  useEffect(() => {
+    // Update conversation context indicator when messages change
+    setHasContext(messages.length > 0);
+  }, [messages]);
 
   const handleMessageEvent = (event: any) => {
     console.log("Handling message event:", event);
@@ -40,7 +52,9 @@ const RealtimeChat: React.FC = () => {
     } else if (event.type === 'session.created') {
       toast({
         title: "Connected to Voice AI",
-        description: "Start speaking to interact with the AI",
+        description: hasContext ? 
+          "The assistant remembers your previous conversation." : 
+          "Start speaking to interact with the AI",
       });
     } else if (event.type === 'response.created') {
       // AI has started generating a response
@@ -53,6 +67,20 @@ const RealtimeChat: React.FC = () => {
     }
   };
 
+  const saveMessageToDb = async (role: 'user' | 'assistant', content: string): Promise<void> => {
+    if (!user) {
+      console.log("User not authenticated, skipping message save");
+      return;
+    }
+    
+    try {
+      await saveMessage({ role, content });
+      console.log(`Saved ${role} message to database`);
+    } catch (error) {
+      console.error("Failed to save message:", error);
+    }
+  };
+
   const startConversation = async () => {
     try {
       if (chatClientRef.current) {
@@ -61,7 +89,8 @@ const RealtimeChat: React.FC = () => {
       
       chatClientRef.current = new RealtimeChatClient(
         handleMessageEvent, 
-        (newStatus) => setStatus(newStatus)
+        (newStatus) => setStatus(newStatus),
+        saveMessageToDb // Pass the save message callback
       );
       
       await chatClientRef.current.init();
@@ -70,7 +99,9 @@ const RealtimeChat: React.FC = () => {
       
       toast({
         title: "Voice assistant active",
-        description: "Speak to interact with the AI",
+        description: hasContext ? 
+          "The assistant remembers your previous conversation." : 
+          "Speak to interact with the AI",
       });
     } catch (error) {
       console.error('Failed to start conversation:', error);
@@ -119,10 +150,34 @@ const RealtimeChat: React.FC = () => {
     }
   };
 
+  const renderMessages = () => {
+    if (messages.length === 0) return null;
+    
+    return (
+      <div className="mb-8 mt-4 max-h-60 overflow-y-auto border border-attune-blue/30 rounded-lg p-4 bg-attune-blue/10">
+        <h3 className="text-sm font-medium mb-2 text-attune-purple">Conversation History</h3>
+        {messages.map((msg, index) => (
+          <div key={msg.id || index} className={`mb-3 ${msg.role === 'user' ? 'text-right' : ''}`}>
+            <span className="text-xs text-attune-purple/70 block mb-1">
+              {msg.role === 'user' ? 'You' : 'Assistant'}
+            </span>
+            <div className={`inline-block rounded-lg px-3 py-2 text-sm max-w-[85%] ${
+              msg.role === 'user' 
+                ? 'bg-attune-purple/20 text-attune-purple' 
+                : 'bg-attune-blue/30 text-attune-purple'
+            }`}>
+              {msg.content}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Status indicator */}
-      <div className="text-center text-attune-purple mb-8 mt-4">
+      <div className="text-center text-attune-purple mb-4 mt-4">
         <div className="text-xl font-semibold mb-2">
           {isConnected ? "Voice Assistant Active" : "Voice Assistant"}
         </div>
@@ -137,22 +192,30 @@ const RealtimeChat: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Conversation history (if any) */}
+      {!conversationLoading && renderMessages()}
       
       {/* Voice interaction instructions */}
       {!isConnected && (
-        <div className="text-center mb-12 text-attune-purple/80">
+        <div className="text-center mb-6 text-attune-purple/80">
           <p>Press the microphone button below to start a voice conversation with the AI assistant.</p>
+          {messages.length > 0 && (
+            <p className="mt-2 text-sm">
+              The assistant will remember your previous conversation.
+            </p>
+          )}
         </div>
       )}
       
       {isConnected && (
-        <div className="text-center mb-12 text-attune-purple/80">
+        <div className="text-center mb-6 text-attune-purple/80">
           <p>Speak naturally to interact with the AI. The assistant will listen and respond with voice.</p>
         </div>
       )}
 
       {/* Call controls */}
-      <div className="flex justify-center mt-auto mb-8">
+      <div className="flex justify-center mt-auto mb-6">
         {!isConnected ? (
           <div 
             onClick={startConversation}
