@@ -130,13 +130,11 @@ const RealtimeChat: React.FC = () => {
           <div>Status: {status}</div>
           
           {/* Voice activity indicator - always visible */}
-          <div className="flex flex-col gap-2 mt-2">
-            <div className="flex items-center gap-2 justify-center">
-              {isConnected && (
-                <VoiceActivityIndicator state={voiceActivityState} />
-              )}
+          {isConnected && (
+            <div className="flex items-center gap-2 justify-center mt-2">
+              <VoiceActivityIndicator state={voiceActivityState} />
             </div>
-          </div>
+          )}
         </div>
       </div>
       

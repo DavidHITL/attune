@@ -6,20 +6,14 @@ interface AudioWaveformProps {
 }
 
 const AudioWaveform: React.FC<AudioWaveformProps> = ({ isActive }) => {
+  // Return empty placeholder instead of waveform visualization
   return (
-    <div className="flex items-center justify-center h-40 gap-2">
-      {[...Array(15)].map((_, index) => (
-        <div
-          key={index}
-          className={`w-2 rounded-full bg-attune-indigo ${
-            isActive ? `animate-sound-wave-${(index % 5) + 1}` : 'h-3'
-          }`}
-          style={{
-            animationDelay: `${index * 0.1}s`,
-            height: isActive ? `${Math.random() * 2 + 1}rem` : '0.5rem'
-          }}
-        />
-      ))}
+    <div className="flex items-center justify-center h-40">
+      {isActive ? (
+        <span className="text-attune-indigo">Audio active</span>
+      ) : (
+        <span className="text-gray-400">Audio inactive</span>
+      )}
     </div>
   );
 };
