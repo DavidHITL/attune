@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -93,7 +92,7 @@ const Admin = () => {
         console.error("Got:", verifyData.instructions);
         
         toast({
-          variant: "warning",
+          variant: "destructive",
           title: "Warning",
           description: "Instructions were updated but verification found discrepancies."
         });
