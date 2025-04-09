@@ -12,18 +12,18 @@ const Navigation = () => {
 
   return (
     <nav className="w-full bg-attune-blue shadow-sm py-2 px-4 flex justify-center fixed top-0 z-10">
-      <div className={`${isMobile ? 'max-w-[390px]' : 'max-w-4xl'} w-full flex justify-between items-center`}>
-        <div className="flex gap-4 md:gap-6">
+      <div className="max-w-[390px] w-full flex justify-between items-center">
+        <div className="flex gap-4">
           <Link to="/" className={`text-black hover:text-gray-700 transition-colors ${location.pathname === '/' ? 'text-gray-700' : ''}`}>
-            <Home className="w-5 h-5 md:w-6 md:h-6" />
+            <Home className="w-5 h-5" />
           </Link>
           
           <Link to="/voice" className={`text-black hover:text-gray-700 transition-colors ${location.pathname === '/voice' ? 'text-gray-700' : ''}`}>
-            <Mic className="w-5 h-5 md:w-6 md:h-6" />
+            <Mic className="w-5 h-5" />
           </Link>
           
           <Link to={user ? '/profile' : '/auth'} className={`text-black hover:text-gray-700 transition-colors ${location.pathname === '/profile' || location.pathname === '/auth' ? 'text-gray-700' : ''}`}>
-            <User className="w-5 h-5 md:w-6 md:h-6" />
+            <User className="w-5 h-5" />
           </Link>
         </div>
         

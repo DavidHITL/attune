@@ -7,14 +7,12 @@ const AttuneContent = () => {
   const { user } = useAuth();
 
   return (
-    <div className="flex-1 flex flex-col items-center w-full max-w-4xl mt-16">
+    <div className="flex-1 flex flex-col items-center w-full max-w-[390px] mt-16">
       <AttuneLogo />
       
-      <div className="mt-10 text-center max-w-lg">
+      <div className="mt-10 text-center max-w-[350px]">
         <p className="text-attune-purple/80">
-          {user 
-            ? '"Love isn\'t something that you have. It\'s something you do. And you can do it better." — Terry Real'
-            : '"Love isn\'t something that you have. It\'s something you do. And you can do it better." — Terry Real'}
+          "Love isn't something that you have. It's something you do. And you can do it better." — Terry Real
         </p>
         
         {!user && (
