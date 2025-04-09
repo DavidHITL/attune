@@ -110,10 +110,16 @@ export const useConversation = () => {
     }
   };
 
-  // Save a new message to the database
+  // Save a new message to the database with improved error handling and verification
   const saveMessage = async (message: Message) => {
     if (!user || !conversationId) {
       console.error('Cannot save message: User not authenticated or conversation not initialized');
+      return null;
+    }
+    
+    // Don't save empty messages
+    if (!message.content || message.content.trim() === '') {
+      console.warn('Skipping empty message save attempt');
       return null;
     }
     
@@ -145,9 +151,8 @@ export const useConversation = () => {
       };
       
       console.log(`Message saved successfully with ID: ${validatedMessage.id}`);
-      setMessages(prev => [...prev, validatedMessage]);
       
-      // Check database to verify the message was actually stored
+      // Verify message was saved correctly
       const { data: verifyData, error: verifyError } = await supabase
         .from('messages')
         .select('id, role, content')
@@ -158,8 +163,14 @@ export const useConversation = () => {
         console.error('Error verifying message was saved:', verifyError);
       } else {
         console.log('Verified message in database:', verifyData);
+        if (verifyData.content !== message.content) {
+          console.warn('Message content verification mismatch!');
+          console.warn('Original:', message.content.substring(0, 50));
+          console.warn('Saved:', verifyData.content.substring(0, 50));
+        }
       }
       
+      setMessages(prev => [...prev, validatedMessage]);
       return validatedMessage;
     } catch (error) {
       console.error('Error saving message:', error);

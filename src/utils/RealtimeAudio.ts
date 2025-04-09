@@ -1,4 +1,3 @@
-
 // The existing RealtimeAudio implementation with updated conversation context handling
 
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +32,10 @@ export class RealtimeChat {
   private assistantResponse: string = '';
   private pendingAssistantMessage: boolean = false;
   private savedCurrentAssistantId: string | null = null;
+
+  // Debug tracking
+  private eventLog: {type: string, timestamp: number, contentPreview?: string}[] = [];
+  private lastResponseDelta: number = 0;
   
   constructor(
     messageCallback: MessageCallback,
@@ -107,7 +110,7 @@ export class RealtimeChat {
       this.dc.onmessage = (event) => {
         try {
           const parsedEvent = JSON.parse(event.data);
-          console.log("WebRTC event:", parsedEvent.type);
+          this.logEvent(parsedEvent);
           this.messageCallback(parsedEvent);
 
           // Mark session as created when we receive that event
@@ -141,30 +144,96 @@ export class RealtimeChat {
             }
           }
           
-          // Process events for assistant messages
+          // Process events for assistant messages - UPDATED LOGIC
           if (parsedEvent.type === "response.created") {
             console.log("Assistant response started, setting pendingAssistantMessage flag");
             this.pendingAssistantMessage = true;
             this.assistantResponse = '';
+            this.lastResponseDelta = Date.now();
           }
           
-          if (parsedEvent.type === "response.delta" && parsedEvent.delta?.content) {
-            // Accumulate assistant response
-            if (this.pendingAssistantMessage) {
-              this.assistantResponse += parsedEvent.delta.content;
-              console.log(`Accumulating assistant response: ${this.assistantResponse.substring(0, 50)}${this.assistantResponse.length > 50 ? '...' : ''}`);
+          // Handle response delta for text content - IMPROVED PARSING
+          if (parsedEvent.type === "response.delta") {
+            this.lastResponseDelta = Date.now();
+            
+            // Log full event structure for debugging
+            console.log("Response delta structure:", JSON.stringify(parsedEvent));
+            
+            let deltaContent = null;
+            
+            // Try multiple paths to find the content
+            if (parsedEvent.delta?.content) {
+              deltaContent = parsedEvent.delta.content;
+            } else if (parsedEvent.delta?.item?.content?.[0]?.text) {
+              deltaContent = parsedEvent.delta.item.content[0].text;
+            } else if (parsedEvent.delta?.text) {
+              deltaContent = parsedEvent.delta.text;
+            }
+            
+            if (deltaContent) {
+              if (this.pendingAssistantMessage) {
+                this.assistantResponse += deltaContent;
+                console.log(`Accumulating assistant response (${this.assistantResponse.length} chars): "${this.assistantResponse.substring(0, 50)}${this.assistantResponse.length > 50 ? '...' : ''}"`);
+              } else {
+                console.warn("Received response delta without pending message flag");
+              }
+            } else {
+              console.warn("Response delta received but couldn't extract content:", parsedEvent);
             }
           }
           
+          // Handle assistant message completion - IMPROVED COMPLETION DETECTION
           if (parsedEvent.type === "response.done") {
+            console.log("Response done event received");
+            
+            // Try to extract the full response from the done event if available
+            let fullResponse = null;
+            
+            if (parsedEvent.response?.items) {
+              // Try to find message items in the response
+              const messageItems = parsedEvent.response.items.filter((item: any) => 
+                item.type === 'message' && item.role === 'assistant'
+              );
+              
+              if (messageItems.length > 0) {
+                const latestMessage = messageItems[messageItems.length - 1];
+                if (latestMessage.content) {
+                  fullResponse = Array.isArray(latestMessage.content) 
+                    ? latestMessage.content.map((c: any) => c.text || '').join('')
+                    : latestMessage.content;
+                  
+                  console.log("Extracted full response from response.done event:", fullResponse.substring(0, 50) + (fullResponse.length > 50 ? '...' : ''));
+                }
+              }
+            }
+            
             // Save the complete assistant response
-            if (this.pendingAssistantMessage && this.assistantResponse && this.assistantResponse.trim()) {
-              console.log("Saving complete assistant response:", this.assistantResponse.substring(0, 50) + (this.assistantResponse.length > 50 ? '...' : ''));
-              this.queueMessage('assistant', this.assistantResponse);
+            if (this.pendingAssistantMessage) {
+              // Prefer the accumulated response if it has content
+              const finalContent = this.assistantResponse && this.assistantResponse.trim() 
+                ? this.assistantResponse 
+                : (fullResponse || '');
+                
+              if (finalContent && finalContent.trim()) {
+                console.log(`Saving assistant response [${finalContent.length} chars]: "${finalContent.substring(0, 50)}${finalContent.length > 50 ? '...' : ''}"`);
+                this.queueMessage('assistant', finalContent);
+              } else {
+                console.error("Empty assistant response, cannot save. Accumulated response length:", 
+                  this.assistantResponse?.length || 0, 
+                  "Full response available:", 
+                  !!fullResponse);
+              }
+              
               this.pendingAssistantMessage = false;
               this.assistantResponse = '';
             } else {
-              console.log("Empty assistant response, not saving. pendingFlag:", this.pendingAssistantMessage, "content length:", this.assistantResponse?.length || 0);
+              // If no pending message flag but we have full response content, try to save it
+              if (fullResponse && fullResponse.trim()) {
+                console.log("Saving assistant response from done event without pending flag.");
+                this.queueMessage('assistant', fullResponse);
+              } else {
+                console.warn("Response done event with no pending message and no content to save");
+              }
             }
           }
         } catch (e) {
@@ -239,6 +308,31 @@ export class RealtimeChat {
       this.statusCallback("Connection failed");
       throw error;
     }
+  }
+
+  // Log event for debugging purposes
+  private logEvent(event: any) {
+    const eventInfo = {
+      type: event.type,
+      timestamp: Date.now()
+    } as {type: string, timestamp: number, contentPreview?: string};
+    
+    // Add content preview for certain events
+    if (event.delta?.content) {
+      eventInfo.contentPreview = event.delta.content.substring(0, 30);
+    } else if (event.transcript?.text) {
+      eventInfo.contentPreview = event.transcript.text.substring(0, 30);
+    }
+    
+    this.eventLog.push(eventInfo);
+    
+    // Keep event log from growing too large
+    if (this.eventLog.length > 100) {
+      this.eventLog.shift();
+    }
+    
+    // Log detailed debug info for key events
+    console.log(`EVENT [${event.type}] at ${new Date().toISOString()}`);
   }
 
   // Queue message saving to prevent race conditions or failures
@@ -419,6 +513,7 @@ export class RealtimeChat {
   
   disconnect() {
     console.log(`Disconnecting with ${this.messageQueue.length} messages in queue`);
+    console.log(`Event log summary: ${this.eventLog.length} events`);
     
     // If there's a pending assistant message, save it now
     if (this.pendingAssistantMessage && this.assistantResponse && this.assistantResponse.trim()) {
@@ -430,6 +525,9 @@ export class RealtimeChat {
       });
       this.assistantResponse = '';
       this.pendingAssistantMessage = false;
+    } else if (this.pendingAssistantMessage && Date.now() - this.lastResponseDelta > 5000) {
+      // If we haven't received response deltas for 5+ seconds, log this issue
+      console.warn("Pending assistant message with no content and no recent deltas during disconnect");
     }
     
     // Process any remaining messages in the queue synchronously
