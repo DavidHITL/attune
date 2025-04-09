@@ -1,17 +1,10 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-// Initialize Supabase client
-const supabaseUrl = Deno.env.get('SUPABASE_URL') as string;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+import { corsHeaders } from "./config.ts";
+import { authenticateUser } from "./authService.ts";
+import { getConversationHistory, getBotConfig } from "./conversationService.ts";
+import { requestOpenAIToken } from "./openAIService.ts";
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -20,137 +13,23 @@ serve(async (req) => {
   }
 
   try {
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY is not set');
-    }
-
-    // Get auth header and extract user ID
-    let userId = null;
+    // Get auth header and authenticate user
     const authHeader = req.headers.get('Authorization');
+    const user = await authenticateUser(authHeader);
     
-    if (authHeader) {
-      try {
-        const token = authHeader.replace('Bearer ', '');
-        console.log("Auth token received:", token ? "Present (not shown for security)" : "Missing");
-        
-        const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-        
-        if (userError) {
-          console.error("Auth error:", userError);
-          throw new Error(`Authentication error: ${userError.message}`);
-        }
-        
-        if (user) {
-          userId = user.id;
-          console.log("Authenticated user ID:", userId);
-        }
-      } catch (authError) {
-        console.error("Error parsing auth header:", authError);
-        throw new Error(`Auth header parsing error: ${authError.message}`);
-      }
-    } else {
-      console.log("No Authorization header present");
-    }
-
-    // Get bot configuration
-    const { data: botConfig, error: botConfigError } = await supabase
-      .from('bot_config')
-      .select('instructions, voice')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-    
-    if (botConfigError) {
-      console.error("Error fetching bot config:", botConfigError);
-      throw new Error(`Failed to fetch bot configuration: ${botConfigError.message}`);
-    }
-
-    let instructions = botConfig.instructions;
+    let instructions = "";
     let recentMessages = [];
-
-    // If authenticated, fetch conversation history - increased to 150 for better context
-    if (userId) {
+    
+    // Get bot configuration - always needed
+    const botConfig = await getBotConfig();
+    instructions = botConfig.instructions;
+    
+    // If authenticated, fetch conversation history
+    if (user) {
       try {
-        // Get or create a conversation for this user
-        const { data: conversationResult, error: conversationError } = await supabase
-          .rpc('get_or_create_conversation', {
-            p_user_id: userId
-          });
-        
-        if (conversationError) {
-          console.error("Error getting/creating conversation:", conversationError);
-          throw new Error(`Conversation error: ${conversationError.message}`);
-        } else {
-          const conversationId = conversationResult;
-          console.log("Using conversation ID:", conversationId);
-          
-          // Fetch the messages - increased to 200 for better context
-          const { data: messages, error: messagesError } = await supabase
-            .from('messages')
-            .select('role, content, created_at')
-            .eq('conversation_id', conversationId)
-            .order('created_at', { ascending: false })
-            .limit(200);
-          
-          if (messagesError) {
-            console.error("Error fetching messages:", messagesError);
-            throw new Error(`Error fetching messages: ${messagesError.message}`);
-          } else if (messages && messages.length > 0) {
-            // Reverse to get chronological order
-            recentMessages = messages.reverse();
-            console.log(`Fetched ${messages.length} recent messages for context`);
-            
-            // Enhanced instructions with conversation history
-            const historyContext = recentMessages
-              .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
-              .join('\n\n');
-            
-            instructions = `${instructions}\n\nYou have conversed with this user before. Here is the recent conversation history to maintain continuity:\n\n${historyContext}\n\nContinue the conversation naturally, acknowledging previous context when relevant. The user is expecting you to remember this history.`;
-            
-            console.log("Added conversation history to instructions");
-            console.log("History length:", historyContext.length, "characters");
-            console.log("First message:", recentMessages[0]?.content?.substring(0, 30) || "None");
-            console.log("Last message:", recentMessages[recentMessages.length - 1]?.content?.substring(0, 30) || "None");
-            
-            // Debug messages for each role
-            const userMessages = recentMessages.filter(m => m.role === 'user').length;
-            const assistantMessages = recentMessages.filter(m => m.role === 'assistant').length;
-            console.log(`Message distribution: ${userMessages} user messages, ${assistantMessages} assistant messages`);
-            
-            // Log message pairs to verify conversation flow
-            console.log("--- CONVERSATION SAMPLE (LATEST 5 TURNS) ---");
-            const latestMessages = recentMessages.slice(-10);
-            for (let i = 0; i < latestMessages.length; i += 2) {
-              const userMsg = latestMessages[i]?.role === 'user' ? latestMessages[i] : latestMessages[i+1]?.role === 'user' ? latestMessages[i+1] : null;
-              const aiMsg = latestMessages[i]?.role === 'assistant' ? latestMessages[i] : latestMessages[i+1]?.role === 'assistant' ? latestMessages[i+1] : null;
-              
-              if (userMsg) {
-                console.log(`User [${new Date(userMsg.created_at).toISOString()}]: ${userMsg.content.substring(0, 50)}...`);
-              }
-              
-              if (aiMsg) {
-                console.log(`AI [${new Date(aiMsg.created_at).toISOString()}]: ${aiMsg.content.substring(0, 50)}...`);
-              }
-            }
-            console.log("--- END CONVERSATION SAMPLE ---");
-            
-            // Verify database connectivity - additional debugging
-            const { count, error: countError } = await supabase
-              .from('messages')
-              .select('*', { count: 'exact', head: true })
-              .eq('conversation_id', conversationId);
-            
-            if (countError) {
-              console.error("Error verifying message count:", countError);
-            } else {
-              console.log(`Database verification: ${count} messages in conversation ${conversationId}`);
-            }
-          } else {
-            console.log("No previous message history found");
-            instructions += "\n\nThis is your first conversation with this user.";
-          }
-        }
+        const result = await getConversationHistory(user.id);
+        instructions = result.instructions; // This already includes the base instructions + history
+        recentMessages = result.recentMessages;
       } catch (historyError) {
         console.error("Error processing conversation history:", historyError);
         throw new Error(`History processing error: ${historyError.message}`);
@@ -161,26 +40,7 @@ serve(async (req) => {
     }
 
     // Request an ephemeral token from OpenAI
-    const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-realtime-preview-2024-12-17",
-        voice: botConfig.voice,
-        instructions: instructions
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("OpenAI API error:", errorData);
-      throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
-    }
-
-    const data = await response.json();
+    const data = await requestOpenAIToken(instructions, botConfig.voice);
     console.log("Session created successfully");
     
     // Return session token along with conversation context
