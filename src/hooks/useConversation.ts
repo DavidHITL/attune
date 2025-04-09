@@ -23,7 +23,7 @@ export const useConversation = (): UseConversationReturn => {
   const { validateRole, loadMessages: loadMessagesHelper } = useConversationHelpers();
   const { saveMessage: saveMessageToDb } = useSaveMessage(user, conversationId, validateRole);
   
-  // Load messages for a conversation
+  // Define loadMessages before using it in useConversationLoading
   const loadMessages = async (convoId: string): Promise<Message[]> => {
     try {
       const validMessages = await loadMessagesHelper(convoId);

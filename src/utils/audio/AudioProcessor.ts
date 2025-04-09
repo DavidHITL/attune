@@ -1,148 +1,165 @@
-
-import { AudioActivityCallback } from '@/utils/types';
+import { MediaRecorderState } from '@/utils/types';
 
 export class AudioProcessor {
+  private mediaRecorder: MediaRecorder | null = null;
+  private audioStream: MediaStream | null = null;
+  private audioChunks: Blob[] = [];
+  private microphoneActive: boolean = false;
+  private activityCallback: (state: 'start' | 'stop') => void;
   private audioContext: AudioContext | null = null;
-  private microphone: MediaStream | null = null;
-  private isMicrophonePaused: boolean = false;
-  private isMuted: boolean = false;
-
-  constructor(private audioActivityCallback?: AudioActivityCallback) {}
-
+  private analyser: AnalyserNode | null = null;
+  private microphone: MediaStreamAudioSourceNode | null = null;
+  private processorNode: AudioWorkletNode | null = null;
+  private silenceDetectionInterval: number | null = null;
+  
+  constructor(activityCallback: (state: 'start' | 'stop') => void) {
+    this.activityCallback = activityCallback;
+  }
+  
   async initMicrophone(): Promise<MediaStream> {
     try {
-      this.microphone = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      });
-      
-      console.log("Microphone initialized");
-      
-      // Start voice activity detection if callback is provided
-      if (this.audioActivityCallback) {
-        this.detectAudioActivity();
-      }
-      
-      return this.microphone;
+      this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.microphoneActive = true;
+      return this.audioStream;
     } catch (error) {
       console.error("Error accessing microphone:", error);
+      this.microphoneActive = false;
       throw error;
     }
   }
   
-  private detectAudioActivity() {
-    try {
-      if (!this.microphone || this.isMicrophonePaused) return;
-      
-      this.audioContext = new AudioContext();
-      const source = this.audioContext.createMediaStreamSource(this.microphone);
-      const analyser = this.audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
-      
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      
-      let silenceStart: number | null = null;
-      let isSpeaking = false;
-      
-      const checkAudioLevel = () => {
-        if (!this.audioContext || this.isMicrophonePaused) return;
-        
-        analyser.getByteFrequencyData(dataArray);
-        
-        // Calculate average audio level
-        let sum = 0;
-        for (let i = 0; i < bufferLength; i++) {
-          sum += dataArray[i];
-        }
-        const average = sum / bufferLength;
-        
-        // Define thresholds
-        const speakingThreshold = 20;  // Adjust based on testing
-        const silenceThreshold = 5000; // 5 seconds of silence
-        
-        if (average > speakingThreshold && !isSpeaking) {
-          // User started speaking
-          isSpeaking = true;
-          silenceStart = null;
-          this.audioActivityCallback?.('start');
-        } else if (average <= speakingThreshold && isSpeaking) {
-          // User might have stopped speaking, start silence timer
-          if (!silenceStart) {
-            silenceStart = Date.now();
-          } else if (Date.now() - silenceStart > silenceThreshold) {
-            // Silence threshold reached, consider speech ended
-            isSpeaking = false;
-            silenceStart = null;
-            this.audioActivityCallback?.('stop');
-          }
-        } else if (!isSpeaking) {
-          // Reset silence timer during continuous silence
-          silenceStart = null;
-        }
-        
-        // Continue checking if connection is active
-        requestAnimationFrame(checkAudioLevel);
-      };
-      
-      requestAnimationFrame(checkAudioLevel);
-      
-    } catch (error) {
-      console.error("Error in audio activity detection:", error);
+  async initAudioContext() {
+    if (!this.audioStream) {
+      throw new Error("Audio stream is not initialized. Call initMicrophone first.");
+    }
+    
+    this.audioContext = new AudioContext();
+    await this.audioContext.audioWorklet.addModule('/silence-detect.js');
+    
+    this.analyser = this.audioContext.createAnalyser();
+    this.analyser.fftSize = 2048;
+    
+    this.microphone = this.audioContext.createMediaStreamSource(this.audioStream);
+    this.processorNode = new AudioWorkletNode(this.audioContext, 'silence-detect');
+    
+    this.microphone.connect(this.analyser);
+    this.analyser.connect(this.processorNode);
+    this.processorNode.connect(this.audioContext.destination);
+    
+    this.processorNode.port.onmessage = (event) => {
+      if (event.data.silenceDetected) {
+        this.stopRecording();
+      }
+    };
+  }
+  
+  startRecording() {
+    if (!this.audioStream) {
+      console.error("No audio stream available. Call initMicrophone first.");
+      return;
+    }
+    
+    if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
+      console.warn("MediaRecorder is already recording.");
+      return;
+    }
+    
+    this.audioChunks = [];
+    this.mediaRecorder = new MediaRecorder(this.audioStream);
+    
+    this.mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        this.audioChunks.push(event.data);
+      }
+    };
+    
+    this.mediaRecorder.onstop = () => {
+      console.log("Recording stopped.");
+    };
+    
+    this.mediaRecorder.start();
+    this.activityCallback('start');
+    console.log("Recording started.");
+  }
+  
+  stopRecording() {
+    if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
+      this.mediaRecorder.stop();
+      this.activityCallback('stop');
+      console.log("Stopping recording...");
+    } else {
+      console.warn("MediaRecorder is not currently recording.");
     }
   }
-
+  
   pauseMicrophone() {
-    if (!this.microphone) return;
-    
-    this.isMicrophonePaused = true;
-    this.microphone.getAudioTracks().forEach(track => {
-      track.enabled = false;
-    });
-    
-    console.log("Microphone paused");
+    if (this.audioStream) {
+      this.audioStream.getTracks().forEach(track => {
+        track.enabled = false;
+      });
+      this.microphoneActive = false;
+      console.log("Microphone paused.");
+    }
   }
   
   resumeMicrophone() {
-    if (!this.microphone) return;
-    
-    this.isMicrophonePaused = false;
-    this.microphone.getAudioTracks().forEach(track => {
-      track.enabled = true;
-    });
-    
-    console.log("Microphone resumed");
-    // Restart activity detection
-    if (this.audioActivityCallback) {
-      this.detectAudioActivity();
+    if (this.audioStream) {
+      this.audioStream.getTracks().forEach(track => {
+        track.enabled = true;
+      });
+      this.microphoneActive = true;
+      console.log("Microphone resumed.");
     }
   }
   
-  setMuted(muted: boolean) {
-    this.isMuted = muted;
+  getRecordingState(): MediaRecorderState {
+    return this.mediaRecorder ? this.mediaRecorder.state : 'inactive';
+  }
+  
+  getAudioChunks(): Blob[] {
+    return this.audioChunks;
   }
   
   isMicrophoneActive(): boolean {
-    return !this.isMicrophonePaused && !!this.microphone;
+    return this.microphoneActive;
   }
   
   cleanup() {
-    // Stop microphone tracks
-    if (this.microphone) {
-      this.microphone.getTracks().forEach(track => track.stop());
-      this.microphone = null;
+    if (this.audioStream) {
+      this.audioStream.getTracks().forEach(track => {
+        track.stop();
+      });
+      this.audioStream = null;
     }
     
-    // Close audio context
     if (this.audioContext) {
       this.audioContext.close();
       this.audioContext = null;
     }
     
-    console.log("Audio processor cleaned up");
+    if (this.mediaRecorder) {
+      this.mediaRecorder = null;
+    }
+    
+    if (this.analyser) {
+      this.analyser = null;
+    }
+    
+    if (this.microphone) {
+      this.microphone = null;
+    }
+    
+    if (this.processorNode) {
+      this.processorNode = null;
+    }
+    
+    if (this.silenceDetectionInterval) {
+      clearInterval(this.silenceDetectionInterval);
+      this.silenceDetectionInterval = null;
+    }
+    
+    this.audioChunks = [];
+    this.microphoneActive = false;
+    console.log("AudioProcessor cleanup completed.");
   }
 }

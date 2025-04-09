@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from '@/hooks/use-toast';
 import { Message } from '@/utils/types';
@@ -16,16 +16,22 @@ export const useConversationLoading = (
   loadMessages: (convoId: string) => Promise<Message[]>
 ) => {
   const { toast } = useToast();
-
+  const loadingRef = useRef(false);
+  
   useEffect(() => {
-    if (!user) {
+    // Skip if already loading or no user
+    if (!user || loadingRef.current) {
       setLoading(false);
       return;
     }
     
     const getOrCreateConversation = async () => {
       try {
+        // Set loading state and reference to prevent concurrent calls
         setLoading(true);
+        loadingRef.current = true;
+        
+        console.log("Fetching conversation for user:", user.id);
         
         // Call the RPC function to get or create a conversation
         const { data, error } = await supabase
@@ -50,9 +56,15 @@ export const useConversationLoading = (
         });
       } finally {
         setLoading(false);
+        loadingRef.current = false;
       }
     };
     
     getOrCreateConversation();
+    
+    // Cleanup function to ensure we don't have lingering state on unmount
+    return () => {
+      loadingRef.current = false;
+    };
   }, [user, setConversationId, loadMessages, setLoading, setMessages, toast, validateRole]);
 };
