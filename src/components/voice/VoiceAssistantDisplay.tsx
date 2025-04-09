@@ -44,7 +44,7 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
       {/* Voice interaction instructions */}
       {!isConnected && (
         <div className="text-center my-6 text-attune-purple/80">
-          <p>Press the microphone button below to start a voice conversation with the AI assistant.</p>
+          <p>Feel like talking? Attune remembers your past conversations, so you can always pick up where you left off — or not.</p>
         </div>
       )}
       
