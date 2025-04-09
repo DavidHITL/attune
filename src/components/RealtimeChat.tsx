@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/RealtimeAudio';
@@ -122,12 +121,8 @@ const RealtimeChat: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Title and visualization */}
-      <div className="text-center text-attune-purple mb-8 mt-4">
-        <div className="text-xl font-semibold mb-4">
-          {isConnected ? "Voice Assistant Active" : "Voice Assistant"}
-        </div>
-        
+      {/* Visualization */}
+      <div className="text-center mb-8 mt-8">
         {/* Voice activity indicator - always visible, but larger when connected */}
         <div className="flex justify-center mt-4">
           {isConnected ? (
@@ -136,7 +131,7 @@ const RealtimeChat: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="text-sm mb-2">Status: {status}</div>
+              <div className="text-sm mb-2 text-attune-purple">Status: {status}</div>
               {isConnected && <VoiceActivityIndicator state={voiceActivityState} />}
             </>
           )}
@@ -147,12 +142,6 @@ const RealtimeChat: React.FC = () => {
       {!isConnected && (
         <div className="text-center mb-12 text-attune-purple/80">
           <p>Press the microphone button below to start a voice conversation with the AI assistant.</p>
-        </div>
-      )}
-      
-      {isConnected && (
-        <div className="text-center mb-12 text-attune-purple/80">
-          <p>Speak naturally to interact with the AI. The assistant will listen and respond with voice.</p>
         </div>
       )}
 
