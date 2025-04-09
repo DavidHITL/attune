@@ -23,16 +23,6 @@ export const useConversation = (): UseConversationReturn => {
   const { validateRole, loadMessages: loadMessagesHelper } = useConversationHelpers();
   const { saveMessage: saveMessageToDb } = useSaveMessage(user, conversationId, validateRole);
   
-  // Initialize and load conversation when user changes
-  useConversationLoading(
-    user, 
-    setConversationId, 
-    setMessages, 
-    setLoading, 
-    validateRole, 
-    loadMessages
-  );
-
   // Load messages for a conversation
   const loadMessages = async (convoId: string): Promise<Message[]> => {
     try {
@@ -44,6 +34,16 @@ export const useConversation = (): UseConversationReturn => {
       throw error;
     }
   };
+
+  // Initialize and load conversation when user changes
+  useConversationLoading(
+    user, 
+    setConversationId, 
+    setMessages, 
+    setLoading, 
+    validateRole, 
+    loadMessages
+  );
 
   // Save a new message
   const saveMessage = async (message: Message): Promise<Message | null> => {

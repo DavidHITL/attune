@@ -1,5 +1,5 @@
 
-import { AudioActivityCallback } from './types';
+import { AudioActivityCallback } from '@/utils/types';
 
 export class AudioProcessor {
   private audioContext: AudioContext | null = null;
