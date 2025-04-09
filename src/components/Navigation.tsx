@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { Home, User, Mic } from 'lucide-react';
+import { BookOpen, User, Mic } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const Navigation = () => {
@@ -15,7 +15,7 @@ const Navigation = () => {
       <div className="max-w-[390px] w-full flex justify-center items-center">
         <div className="w-full flex justify-between items-center">
           <Link to="/" className={`text-black hover:text-gray-700 transition-colors ${location.pathname === '/' ? 'text-gray-700' : ''}`}>
-            <Home className="w-5 h-5" />
+            <BookOpen className="w-5 h-5" />
           </Link>
           
           <Link to="/voice" className={`text-black hover:text-gray-700 transition-colors ${location.pathname === '/voice' ? 'text-gray-700' : ''}`}>
