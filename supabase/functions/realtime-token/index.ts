@@ -69,7 +69,7 @@ serve(async (req) => {
     let instructions = botConfig.instructions;
     let recentMessages = [];
 
-    // If authenticated, fetch conversation history
+    // If authenticated, fetch conversation history - increased to 150 for better context
     if (userId) {
       try {
         // Get or create a conversation for this user
@@ -85,13 +85,13 @@ serve(async (req) => {
           const conversationId = conversationResult;
           console.log("Using conversation ID:", conversationId);
           
-          // Fetch the messages - increased to 150 for better context
+          // Fetch the messages - increased to 200 for better context
           const { data: messages, error: messagesError } = await supabase
             .from('messages')
             .select('role, content, created_at')
             .eq('conversation_id', conversationId)
             .order('created_at', { ascending: false })
-            .limit(150);
+            .limit(200);
           
           if (messagesError) {
             console.error("Error fetching messages:", messagesError);
@@ -122,8 +122,8 @@ serve(async (req) => {
             console.log("--- CONVERSATION SAMPLE (LATEST 5 TURNS) ---");
             const latestMessages = recentMessages.slice(-10);
             for (let i = 0; i < latestMessages.length; i += 2) {
-              const userMsg = latestMessages[i]?.role === 'user' ? latestMessages[i] : null;
-              const aiMsg = latestMessages[i+1]?.role === 'assistant' ? latestMessages[i+1] : null;
+              const userMsg = latestMessages[i]?.role === 'user' ? latestMessages[i] : latestMessages[i+1]?.role === 'user' ? latestMessages[i+1] : null;
+              const aiMsg = latestMessages[i]?.role === 'assistant' ? latestMessages[i] : latestMessages[i+1]?.role === 'assistant' ? latestMessages[i+1] : null;
               
               if (userMsg) {
                 console.log(`User [${new Date(userMsg.created_at).toISOString()}]: ${userMsg.content.substring(0, 50)}...`);
