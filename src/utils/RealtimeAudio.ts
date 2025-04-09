@@ -1,234 +1,132 @@
 
+// The existing RealtimeAudio implementation with updated conversation context handling
+
 import { supabase } from "@/integrations/supabase/client";
+import { Message } from "@/hooks/useConversation";
 
-export class AudioRecorder {
-  private stream: MediaStream | null = null;
+type MessageEvent = {
+  type: string;
+  [key: string]: any;
+};
+
+type MessageCallback = (event: MessageEvent) => void;
+type StatusCallback = (status: string) => void;
+type SaveMessageCallback = (role: 'user' | 'assistant', content: string) => Promise<void>;
+
+export class RealtimeChat {
+  private pc: RTCPeerConnection | null = null;
+  private dc: RTCDataChannel | null = null;
   private audioContext: AudioContext | null = null;
-  private processor: ScriptProcessorNode | null = null;
-  private source: MediaStreamAudioSourceNode | null = null;
-  private isPaused: boolean = false;
-  private audioActivityTimeout: ReturnType<typeof setTimeout> | null = null;
-  private activityThreshold: number = 0.01;
-
+  private audioElement: HTMLAudioElement;
+  private microphone: MediaStream | null = null;
+  private messageCallback: MessageCallback;
+  private statusCallback: StatusCallback;
+  private saveMessageCallback: SaveMessageCallback;
+  private isMicrophonePaused: boolean = false;
+  private isMuted: boolean = false;
+  
   constructor(
-    private onAudioData: (audioData: Float32Array) => void,
-    private onAudioActivity: (isActive: boolean) => void
-  ) {}
+    messageCallback: MessageCallback,
+    statusCallback: StatusCallback,
+    saveMessageCallback: SaveMessageCallback
+  ) {
+    this.messageCallback = messageCallback;
+    this.statusCallback = statusCallback;
+    this.saveMessageCallback = saveMessageCallback;
+    this.audioElement = new Audio();
+    this.audioElement.autoplay = true;
+  }
 
-  async start() {
+  async init() {
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
+      this.statusCallback("Connecting...");
+      
+      // Get token from edge function
+      const response = await supabase.functions.invoke('realtime-token');
+      
+      if (response.error) {
+        throw new Error(`Failed to get session token: ${response.error.message || 'Unknown error'}`);
+      }
+      
+      const data = await response.data;
+      
+      if (!data || !data.client_secret?.value) {
+        throw new Error("Invalid session token response");
+      }
+      
+      this.statusCallback("Setting up audio...");
+      
+      // Create peer connection
+      this.pc = new RTCPeerConnection();
+      
+      // Set up data channel for events
+      this.dc = this.pc.createDataChannel("events");
+      this.dc.onmessage = (event) => {
+        try {
+          const parsedEvent = JSON.parse(event.data);
+          console.log("WebRTC event:", parsedEvent);
+          this.messageCallback(parsedEvent);
+          
+          // Save user message when transcript is complete
+          if (parsedEvent.type === "response.audio_transcript.done") {
+            const content = parsedEvent.transcript?.text;
+            if (content) {
+              this.saveMessageCallback('user', content);
+            }
+          }
+          
+          // Save assistant message when response is complete
+          if (parsedEvent.type === "response.done" && parsedEvent.delta?.content) {
+            const content = parsedEvent.delta.content;
+            this.saveMessageCallback('assistant', content);
+          }
+        } catch (e) {
+          console.error("Error parsing event data:", e);
+        }
+      };
+      
+      // Set up remote audio
+      this.pc.ontrack = (event) => {
+        console.log("Track received:", event);
+        this.audioElement.srcObject = event.streams[0];
+      };
+      
+      // Get user's microphone
+      this.microphone = await navigator.mediaDevices.getUserMedia({ 
         audio: {
-          sampleRate: 24000,
-          channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
         }
       });
       
-      this.audioContext = new AudioContext({
-        sampleRate: 24000,
-      });
-      
-      this.source = this.audioContext.createMediaStreamSource(this.stream);
-      this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
-      
-      this.processor.onaudioprocess = (e) => {
-        if (this.isPaused) return;
-        
-        const inputData = e.inputBuffer.getChannelData(0);
-        
-        // Check for audio activity
-        this.detectAudioActivity(inputData);
-        
-        this.onAudioData(new Float32Array(inputData));
-      };
-      
-      this.source.connect(this.processor);
-      this.processor.connect(this.audioContext.destination);
-    } catch (error) {
-      console.error('Error accessing microphone:', error);
-      throw error;
-    }
-  }
-
-  private detectAudioActivity(audioData: Float32Array) {
-    // Calculate RMS (root mean square) to determine audio activity
-    let sum = 0;
-    for (let i = 0; i < audioData.length; i++) {
-      sum += audioData[i] * audioData[i];
-    }
-    const rms = Math.sqrt(sum / audioData.length);
-    
-    // If RMS is above threshold, consider it as audio activity
-    if (rms > this.activityThreshold) {
-      if (this.audioActivityTimeout) {
-        clearTimeout(this.audioActivityTimeout);
-      } else {
-        // Activity just started
-        this.onAudioActivity(true);
-      }
-      
-      // Set a timeout to detect when activity stops
-      this.audioActivityTimeout = setTimeout(() => {
-        this.onAudioActivity(false);
-        this.audioActivityTimeout = null;
-      }, 500); // 500ms silence to consider activity stopped
-    }
-  }
-
-  pause() {
-    this.isPaused = true;
-  }
-
-  resume() {
-    this.isPaused = false;
-  }
-
-  stop() {
-    if (this.audioActivityTimeout) {
-      clearTimeout(this.audioActivityTimeout);
-      this.audioActivityTimeout = null;
-    }
-    
-    if (this.source) {
-      this.source.disconnect();
-      this.source = null;
-    }
-    if (this.processor) {
-      this.processor.disconnect();
-      this.processor = null;
-    }
-    if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
-      this.stream = null;
-    }
-    if (this.audioContext) {
-      this.audioContext.close();
-      this.audioContext = null;
-    }
-  }
-}
-
-export class RealtimeChat {
-  private pc: RTCPeerConnection | null = null;
-  private dc: RTCDataChannel | null = null;
-  private audioEl: HTMLAudioElement;
-  private recorder: AudioRecorder | null = null;
-  private isConnected: boolean = false;
-  private isMuted: boolean = false;
-  private lastUserMessage: string = "";
-  private lastAIMessage: string = "";
-  private saveMessageCallback: ((role: 'user' | 'assistant', content: string) => Promise<void>) | null = null;
-
-  constructor(
-    private onMessage: (message: any) => void, 
-    private onStatusChange: (status: string) => void,
-    saveMessageCallback?: (role: 'user' | 'assistant', content: string) => Promise<void>
-  ) {
-    this.audioEl = document.createElement("audio");
-    this.audioEl.autoplay = true;
-    
-    // Store the callback to save messages if provided
-    this.saveMessageCallback = saveMessageCallback || null;
-  }
-
-  async init() {
-    try {
-      this.onStatusChange("Connecting...");
-      
-      // Get ephemeral token from our Supabase Edge Function
-      const token = await this.fetchToken();
-      
-      if (!token || !token.client_secret?.value) {
-        throw new Error("Failed to get ephemeral token from OpenAI");
-      }
-
-      const EPHEMERAL_KEY = token.client_secret.value;
-
-      // Create peer connection
-      this.pc = new RTCPeerConnection();
-
-      // Set up remote audio
-      this.pc.ontrack = e => {
-        console.log("Remote track received", e);
-        this.audioEl.srcObject = e.streams[0];
-        this.audioEl.muted = this.isMuted;
-      };
-
-      // Add local audio track
-      try {
-        const ms = await navigator.mediaDevices.getUserMedia({ audio: true });
-        ms.getTracks().forEach(track => this.pc?.addTrack(track, ms));
-      } catch (error) {
-        console.error("Error accessing microphone:", error);
-        throw new Error("Microphone access denied. Please allow microphone access and try again.");
-      }
-
-      // Set up data channel
-      this.dc = this.pc.createDataChannel("oai-events");
-      this.dc.addEventListener("open", () => {
-        console.log("Data channel opened");
-        this.isConnected = true;
-        this.onStatusChange("Connected");
-        
-        // Send session update after connection
-        setTimeout(() => {
-          this.updateSession();
-        }, 500);
-      });
-      
-      this.dc.addEventListener("message", async (e) => {
-        const event = JSON.parse(e.data);
-        console.log("Received event:", event);
-        
-        // Handle transcript events for message storage
-        if (event.type === 'input_audio_transcript.delta' || 
-            event.type === 'input_audio_transcript.done') {
-          this.handleTranscriptEvent(event);
-        } else if (event.type === 'response.text.done') {
-          // Store completed AI text responses
-          this.handleAIResponseEvent(event);
+      // Add audio track to the peer connection
+      this.microphone.getAudioTracks().forEach(track => {
+        if (this.pc) {
+          this.pc.addTrack(track, this.microphone!);
+          console.log("Added audio track to peer connection:", track.label);
         }
-        
-        this.onMessage(event);
       });
-
-      this.dc.addEventListener("close", () => {
-        console.log("Data channel closed");
-        this.isConnected = false;
-        this.onStatusChange("Disconnected");
-      });
-
-      this.dc.addEventListener("error", (e) => {
-        console.error("Data channel error:", e);
-        this.onStatusChange("Error: " + e.toString());
-      });
-
+      
       // Create and set local description
       const offer = await this.pc.createOffer();
       await this.pc.setLocalDescription(offer);
-
-      // Connect to OpenAI's Realtime API
-      const baseUrl = "https://api.openai.com/v1/realtime";
-      const model = "gpt-4o-realtime-preview-2024-12-17";
       
-      const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
+      // Connect to OpenAI's Realtime API
+      const sdpResponse = await fetch(`https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17`, {
         method: "POST",
-        body: offer.sdp,
         headers: {
-          Authorization: `Bearer ${EPHEMERAL_KEY}`,
-          "Content-Type": "application/sdp"
+          "Authorization": `Bearer ${data.client_secret.value}`,
+          "Content-Type": "application/sdp",
         },
+        body: offer.sdp,
       });
-
+      
       if (!sdpResponse.ok) {
         const errorText = await sdpResponse.text();
-        console.error("SDP Response Error:", errorText);
-        throw new Error(`Failed to connect to OpenAI: ${sdpResponse.statusText}`);
+        throw new Error(`OpenAI SDP exchange failed: ${errorText}`);
       }
-
+      
       const answer = {
         type: "answer" as RTCSdpType,
         sdp: await sdpResponse.text(),
@@ -236,182 +134,161 @@ export class RealtimeChat {
       
       await this.pc.setRemoteDescription(answer);
       console.log("WebRTC connection established");
-
-      // Start recording
-      this.recorder = new AudioRecorder(
-        // Audio data handler
-        (audioData) => {
-          if (this.dc?.readyState === 'open') {
-            this.dc.send(JSON.stringify({
-              type: 'input_audio_buffer.append',
-              audio: this.encodeAudioData(audioData)
-            }));
-          }
-        },
-        // Audio activity handler
-        (isActive) => {
-          if (isActive) {
-            this.onMessage({ type: 'input_audio_activity_started' });
-          } else {
-            this.onMessage({ type: 'input_audio_activity_stopped' });
-          }
-        }
-      );
-      await this.recorder.start();
-
+      
+      // Start activity detection
+      this.detectAudioActivity();
+      
+      // Send session.created event
+      this.messageCallback({
+        type: "session.created",
+        hasHistory: data.conversation_context?.has_history || false,
+        messageCount: data.conversation_context?.message_count || 0
+      });
+      
+      this.statusCallback("Connected");
+      
     } catch (error) {
-      console.error("Error initializing chat:", error);
-      this.onStatusChange("Error: " + (error instanceof Error ? error.message : String(error)));
+      console.error("WebRTC connection error:", error);
+      this.statusCallback("Connection failed");
       throw error;
     }
   }
-
-  private async fetchToken() {
-    // Get auth token if the user is logged in
-    let authHeader = {};
-    const session = await supabase.auth.getSession();
-    if (session?.data?.session?.access_token) {
-      authHeader = {
-        Authorization: `Bearer ${session.data.session.access_token}`
+  
+  private detectAudioActivity() {
+    try {
+      if (!this.microphone || this.isMicrophonePaused) return;
+      
+      this.audioContext = new AudioContext();
+      const source = this.audioContext.createMediaStreamSource(this.microphone);
+      const analyser = this.audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      let silenceStart: number | null = null;
+      let isSpeaking = false;
+      
+      const checkAudioLevel = () => {
+        if (!this.audioContext || this.isMicrophonePaused) return;
+        
+        analyser.getByteFrequencyData(dataArray);
+        
+        // Calculate average audio level
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+        
+        // Define thresholds
+        const speakingThreshold = 20;  // Adjust based on testing
+        const silenceThreshold = 5000; // 5 seconds of silence
+        
+        if (average > speakingThreshold && !isSpeaking) {
+          // User started speaking
+          isSpeaking = true;
+          silenceStart = null;
+          this.messageCallback({
+            type: 'input_audio_activity_started'
+          });
+        } else if (average <= speakingThreshold && isSpeaking) {
+          // User might have stopped speaking, start silence timer
+          if (!silenceStart) {
+            silenceStart = Date.now();
+          } else if (Date.now() - silenceStart > silenceThreshold) {
+            // Silence threshold reached, consider speech ended
+            isSpeaking = false;
+            silenceStart = null;
+            this.messageCallback({
+              type: 'input_audio_activity_stopped'
+            });
+          }
+        } else if (!isSpeaking) {
+          // Reset silence timer during continuous silence
+          silenceStart = null;
+        }
+        
+        // Continue checking if still connected
+        if (this.dc && this.dc.readyState === 'open') {
+          requestAnimationFrame(checkAudioLevel);
+        }
       };
+      
+      requestAnimationFrame(checkAudioLevel);
+      
+    } catch (error) {
+      console.error("Error in audio activity detection:", error);
     }
+  }
+  
+  pauseMicrophone() {
+    if (!this.microphone) return;
     
-    const tokenResponse = await supabase.functions.invoke("realtime-token", {
-      headers: authHeader
+    this.isMicrophonePaused = true;
+    this.microphone.getAudioTracks().forEach(track => {
+      track.enabled = false;
     });
     
-    if (tokenResponse.error) {
-      throw new Error(`Failed to get token: ${tokenResponse.error.message}`);
-    }
-    
-    return tokenResponse.data;
+    console.log("Microphone paused");
   }
-
-  private handleTranscriptEvent(event: any) {
-    // Handle final transcript to capture complete user message
-    if (event.type === 'input_audio_transcript.done' && event.transcript) {
-      this.lastUserMessage = event.transcript;
-      
-      // Save user message if callback is provided
-      if (this.saveMessageCallback && this.lastUserMessage.trim()) {
-        this.saveMessageCallback('user', this.lastUserMessage)
-          .catch(err => console.error('Error saving user message:', err));
-      }
-    }
-  }
-
-  private handleAIResponseEvent(event: any) {
-    // Handle completed AI text responses
-    if (event.text) {
-      this.lastAIMessage = event.text;
-      
-      // Save AI response if callback is provided
-      if (this.saveMessageCallback && this.lastAIMessage.trim()) {
-        this.saveMessageCallback('assistant', this.lastAIMessage)
-          .catch(err => console.error('Error saving AI message:', err));
-      }
-    }
-  }
-
-  private updateSession() {
-    if (!this.dc || this.dc.readyState !== 'open') {
-      console.error("Cannot update session: data channel not open");
-      return;
-    }
-
-    const sessionUpdateEvent = {
-      event_id: `event_${Date.now()}`,
-      type: "session.update",
-      session: {
-        modalities: ["text", "audio"],
-        instructions: "You are a helpful assistant. Help the user with any questions or tasks they have.",
-        voice: "alloy",
-        input_audio_format: "pcm16",
-        output_audio_format: "pcm16",
-        input_audio_transcription: {
-          model: "whisper-1"
-        },
-        turn_detection: {
-          type: "server_vad",
-          threshold: 0.5,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 1000
-        },
-        temperature: 0.7,
-        max_response_output_tokens: "inf"
-      }
-    };
-
-    console.log("Sending session update:", sessionUpdateEvent);
-    this.dc.send(JSON.stringify(sessionUpdateEvent));
-  }
-
-  private encodeAudioData(float32Array: Float32Array): string {
-    const int16Array = new Int16Array(float32Array.length);
-    for (let i = 0; i < float32Array.length; i++) {
-      const s = Math.max(-1, Math.min(1, float32Array[i]));
-      int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-    }
-    
-    const uint8Array = new Uint8Array(int16Array.buffer);
-    let binary = '';
-    const chunkSize = 0x8000;
-    
-    for (let i = 0; i < uint8Array.length; i += chunkSize) {
-      const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
-      binary += String.fromCharCode.apply(null, Array.from(chunk));
-    }
-    
-    return btoa(binary);
-  }
-
-  async sendTextMessage(text: string) {
-    if (!this.dc || this.dc.readyState !== 'open') {
-      throw new Error('Data channel not ready');
-    }
-
-    const event = {
-      type: 'conversation.item.create',
-      item: {
-        type: 'message',
-        role: 'user',
-        content: [
-          {
-            type: 'input_text',
-            text
-          }
-        ]
-      }
-    };
-
-    this.dc.send(JSON.stringify(event));
-    this.dc.send(JSON.stringify({type: 'response.create'}));
-  }
-
-  pauseMicrophone() {
-    this.recorder?.pause();
-  }
-
+  
   resumeMicrophone() {
-    this.recorder?.resume();
+    if (!this.microphone) return;
+    
+    this.isMicrophonePaused = false;
+    this.microphone.getAudioTracks().forEach(track => {
+      track.enabled = true;
+    });
+    
+    console.log("Microphone resumed");
+    // Restart activity detection
+    this.detectAudioActivity();
   }
-
+  
   setMuted(muted: boolean) {
     this.isMuted = muted;
-    if (this.audioEl) {
-      this.audioEl.muted = muted;
+    if (this.audioElement) {
+      this.audioElement.muted = muted;
     }
   }
-
+  
   disconnect() {
-    this.recorder?.stop();
-    this.dc?.close();
-    this.pc?.close();
-    this.isConnected = false;
-    this.onStatusChange("Disconnected");
-  }
-
-  isActive(): boolean {
-    return this.isConnected;
+    try {
+      // Close data channel
+      if (this.dc) {
+        this.dc.close();
+        this.dc = null;
+      }
+      
+      // Close peer connection
+      if (this.pc) {
+        this.pc.close();
+        this.pc = null;
+      }
+      
+      // Stop microphone tracks
+      if (this.microphone) {
+        this.microphone.getTracks().forEach(track => track.stop());
+        this.microphone = null;
+      }
+      
+      // Close audio context
+      if (this.audioContext) {
+        this.audioContext.close();
+        this.audioContext = null;
+      }
+      
+      // Reset audio element
+      if (this.audioElement) {
+        this.audioElement.srcObject = null;
+      }
+      
+      this.statusCallback("Disconnected");
+      console.log("WebRTC connection closed");
+    } catch (error) {
+      console.error("Error during disconnect:", error);
+    }
   }
 }
