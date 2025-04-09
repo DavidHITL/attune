@@ -27,6 +27,7 @@ const RealtimeChat: React.FC = () => {
   // Prevent auto-connecting - only connect when user explicitly requests it
   const handleStartConversation = useCallback(() => {
     if (!isConnected) {
+      console.log("User initiated conversation start");
       startConversation();
     }
   }, [isConnected, startConversation]);

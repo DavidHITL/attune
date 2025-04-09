@@ -5,7 +5,7 @@ import { useConversationHelpers } from "./conversation/useConversationHelpers";
 import { useConversationLoading } from "./conversation/useConversationLoading";
 import { useSaveMessage } from "./conversation/useSaveMessage";
 import { Message, UseConversationReturn } from "@/utils/types";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 export type { Message };
 
@@ -21,13 +21,18 @@ export const useConversation = (): UseConversationReturn => {
     addLocalMessage
   } = useConversationState();
   
+  // Use a ref to track if initialization has been done
+  const initializedRef = useRef(false);
+  
   const { validateRole, loadMessages: loadMessagesHelper } = useConversationHelpers();
   const { saveMessage: saveMessageToDb } = useSaveMessage(user, conversationId, validateRole);
   
   // Define loadMessages before using it in useConversationLoading
   const loadMessages = useCallback(async (convoId: string): Promise<Message[]> => {
     try {
+      console.log(`Loading messages for conversation: ${convoId}`);
       const validMessages = await loadMessagesHelper(convoId);
+      console.log(`Loaded ${validMessages.length} messages from database`);
       setMessages(validMessages);
       return validMessages;
     } catch (error) {
@@ -36,7 +41,7 @@ export const useConversation = (): UseConversationReturn => {
     }
   }, [loadMessagesHelper, setMessages]);
 
-  // Initialize and load conversation when user changes
+  // Initialize and load conversation when user changes, but only once
   useConversationLoading(
     user, 
     setConversationId, 
@@ -44,14 +49,16 @@ export const useConversation = (): UseConversationReturn => {
     setLoading, 
     validateRole, 
     loadMessages,
-    conversationId
+    conversationId,
+    initializedRef
   );
 
   // Save a new message
-  const saveMessage = async (message: Message): Promise<Message | null> => {
+  const saveMessage = useCallback(async (message: Message): Promise<Message | null> => {
     try {
       const savedMessage = await saveMessageToDb(message);
       if (savedMessage) {
+        console.log(`Successfully saved ${message.role} message to database`);
         setMessages(prev => [...prev, savedMessage]);
       }
       return savedMessage;
@@ -64,11 +71,12 @@ export const useConversation = (): UseConversationReturn => {
         created_at: new Date().toISOString()
       };
       
+      console.log(`Created temporary message for ${message.role} due to save error`);
       setMessages(prev => [...prev, tempMessage]);
       console.error('Error in saveMessage:', error);
       throw error;
     }
-  };
+  }, [saveMessageToDb, setMessages]);
 
   return {
     conversationId,

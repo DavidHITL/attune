@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export class WebRTCConnection {
@@ -63,8 +62,10 @@ export class WebRTCConnection {
       
       this.hasReceivedSessionCreated = false;
       
-      // Create peer connection
-      this.pc = new RTCPeerConnection();
+      // Create peer connection with appropriate configuration
+      this.pc = new RTCPeerConnection({
+        iceServers: [{urls: 'stun:stun.l.google.com:19302'}]
+      });
       
       // Set up data channel for events
       this.dc = this.pc.createDataChannel("events");
@@ -83,6 +84,18 @@ export class WebRTCConnection {
         this.audioElement.srcObject = event.streams[0];
       };
       
+      // Important: Get microphone access BEFORE creating the offer
+      // This is critical to ensure the offer includes an audio track
+      console.log("Requesting microphone access...");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log("Microphone access granted, adding tracks to peer connection");
+      
+      // Add all audio tracks from the microphone to the peer connection
+      stream.getAudioTracks().forEach(track => {
+        console.log("Adding audio track to peer connection:", track.label);
+        this.pc.addTrack(track, stream);
+      });
+      
       return await this.completeConnection(data.client_secret.value);
       
     } catch (error) {
@@ -97,10 +110,21 @@ export class WebRTCConnection {
     }
     
     // Create and set local description
+    console.log("Creating offer...");
     const offer = await this.pc.createOffer();
+    console.log("Setting local description...");
     await this.pc.setLocalDescription(offer);
     
+    // Debug info: Check if offer has audio media section
+    if (!offer.sdp || !offer.sdp.includes('m=audio')) {
+      console.error("WARNING: Generated offer does not contain audio media section!");
+      console.log("SDP offer content:", offer.sdp);
+    } else {
+      console.log("Generated offer contains audio media section");
+    }
+    
     // Connect to OpenAI's Realtime API
+    console.log("Sending offer to OpenAI...");
     const sdpResponse = await fetch(`https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17`, {
       method: "POST",
       headers: {
@@ -120,18 +144,33 @@ export class WebRTCConnection {
       sdp: await sdpResponse.text(),
     };
     
+    console.log("Setting remote description...");
     await this.pc.setRemoteDescription(answer);
     console.log("WebRTC connection established");
   }
   
   addAudioTrack(microphone: MediaStream): void {
-    if (!this.pc) return;
+    // This method is now redundant since we're adding tracks in init(),
+    // but keeping it for backward compatibility
+    if (!this.pc) {
+      console.warn("Cannot add audio track - PeerConnection not initialized");
+      return;
+    }
     
-    // Add audio track to the peer connection
-    microphone.getAudioTracks().forEach(track => {
-      this.pc!.addTrack(track, microphone);
-      console.log("Added audio track to peer connection:", track.label);
-    });
+    // Check if we already have audio tracks to avoid duplicates
+    const senders = this.pc.getSenders();
+    const hasSenders = senders.length > 0;
+    console.log(`Current peer connection has ${senders.length} senders`);
+    
+    if (!hasSenders) {
+      // Only add tracks if none exist
+      microphone.getAudioTracks().forEach(track => {
+        this.pc!.addTrack(track, microphone);
+        console.log("Added audio track to peer connection:", track.label);
+      });
+    } else {
+      console.log("Audio tracks already added, skipping");
+    }
   }
   
   setMuted(muted: boolean): void {

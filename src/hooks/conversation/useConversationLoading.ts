@@ -14,14 +14,15 @@ export const useConversationLoading = (
   setLoading: (loading: boolean) => void,
   validateRole: (role: string) => 'user' | 'assistant',
   loadMessages: (convoId: string) => Promise<Message[]>,
-  conversationId: string | null
+  conversationId: string | null,
+  initializedRef: React.MutableRefObject<boolean>
 ) => {
   const { toast } = useToast();
   const loadingRef = useRef(false);
   
   useEffect(() => {
-    // Skip if already loading, no user, or we already have a conversation ID
-    if (!user || loadingRef.current || conversationId) {
+    // Skip if already loading, no user, we already have a conversation ID, or already initialized
+    if (!user || loadingRef.current || conversationId || initializedRef.current) {
       setLoading(false);
       return;
     }
@@ -48,6 +49,9 @@ export const useConversationLoading = (
         
         // Fetch messages for this conversation
         await loadMessages(data);
+        
+        // Mark as initialized to prevent further initialization
+        initializedRef.current = true;
       } catch (error) {
         console.error('Error getting conversation:', error);
         toast({
@@ -67,5 +71,5 @@ export const useConversationLoading = (
     return () => {
       loadingRef.current = false;
     };
-  }, [user, conversationId, setConversationId, loadMessages, setLoading, setMessages, toast, validateRole]);
+  }, [user, conversationId, setConversationId, loadMessages, setLoading, setMessages, toast, validateRole, initializedRef]);
 };

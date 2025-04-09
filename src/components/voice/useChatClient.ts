@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
@@ -99,17 +98,24 @@ export const useChatClient = () => {
   // Memoize conversation start to avoid recreation on every render
   const startConversation = useCallback(async () => {
     try {
+      // First cleanup any existing connection
       if (chatClientRef.current) {
+        console.log("Cleaning up previous chat client instance");
         chatClientRef.current.disconnect();
+        chatClientRef.current = null;
       }
       
+      console.log("Creating new RealtimeChatClient instance");
       chatClientRef.current = new RealtimeChatClient(
         handleMessageEvent, 
         (newStatus) => setStatus(newStatus),
-        saveMessageToDb
+        saveMessage
       );
       
+      console.log("Initializing chat connection");
       await chatClientRef.current.init();
+      
+      console.log("Connection initialized successfully");
       setIsConnected(true);
       setIsMicOn(true);
       
@@ -122,12 +128,15 @@ export const useChatClient = () => {
         variant: "destructive",
       });
     }
-  }, [handleMessageEvent, saveMessageToDb]);
+  }, [handleMessageEvent, saveMessage]);
 
   // Memoize conversation end to avoid recreation on every render
   const endConversation = useCallback(() => {
     console.log("Ending conversation");
-    chatClientRef.current?.disconnect();
+    if (chatClientRef.current) {
+      chatClientRef.current.disconnect();
+      chatClientRef.current = null;
+    }
     setIsConnected(false);
     setVoiceActivityState(VoiceActivityState.Idle);
     setIsMicOn(false);
@@ -174,8 +183,43 @@ export const useChatClient = () => {
     hasContext,
     messageCount,
     startConversation,
-    endConversation,
-    toggleMicrophone,
-    toggleMute
+    endConversation: useCallback(() => {
+      console.log("Ending conversation");
+      if (chatClientRef.current) {
+        chatClientRef.current.disconnect();
+        chatClientRef.current = null;
+      }
+      setIsConnected(false);
+      setVoiceActivityState(VoiceActivityState.Idle);
+      setIsMicOn(false);
+      setStatus("Disconnected");
+      
+      toast({
+        title: "Voice assistant deactivated",
+        description: "Voice connection closed",
+      });
+    }, []),
+    toggleMicrophone: useCallback(() => {
+      if (!isConnected) {
+        startConversation();
+      } else {
+        setIsMicOn(!isMicOn);
+        if (chatClientRef.current) {
+          // Toggle microphone state in the RealtimeAudio utility
+          if (isMicOn) {
+            chatClientRef.current.pauseMicrophone();
+          } else {
+            chatClientRef.current.resumeMicrophone();
+          }
+        }
+      }
+    }, [isConnected, isMicOn, startConversation]),
+    toggleMute: useCallback(() => {
+      setIsMuted(!isMuted);
+      if (chatClientRef.current) {
+        // Toggle audio output mute state in the RealtimeAudio utility
+        chatClientRef.current.setMuted(!isMuted);
+      }
+    }, [isMuted])
   };
 };

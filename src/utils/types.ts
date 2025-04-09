@@ -1,30 +1,23 @@
-
-export type MessageEvent = {
-  type: string;
-  [key: string]: any;
-};
-
-export type MessageCallback = (event: MessageEvent) => void;
-export type StatusCallback = (status: string) => void;
-export type SaveMessageCallback = (role: 'user' | 'assistant', content: string) => Promise<void>;
-export type AudioActivityCallback = (state: 'start' | 'stop') => void;
-
-// WebRTC and audio types
-export type MediaRecorderState = 'recording' | 'paused' | 'inactive';
-
-// Conversation types
-export type Message = {
-  id?: string;
+export interface Message {
+  id: string;
+  created_at?: string;
   role: 'user' | 'assistant';
   content: string;
-  created_at?: string;
-};
+}
 
-export type UseConversationReturn = {
+export interface UseConversationReturn {
   conversationId: string | null;
   messages: Message[];
   loading: boolean;
   saveMessage: (message: Message) => Promise<Message | null>;
   addLocalMessage: (message: Message) => void;
   loadMessages: (convoId: string) => Promise<Message[]>;
-};
+}
+
+// Add MediaRecorderState type if it doesn't exist
+export type MediaRecorderState = 'recording' | 'paused' | 'inactive';
+
+// Ensure MessageCallback, StatusCallback, and SaveMessageCallback types are defined
+export type MessageCallback = (event: any) => void;
+export type StatusCallback = (status: string) => void;
+export type SaveMessageCallback = (message: Message) => Promise<Message | null>;

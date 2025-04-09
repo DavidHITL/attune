@@ -34,15 +34,17 @@ export class RealtimeChat {
   async init() {
     try {
       this.statusCallback("Connecting...");
-      
-      await this.webRTCConnection.init(this.handleMessage);
-      
-      this.statusCallback("Setting up audio...");
-      
-      // Get user's microphone
+
+      // First, initialize microphone to ensure we have audio tracks
+      console.log("Setting up audio...");
       const microphone = await this.audioProcessor.initMicrophone();
       
-      // Add audio track to WebRTC connection
+      console.log("Initializing WebRTC connection...");
+      // Pass the message handler to the WebRTC connection
+      await this.webRTCConnection.init(this.handleMessage);
+      
+      // Now that connection is established, add audio track
+      // The WebRTCConnection class will only add the track if it doesn't already exist
       this.webRTCConnection.addAudioTrack(microphone);
       
       this.statusCallback("Connected");
