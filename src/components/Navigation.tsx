@@ -15,7 +15,7 @@ const Navigation: React.FC = () => {
       {/* Chat icon in center */}
       <div className="flex items-center">
         <img 
-          src="/lovable-uploads/f635f2f5-750e-4d4d-b2ee-b33d88617206.png" 
+          src="/lovable-uploads/16dc81de-afe6-4cfb-88ee-4b63e9d9957d.png" 
           alt="Chat Icon" 
           width="32" 
           height="32" 
