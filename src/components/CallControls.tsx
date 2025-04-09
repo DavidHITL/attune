@@ -36,12 +36,12 @@ const CallControls: React.FC<CallControlsProps> = ({
         onClick={handleToggleMic}
         variant="outline"
         size="icon"
-        className="w-24 h-24 rounded-full bg-attune-blue/20 border-none backdrop-blur-md shadow-lg hover:bg-attune-blue/30 transition-all"
+        className="w-24 h-24 rounded-full bg-slate-300/80 border-none shadow-lg hover:bg-slate-300/90 transition-all"
       >
         {isMicOn ? (
-          <Mic className="h-20 w-20 text-attune-purple" strokeWidth={1.75} />
+          <Mic className="h-6 w-6 text-black" strokeWidth={1.5} />
         ) : (
-          <MicOff className="h-20 w-20 text-attune-purple" strokeWidth={1.75} />
+          <MicOff className="h-6 w-6 text-black" strokeWidth={1.5} />
         )}
       </Button>
 
@@ -49,12 +49,12 @@ const CallControls: React.FC<CallControlsProps> = ({
         onClick={handleToggleMute}
         variant="outline"
         size="icon"
-        className="w-24 h-24 rounded-full bg-attune-blue/20 border-none backdrop-blur-md shadow-lg hover:bg-attune-blue/30 transition-all"
+        className="w-24 h-24 rounded-full bg-slate-300/80 border-none shadow-lg hover:bg-slate-300/90 transition-all"
       >
         {isMuted ? (
-          <VolumeX className="h-20 w-20 text-attune-purple" strokeWidth={1.75} />
+          <VolumeX className="h-6 w-6 text-black" strokeWidth={1.5} />
         ) : (
-          <Volume2 className="h-20 w-20 text-attune-purple" strokeWidth={1.75} />
+          <Volume2 className="h-6 w-6 text-black" strokeWidth={1.5} />
         )}
       </Button>
 
@@ -62,9 +62,9 @@ const CallControls: React.FC<CallControlsProps> = ({
         onClick={handleEndCall}
         variant="outline"
         size="icon"
-        className="w-24 h-24 rounded-full bg-attune-blue/20 border-none backdrop-blur-md shadow-lg hover:bg-attune-blue/30 transition-all"
+        className="w-24 h-24 rounded-full bg-slate-300/80 border-none shadow-lg hover:bg-slate-300/90 transition-all"
       >
-        <PhoneOff className="h-20 w-20 text-attune-purple" strokeWidth={1.75} />
+        <PhoneOff className="h-6 w-6 text-black" strokeWidth={1.5} />
       </Button>
     </div>
   );

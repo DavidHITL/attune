@@ -52,8 +52,8 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
       {/* Call controls */}
       <div className="flex justify-center mt-auto mb-6">
         {!isConnected ? 
-          <div onClick={onStartConversation} className="w-24 h-24 rounded-full bg-attune-blue/20 border-none shadow-lg hover:bg-attune-blue/30 transition-all cursor-pointer flex items-center justify-center">
-            <Mic className="h-20 w-20 text-attune-purple" strokeWidth={1.75} />
+          <div onClick={onStartConversation} className="w-24 h-24 rounded-full bg-slate-300/80 border-none shadow-lg hover:bg-slate-300/90 transition-all cursor-pointer flex items-center justify-center">
+            <Mic className="h-6 w-6 text-black" strokeWidth={1.5} />
           </div> 
         : 
           <CallControls 
