@@ -20,6 +20,7 @@ export class AudioProcessor {
     try {
       this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       this.microphoneActive = true;
+      console.log("Microphone initialized successfully");
       return this.audioStream;
     } catch (error) {
       console.error("Error accessing microphone:", error);
@@ -91,7 +92,7 @@ export class AudioProcessor {
         track.enabled = false;
       });
       this.microphoneActive = false;
-      console.log("Microphone paused.");
+      console.log("Microphone paused - tracks disabled");
     }
   }
   
@@ -101,7 +102,7 @@ export class AudioProcessor {
         track.enabled = true;
       });
       this.microphoneActive = true;
-      console.log("Microphone resumed.");
+      console.log("Microphone resumed - tracks enabled");
     }
   }
   

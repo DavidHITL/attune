@@ -10,6 +10,7 @@ export class RealtimeChat {
   private messageQueue: MessageQueue;
   private responseParser: ResponseParser;
   private eventHandler: EventHandler;
+  private isMuted: boolean = false;
   
   constructor(
     private messageCallback: MessageCallback,
@@ -59,15 +60,30 @@ export class RealtimeChat {
   }
   
   pauseMicrophone() {
+    console.log("RealtimeChat: Pausing microphone");
     this.connectionManager.pauseMicrophone();
   }
   
   resumeMicrophone() {
-    this.connectionManager.resumeMicrophone();
+    // Only resume if not muted
+    if (!this.isMuted) {
+      console.log("RealtimeChat: Resuming microphone");
+      this.connectionManager.resumeMicrophone();
+    } else {
+      console.log("RealtimeChat: Not resuming microphone because audio is muted");
+    }
   }
   
   setMuted(muted: boolean) {
+    console.log("RealtimeChat: Setting muted state to", muted);
+    this.isMuted = muted;
     this.connectionManager.setMuted(muted);
+    
+    // When muting, always pause microphone
+    if (muted) {
+      this.pauseMicrophone();
+    }
+    // When unmuting, the microphone state will be managed by the calling code
   }
   
   async disconnect() {
