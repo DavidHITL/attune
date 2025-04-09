@@ -24,20 +24,25 @@ const RealtimeChat: React.FC = () => {
     console.log("Handling message event:", event);
     
     if (event.type === 'response.audio.delta') {
-      // Audio is playing (original event - keeping for backward compatibility)
+      // Audio is playing
       setVoiceActivityState(VoiceActivityState.Output);
     } else if (event.type === 'response.audio_transcript.delta') {
       // Using transcript delta as indicator that AI is speaking
       setVoiceActivityState(VoiceActivityState.Output);
     } else if (event.type === 'response.audio.done' || event.type === 'response.audio_transcript.done') {
       // Audio finished playing
-      setVoiceActivityState(VoiceActivityState.Idle);
+      setTimeout(() => {
+        // Add a small delay before setting to idle to ensure all audio is processed
+        setVoiceActivityState(VoiceActivityState.Idle);
+      }, 300);
     } else if (event.type === 'input_audio_activity_started') {
       // Microphone input is active
       setVoiceActivityState(VoiceActivityState.Input);
     } else if (event.type === 'input_audio_activity_stopped') {
       // Microphone input has stopped
-      setVoiceActivityState(VoiceActivityState.Idle);
+      setTimeout(() => {
+        setVoiceActivityState(VoiceActivityState.Idle);
+      }, 300);
     } else if (event.type === 'session.created') {
       toast({
         title: "Connected to Voice AI",
@@ -50,7 +55,9 @@ const RealtimeChat: React.FC = () => {
     } else if (event.type === 'response.done') {
       // AI has finished generating a response
       console.log("AI response done");
-      setVoiceActivityState(VoiceActivityState.Idle);
+      setTimeout(() => {
+        setVoiceActivityState(VoiceActivityState.Idle);
+      }, 300);
     }
   };
 
