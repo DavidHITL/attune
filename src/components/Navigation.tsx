@@ -13,19 +13,37 @@ const Navigation = () => {
   const { backgroundColor } = useBackground();
 
   return (
-    <nav className={`w-full ${backgroundColor} py-2 px-4 flex justify-center fixed top-0 z-10`}>
+    <nav className={`w-full ${backgroundColor} py-3 px-4 flex justify-center fixed bottom-0 z-10`}>
       <div className="max-w-[390px] w-full flex justify-center items-center">
         <div className="w-full flex justify-between items-center">
-          <Link to="/" className={`text-black hover:text-gray-700 transition-colors ${location.pathname === '/' ? 'text-gray-700' : ''}`}>
-            <BookOpen className="w-5 h-5" />
+          <Link 
+            to="/" 
+            className={`flex items-center justify-center ${location.pathname === '/' 
+              ? 'bg-white/20 backdrop-blur-md' 
+              : 'bg-white/10 hover:bg-white/15'} 
+              w-12 h-12 rounded-full transition-all duration-300 shadow-md`}
+          >
+            <BookOpen className="w-5 h-5 text-black" />
           </Link>
           
-          <Link to="/voice" className={`text-black hover:text-gray-700 transition-colors ${location.pathname === '/voice' ? 'text-gray-700' : ''}`}>
-            <Mic className="w-5 h-5" />
+          <Link 
+            to="/voice" 
+            className={`flex items-center justify-center ${location.pathname === '/voice' 
+              ? 'bg-white/20 backdrop-blur-md' 
+              : 'bg-white/10 hover:bg-white/15'} 
+              w-12 h-12 rounded-full transition-all duration-300 shadow-md`}
+          >
+            <Mic className="w-5 h-5 text-black" />
           </Link>
           
-          <Link to={user ? '/profile' : '/auth'} className={`text-black hover:text-gray-700 transition-colors ${location.pathname === '/profile' || location.pathname === '/auth' ? 'text-gray-700' : ''}`}>
-            <User className="w-5 h-5" />
+          <Link 
+            to={user ? '/profile' : '/auth'} 
+            className={`flex items-center justify-center ${location.pathname === '/profile' || location.pathname === '/auth' 
+              ? 'bg-white/20 backdrop-blur-md' 
+              : 'bg-white/10 hover:bg-white/15'} 
+              w-12 h-12 rounded-full transition-all duration-300 shadow-md`}
+          >
+            <User className="w-5 h-5 text-black" />
           </Link>
         </div>
       </div>
