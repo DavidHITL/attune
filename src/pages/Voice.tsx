@@ -1,12 +1,18 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import RealtimeChat from '@/components/RealtimeChat';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
+import { useBackground } from '@/context/BackgroundContext';
 
 const Voice = () => {
   const { user, loading } = useAuth();
+  const { setBackgroundColor } = useBackground();
+
+  useEffect(() => {
+    setBackgroundColor('bg-attune-blue');
+  }, [setBackgroundColor]);
 
   if (loading) {
     return (

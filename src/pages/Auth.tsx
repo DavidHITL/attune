@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useBackground } from "@/context/BackgroundContext";
 
 export default function Auth() {
   const [loading, setLoading] = useState(false);
@@ -14,6 +14,11 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { setBackgroundColor } = useBackground();
+
+  useEffect(() => {
+    setBackgroundColor('bg-attune-blue');
+  }, [setBackgroundColor]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
