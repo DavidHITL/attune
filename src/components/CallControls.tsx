@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Mic, MicOff, X } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 
@@ -44,14 +44,12 @@ const CallControls: React.FC<CallControlsProps> = ({
   };
 
   return (
-    <div className="flex justify-center gap-6">
+    <div className="flex justify-center gap-10">
       <Button
         onClick={handleToggleMic}
         variant="outline"
         size="icon"
-        className={`w-16 h-16 rounded-full ${
-          isMicOn ? 'bg-attune-blue/20' : 'bg-attune-purple/20'
-        }`}
+        className="w-20 h-20 rounded-full bg-attune-blue/30 border-none hover:bg-attune-blue/50"
       >
         {isMicOn ? (
           <Mic className="h-8 w-8 text-attune-purple" />
@@ -64,7 +62,7 @@ const CallControls: React.FC<CallControlsProps> = ({
         onClick={handleToggleMute}
         variant="outline"
         size="icon"
-        className="w-16 h-16 rounded-full bg-attune-blue/20"
+        className="w-20 h-20 rounded-full bg-attune-blue/30 border-none hover:bg-attune-blue/50"
       >
         <div className="relative">
           <svg 
@@ -94,7 +92,7 @@ const CallControls: React.FC<CallControlsProps> = ({
         onClick={handleEndCall}
         variant="outline"
         size="icon"
-        className="w-16 h-16 rounded-full bg-attune-blue/20"
+        className="w-20 h-20 rounded-full bg-attune-blue/30 border-none hover:bg-attune-blue/50"
       >
         <X className="h-8 w-8 text-attune-purple" />
       </Button>
