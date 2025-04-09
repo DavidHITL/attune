@@ -130,20 +130,10 @@ const RealtimeChat: React.FC = () => {
               <VoiceActivityIndicator state={voiceActivityState} />
             </div>
           ) : (
-            <>
-              <div className="text-sm mb-2 text-attune-purple">Status: {status}</div>
-              {isConnected && <VoiceActivityIndicator state={voiceActivityState} />}
-            </>
+            <VoiceActivityIndicator state={voiceActivityState} />
           )}
         </div>
       </div>
-      
-      {/* Voice interaction instructions */}
-      {!isConnected && (
-        <div className="text-center mb-12 text-attune-purple/80">
-          <p>Press the microphone button below to start a voice conversation with the AI assistant.</p>
-        </div>
-      )}
 
       {/* Call controls */}
       <div className="flex justify-center mt-auto mb-8">
