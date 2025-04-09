@@ -18,21 +18,21 @@ const Profile = () => {
   return (
     <div className="flex-1 flex flex-col items-center w-full max-w-4xl mt-16">
       <div className="w-full max-w-lg p-6">
-        <h2 className="text-2xl font-semibold text-attune-purple mb-6">About You</h2>
+        <h2 className="text-2xl font-semibold text-black mb-6">About You</h2>
         
         {user && (
           <div className="space-y-4 mb-8">
-            <p className="text-attune-purple/80">
+            <p className="text-black">
               <span className="font-medium">Email:</span> {user.email}
             </p>
-            <p className="text-attune-purple/80">
+            <p className="text-black">
               Welcome to your Attune profile page. Here you can manage your account 
               settings and customize your voice assistant experience.
             </p>
           </div>
         )}
         
-        <Button onClick={handleSignOut} variant="outline" className="w-full mt-4">
+        <Button onClick={handleSignOut} variant="outline" className="w-full mt-4 text-black">
           Sign Out
         </Button>
       </div>
