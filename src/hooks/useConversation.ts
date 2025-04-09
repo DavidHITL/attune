@@ -92,9 +92,16 @@ export const useConversation = () => {
       })) : [];
       
       console.log(`Loaded ${validMessages.length} messages from database`);
+      if (validMessages.length > 0) {
+        console.log("First message:", validMessages[0].content.substring(0, 30) + "...");
+        console.log("Last message:", validMessages[validMessages.length - 1].content.substring(0, 30) + "...");
+      }
+      
       setMessages(validMessages);
+      return validMessages;
     } catch (error) {
       console.error('Error loading messages:', error);
+      throw error;
     }
   };
 
@@ -137,7 +144,61 @@ export const useConversation = () => {
       return validatedMessage;
     } catch (error) {
       console.error('Error saving message:', error);
-      throw error; // Let caller handle the error
+      
+      // Try again after a brief delay
+      try {
+        console.log('Retrying save message after error...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const { data, error: retryError } = await supabase
+          .from('messages')
+          .insert([{
+            conversation_id: conversationId,
+            user_id: user.id,
+            role: message.role,
+            content: message.content
+          }])
+          .select('id, role, content, created_at')
+          .single();
+        
+        if (retryError) {
+          console.error('Error on retry saving message:', retryError);
+          throw retryError;
+        }
+        
+        const validatedMessage: Message = {
+          id: data.id,
+          role: validateRole(data.role),
+          content: data.content,
+          created_at: data.created_at
+        };
+        
+        console.log(`Message saved successfully on retry with ID: ${validatedMessage.id}`);
+        setMessages(prev => [...prev, validatedMessage]);
+        return validatedMessage;
+      } catch (retryError) {
+        console.error('Failed to save message after retry:', retryError);
+        
+        // Add message to state even if DB save failed, so UI remains consistent
+        const tempMessage: Message = {
+          id: `temp-${new Date().getTime()}`,
+          role: message.role,
+          content: message.content,
+          created_at: new Date().toISOString()
+        };
+        
+        console.log('Adding temporary message to state despite save failure');
+        setMessages(prev => [...prev, tempMessage]);
+        
+        // Show toast to user about potential sync issue
+        toast({
+          title: 'Warning',
+          description: 'Message may not be saved. There could be sync issues with conversation history.',
+          variant: 'destructive',
+        });
+        
+        throw retryError;
+      }
     }
   };
 

@@ -85,13 +85,13 @@ serve(async (req) => {
           const conversationId = conversationResult;
           console.log("Using conversation ID:", conversationId);
           
-          // Fetch the messages (increased from 10 to 20 for better context)
+          // Fetch the messages (increased from 20 to 30 for better context)
           const { data: messages, error: messagesError } = await supabase
             .from('messages')
             .select('role, content, created_at')
             .eq('conversation_id', conversationId)
             .order('created_at', { ascending: false })
-            .limit(20);
+            .limit(30);
           
           if (messagesError) {
             console.error("Error fetching messages:", messagesError);
@@ -108,7 +108,10 @@ serve(async (req) => {
             
             instructions = `${instructions}\n\nYou have conversed with this user before. Here is the recent conversation history to maintain continuity:\n\n${historyContext}\n\nContinue the conversation naturally, acknowledging previous context when relevant. The user is expecting you to remember this history.`;
             
-            console.log("Added conversation history to instructions with enhanced formatting");
+            console.log("Added conversation history to instructions");
+            console.log("History length:", historyContext.length, "characters");
+            console.log("First message:", recentMessages[0]?.content?.substring(0, 30) || "None");
+            console.log("Last message:", recentMessages[recentMessages.length - 1]?.content?.substring(0, 30) || "None");
           } else {
             console.log("No previous message history found");
             instructions += "\n\nThis is your first conversation with this user.";

@@ -29,6 +29,8 @@ export class RealtimeChat {
   private lastMessageSentTime: number = 0;
   private minTimeBetweenMessages: number = 500; // ms
   private hasReceivedSessionCreated: boolean = false;
+  private userTranscript: string = '';
+  private assistantResponse: string = '';
   
   constructor(
     messageCallback: MessageCallback,
@@ -111,23 +113,45 @@ export class RealtimeChat {
             console.log("Session created event received");
           }
           
-          // Save user message when transcript is complete
-          if (parsedEvent.type === "response.audio_transcript.done") {
-            const content = parsedEvent.transcript?.text;
+          // Process events for user messages (improved event handling)
+          if (parsedEvent.type === "response.audio_transcript.delta" && parsedEvent.delta?.text) {
+            // Accumulate transcript text
+            this.userTranscript += parsedEvent.delta.text;
+            console.log(`Accumulating user transcript: ${this.userTranscript}`);
+          }
+          
+          if (parsedEvent.type === "response.audio_transcript.done" && parsedEvent.transcript?.text) {
+            // Get the final transcript and save it
+            const content = parsedEvent.transcript.text;
             if (content && content.trim()) {
-              console.log("Saving user transcript:", content);
+              console.log("Final user transcript received:", content);
               this.queueMessage('user', content);
+              // Reset transcript accumulator
+              this.userTranscript = '';
+            } else if (this.userTranscript && this.userTranscript.trim()) {
+              // Fallback to accumulated transcript if final is missing
+              console.log("Using accumulated user transcript:", this.userTranscript);
+              this.queueMessage('user', this.userTranscript);
+              this.userTranscript = '';
             } else {
               console.log("Empty user transcript, not saving");
             }
           }
           
-          // Save assistant message when response is complete
-          if (parsedEvent.type === "response.done" && parsedEvent.delta?.content) {
-            const content = parsedEvent.delta.content;
-            if (content && content.trim()) {
-              console.log("Saving assistant response:", content);
-              this.queueMessage('assistant', content);
+          // Process events for assistant messages (improved event handling)
+          if (parsedEvent.type === "response.delta" && parsedEvent.delta?.content) {
+            // Accumulate assistant response
+            this.assistantResponse += parsedEvent.delta.content;
+            console.log(`Accumulating assistant response: ${this.assistantResponse.substring(0, 50)}${this.assistantResponse.length > 50 ? '...' : ''}`);
+          }
+          
+          if (parsedEvent.type === "response.done") {
+            // Save the complete assistant response
+            if (this.assistantResponse && this.assistantResponse.trim()) {
+              console.log("Saving complete assistant response:", this.assistantResponse.substring(0, 50) + (this.assistantResponse.length > 50 ? '...' : ''));
+              this.queueMessage('assistant', this.assistantResponse);
+              // Reset response accumulator
+              this.assistantResponse = '';
             } else {
               console.log("Empty assistant response, not saving");
             }
@@ -390,6 +414,25 @@ export class RealtimeChat {
           console.log(`Successfully saved message during disconnect`);
         } catch (error) {
           console.error("Error saving message during disconnect:", error);
+        }
+      }
+      
+      // Save any partial transcripts or responses that weren't saved yet
+      if (this.userTranscript && this.userTranscript.trim()) {
+        try {
+          console.log("Saving partial user transcript during disconnect:", this.userTranscript);
+          await this.saveMessageCallback('user', this.userTranscript);
+        } catch (error) {
+          console.error("Error saving partial user transcript during disconnect:", error);
+        }
+      }
+      
+      if (this.assistantResponse && this.assistantResponse.trim()) {
+        try {
+          console.log("Saving partial assistant response during disconnect:", this.assistantResponse);
+          await this.saveMessageCallback('assistant', this.assistantResponse);
+        } catch (error) {
+          console.error("Error saving partial assistant response during disconnect:", error);
         }
       }
     };
