@@ -71,7 +71,7 @@ export default function Auth() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-attune-blue p-4">
-      <Card className="w-full max-w-md bg-attune-blue">
+      <Card className="w-full max-w-md bg-attune-blue border-none">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">Welcome to Attune</CardTitle>
           <CardDescription className="text-center">
