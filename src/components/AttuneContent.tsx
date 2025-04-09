@@ -11,9 +11,6 @@ const AttuneContent = () => {
       <AttuneLogo />
       
       <div className="mt-10 text-center max-w-lg">
-        <h2 className="text-2xl font-semibold text-attune-purple mb-4">
-          {user ? 'Welcome Back' : 'Welcome to Attune'}
-        </h2>
         <p className="text-attune-purple/80">
           {user 
             ? '"Love isn\'t something that you have. It\'s something you do. And you can do it better." — Terry Real'
