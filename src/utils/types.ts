@@ -9,6 +9,9 @@ export type StatusCallback = (status: string) => void;
 export type SaveMessageCallback = (role: 'user' | 'assistant', content: string) => Promise<void>;
 export type AudioActivityCallback = (state: 'start' | 'stop') => void;
 
+// WebRTC and audio types
+export type MediaRecorderState = 'recording' | 'paused' | 'inactive';
+
 // Conversation types
 export type Message = {
   id?: string;
