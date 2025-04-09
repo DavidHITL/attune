@@ -2,7 +2,6 @@
 import React from 'react';
 import { Mic, MicOff, Volume, VolumeX, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
 
 interface CallControlsProps {
   isMicOn: boolean;
@@ -25,10 +24,6 @@ const CallControls: React.FC<CallControlsProps> = ({
 
   const handleToggleMute = () => {
     onToggleMute();
-    toast({
-      title: isMuted ? "Audio unmuted" : "Audio muted",
-      duration: 2000,
-    });
   };
 
   const handleEndCall = () => {
