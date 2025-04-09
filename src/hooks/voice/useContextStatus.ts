@@ -1,6 +1,5 @@
 
 import { useState, useCallback } from 'react';
-import { toast } from '@/components/ui/use-toast';
 
 /**
  * Hook for managing connection status and context information
@@ -19,15 +18,7 @@ export const useContextStatus = () => {
         setMessageCount(event.messageCount || 0);
       }
       
-      let toastMessage = "Connected to Voice AI";
-      let toastDescription = event.hasHistory ? 
-        `The assistant remembers your previous ${event.messageCount || ''} message conversation.` : 
-        "Start speaking to interact with the AI";
-      
-      toast({
-        title: toastMessage,
-        description: toastDescription,
-      });
+      // Toast notification removed
     }
   }, []);
 
