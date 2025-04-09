@@ -34,8 +34,12 @@ export const useConversation = () => {
         const { data, error } = await supabase
           .rpc('get_or_create_conversation', { p_user_id: user.id });
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error getting conversation:', error);
+          throw error;
+        }
         
+        console.log("Retrieved conversation ID:", data);
         setConversationId(data);
         
         // Fetch messages for this conversation
@@ -67,13 +71,17 @@ export const useConversation = () => {
   // Load messages for a conversation
   const loadMessages = async (convoId: string) => {
     try {
+      console.log(`Loading messages for conversation: ${convoId}`);
       const { data, error } = await supabase
         .from('messages')
         .select('id, role, content, created_at')
         .eq('conversation_id', convoId)
         .order('created_at', { ascending: true });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading messages:', error);
+        throw error;
+      }
       
       // Convert database results to Message type with proper role validation
       const validMessages: Message[] = data ? data.map(item => ({
@@ -83,6 +91,7 @@ export const useConversation = () => {
         created_at: item.created_at
       })) : [];
       
+      console.log(`Loaded ${validMessages.length} messages from database`);
       setMessages(validMessages);
     } catch (error) {
       console.error('Error loading messages:', error);
@@ -97,6 +106,8 @@ export const useConversation = () => {
     }
     
     try {
+      console.log(`Saving message to conversation ${conversationId}: ${message.role} - ${message.content.substring(0, 30)}...`);
+      
       const { data, error } = await supabase
         .from('messages')
         .insert([{
@@ -108,7 +119,10 @@ export const useConversation = () => {
         .select('id, role, content, created_at')
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error saving message:', error);
+        throw error;
+      }
       
       // Add the new message to the state with validated role
       const validatedMessage: Message = {
@@ -118,11 +132,12 @@ export const useConversation = () => {
         created_at: data.created_at
       };
       
+      console.log(`Message saved successfully with ID: ${validatedMessage.id}`);
       setMessages(prev => [...prev, validatedMessage]);
       return validatedMessage;
     } catch (error) {
       console.error('Error saving message:', error);
-      return null;
+      throw error; // Let caller handle the error
     }
   };
 

@@ -26,6 +26,9 @@ export class RealtimeChat {
   private isMuted: boolean = false;
   private messageQueue: {role: 'user' | 'assistant', content: string}[] = [];
   private isProcessingQueue: boolean = false;
+  private lastMessageSentTime: number = 0;
+  private minTimeBetweenMessages: number = 500; // ms
+  private hasReceivedSessionCreated: boolean = false;
   
   constructor(
     messageCallback: MessageCallback,
@@ -59,6 +62,9 @@ export class RealtimeChat {
       // Only add Authorization header if we have a token
       if (accessToken) {
         headers['Authorization'] = `Bearer ${accessToken}`;
+        console.log("Using authentication token for edge function");
+      } else {
+        console.log("No authentication token available");
       }
       
       const response = await supabase.functions.invoke('realtime-token', {
@@ -85,6 +91,7 @@ export class RealtimeChat {
         );
       }
       
+      this.hasReceivedSessionCreated = false;
       this.statusCallback("Setting up audio...");
       
       // Create peer connection
@@ -97,19 +104,33 @@ export class RealtimeChat {
           const parsedEvent = JSON.parse(event.data);
           console.log("WebRTC event:", parsedEvent);
           this.messageCallback(parsedEvent);
+
+          // Mark session as created when we receive that event
+          if (parsedEvent.type === "session.created") {
+            this.hasReceivedSessionCreated = true;
+            console.log("Session created event received");
+          }
           
           // Save user message when transcript is complete
           if (parsedEvent.type === "response.audio_transcript.done") {
             const content = parsedEvent.transcript?.text;
-            if (content) {
+            if (content && content.trim()) {
+              console.log("Saving user transcript:", content);
               this.queueMessage('user', content);
+            } else {
+              console.log("Empty user transcript, not saving");
             }
           }
           
           // Save assistant message when response is complete
           if (parsedEvent.type === "response.done" && parsedEvent.delta?.content) {
             const content = parsedEvent.delta.content;
-            this.queueMessage('assistant', content);
+            if (content && content.trim()) {
+              console.log("Saving assistant response:", content);
+              this.queueMessage('assistant', content);
+            } else {
+              console.log("Empty assistant response, not saving");
+            }
           }
         } catch (e) {
           console.error("Error parsing event data:", e);
@@ -187,8 +208,23 @@ export class RealtimeChat {
 
   // Queue message saving to prevent race conditions or failures
   private queueMessage(role: 'user' | 'assistant', content: string) {
+    // Don't save empty messages
+    if (!content || content.trim() === '') {
+      console.log(`Skipping empty ${role} message`);
+      return;
+    }
+    
+    // Check if we've saved the same message recently (debounce)
+    const now = Date.now();
+    if (now - this.lastMessageSentTime < this.minTimeBetweenMessages) {
+      console.log(`Message received too quickly after previous one, might be duplicate`);
+    }
+    
+    this.lastMessageSentTime = now;
+    
     this.messageQueue.push({ role, content });
-    console.log(`Queued ${role} message: "${content.substring(0, 30)}..."`);
+    console.log(`Queued ${role} message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
+    console.log(`Queue length: ${this.messageQueue.length}`);
     this.processMessageQueue();
   }
 
@@ -201,18 +237,38 @@ export class RealtimeChat {
     try {
       const message = this.messageQueue.shift();
       if (message) {
-        console.log(`Processing ${message.role} message from queue`);
-        await this.saveMessageCallback(message.role, message.content);
-        console.log(`Successfully saved ${message.role} message to database`);
+        console.log(`Processing ${message.role} message from queue: "${message.content.substring(0, 30)}${message.content.length > 30 ? '...' : ''}"`);
+        
+        // Retry loop for saving messages
+        let attempts = 0;
+        const maxAttempts = 3;
+        let saved = false;
+        
+        while (!saved && attempts < maxAttempts) {
+          try {
+            await this.saveMessageCallback(message.role, message.content);
+            console.log(`Successfully saved ${message.role} message to database (attempt ${attempts + 1})`);
+            saved = true;
+          } catch (error) {
+            attempts++;
+            console.error(`Error saving message (attempt ${attempts}):`, error);
+            if (attempts < maxAttempts) {
+              console.log(`Retrying in ${attempts * 1000}ms...`);
+              await new Promise(resolve => setTimeout(resolve, attempts * 1000));
+            } else {
+              console.error(`Failed to save message after ${maxAttempts} attempts`);
+            }
+          }
+        }
       }
     } catch (error) {
-      console.error("Error saving message from queue:", error);
+      console.error("Error in message queue processing:", error);
     } finally {
       this.isProcessingQueue = false;
       
       // Process next message if any
       if (this.messageQueue.length > 0) {
-        this.processMessageQueue();
+        setTimeout(() => this.processMessageQueue(), 100); // Small delay between processing items
       }
     }
   }
@@ -318,6 +374,9 @@ export class RealtimeChat {
   }
   
   disconnect() {
+    // Force process any remaining messages in the queue synchronously
+    console.log(`Disconnecting with ${this.messageQueue.length} messages in queue`);
+    
     // Process any remaining messages in the queue
     const remainingMessages = [...this.messageQueue];
     this.messageQueue = [];
@@ -326,7 +385,9 @@ export class RealtimeChat {
     const processRemaining = async () => {
       for (const msg of remainingMessages) {
         try {
+          console.log(`Processing message during disconnect: ${msg.role} - ${msg.content.substring(0, 30)}...`);
           await this.saveMessageCallback(msg.role, msg.content);
+          console.log(`Successfully saved message during disconnect`);
         } catch (error) {
           console.error("Error saving message during disconnect:", error);
         }

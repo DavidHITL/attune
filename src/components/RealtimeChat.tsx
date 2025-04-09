@@ -16,14 +16,25 @@ const RealtimeChat: React.FC = () => {
   const [hasContext, setHasContext] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const chatClientRef = useRef<RealtimeChatClient | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   
   const { user } = useAuth();
   const { messages, saveMessage, conversationId, loading: conversationLoading } = useConversation();
 
+  // Scroll to bottom of messages when they change
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
   useEffect(() => {
     // Clean up on component unmount
     return () => {
-      chatClientRef.current?.disconnect();
+      if (chatClientRef.current) {
+        console.log("Component unmounting - disconnecting chat client");
+        chatClientRef.current.disconnect();
+      }
     };
   }, []);
 
@@ -60,7 +71,7 @@ const RealtimeChat: React.FC = () => {
       
       let toastMessage = "Connected to Voice AI";
       let toastDescription = event.hasHistory ? 
-        `The assistant remembers your ${event.messageCount || 'previous'} message conversation.` : 
+        `The assistant remembers your previous ${event.messageCount || ''} message conversation.` : 
         "Start speaking to interact with the AI";
       
       toast({
@@ -84,20 +95,18 @@ const RealtimeChat: React.FC = () => {
       return;
     }
     
+    if (!content || content.trim() === '') {
+      console.log(`Empty ${role} message, not saving to database`);
+      return;
+    }
+    
     try {
+      console.log(`Saving ${role} message to database: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
       await saveMessage({ role, content });
-      console.log(`Saved ${role} message to database: "${content.substring(0, 30)}..."`);
+      console.log(`Successfully saved ${role} message to database`);
     } catch (error) {
       console.error("Failed to save message:", error);
-      // Retry once after a short delay
-      setTimeout(async () => {
-        try {
-          await saveMessage({ role, content });
-          console.log(`Successfully retried saving ${role} message`);
-        } catch (retryError) {
-          console.error("Failed to save message after retry:", retryError);
-        }
-      }, 1000);
+      throw error; // Let the caller handle the retry logic
     }
   };
 
@@ -129,6 +138,7 @@ const RealtimeChat: React.FC = () => {
   };
 
   const endConversation = () => {
+    console.log("Ending conversation");
     chatClientRef.current?.disconnect();
     setIsConnected(false);
     setVoiceActivityState(VoiceActivityState.Idle);
@@ -168,16 +178,14 @@ const RealtimeChat: React.FC = () => {
   const renderMessages = () => {
     if (messages.length === 0) return null;
     
-    // Show only the last 5 messages to avoid cluttering the UI
-    const displayMessages = messages.slice(-5);
-    
+    // Show messages in a scrollable container
     return (
       <div className="mb-8 mt-4 max-h-60 overflow-y-auto border border-attune-blue/30 rounded-lg p-4 bg-attune-blue/10">
         <h3 className="text-sm font-medium mb-2 text-attune-purple">
           Recent Conversation History
-          {messages.length > 5 && ` (showing last ${displayMessages.length} of ${messages.length} messages)`}
+          {messages.length > 10 && ` (showing all ${messages.length} messages)`}
         </h3>
-        {displayMessages.map((msg, index) => (
+        {messages.map((msg, index) => (
           <div key={msg.id || index} className={`mb-3 ${msg.role === 'user' ? 'text-right' : ''}`}>
             <span className="text-xs text-attune-purple/70 block mb-1">
               {msg.role === 'user' ? 'You' : 'Assistant'}
@@ -191,6 +199,7 @@ const RealtimeChat: React.FC = () => {
             </div>
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
     );
   };

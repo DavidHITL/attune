@@ -47,6 +47,7 @@ serve(async (req) => {
         }
       } catch (authError) {
         console.error("Error parsing auth header:", authError);
+        throw new Error(`Auth header parsing error: ${authError.message}`);
       }
     } else {
       console.log("No Authorization header present");
@@ -79,33 +80,35 @@ serve(async (req) => {
         
         if (conversationError) {
           console.error("Error getting/creating conversation:", conversationError);
+          throw new Error(`Conversation error: ${conversationError.message}`);
         } else {
           const conversationId = conversationResult;
           console.log("Using conversation ID:", conversationId);
           
-          // Fetch the most recent messages (limit to 10 for context window management)
+          // Fetch the messages (increased from 10 to 20 for better context)
           const { data: messages, error: messagesError } = await supabase
             .from('messages')
             .select('role, content, created_at')
             .eq('conversation_id', conversationId)
             .order('created_at', { ascending: false })
-            .limit(10);
+            .limit(20);
           
           if (messagesError) {
             console.error("Error fetching messages:", messagesError);
+            throw new Error(`Error fetching messages: ${messagesError.message}`);
           } else if (messages && messages.length > 0) {
             // Reverse to get chronological order
             recentMessages = messages.reverse();
             console.log(`Fetched ${messages.length} recent messages for context`);
             
-            // Enhance instructions with conversation history
+            // Enhanced instructions with conversation history
             const historyContext = recentMessages
-              .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content} (${new Date(msg.created_at).toLocaleString()})`)
+              .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
               .join('\n\n');
             
             instructions = `${instructions}\n\nYou have conversed with this user before. Here is the recent conversation history to maintain continuity:\n\n${historyContext}\n\nContinue the conversation naturally, acknowledging previous context when relevant. The user is expecting you to remember this history.`;
             
-            console.log("Added conversation history to instructions");
+            console.log("Added conversation history to instructions with enhanced formatting");
           } else {
             console.log("No previous message history found");
             instructions += "\n\nThis is your first conversation with this user.";
@@ -113,6 +116,7 @@ serve(async (req) => {
         }
       } catch (historyError) {
         console.error("Error processing conversation history:", historyError);
+        throw new Error(`History processing error: ${historyError.message}`);
       }
     } else {
       console.log("No authenticated user, skipping conversation history");
