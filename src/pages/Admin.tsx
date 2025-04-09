@@ -48,31 +48,29 @@ const Admin = () => {
     }
   }, [user, toast]);
   
-  const updateInstructions = async () => {
+  const updateInstructionsWithTerryReal = async () => {
     try {
-      const newInstructions = `Act as a couples coach using Terry Real's approach, blending direct advice and thought-provoking questions. Focus on core concepts like the harmony-disharmony-repair cycle, the adaptive child versus the wise adult, and the five losing strategies. Each session should last around 25 minutes: the first 10 minutes inviting the user to open up, with active listening and gentle nudges if needed. The next 10 minutes address core issues and any identified losing strategies, and the final 5 minutes wrap up positively. Use examples from Terry Real's work without direct references, and always maintain a psychologically useful manner.`;
+      const terryRealInstructions = `Act as a couples coach using Terry Real's approach, blending direct advice and thought-provoking questions. Focus on core concepts like the harmony-disharmony-repair cycle, the adaptive child versus the wise adult, and the five losing strategies. Each session should last around 25 minutes: the first 10 minutes inviting the user to open up, with active listening and gentle nudges if needed. The next 10 minutes address core issues and any identified losing strategies, and the final 5 minutes wrap up positively. Use examples from Terry Real's work without direct references, and always maintain a psychologically useful manner.`;
       
-      const { data, error } = await supabase
-        .from('bot_config')
-        .update({ 
-          instructions: newInstructions,
-          updated_at: new Date().toISOString()
-        })
-        .order('created_at', { ascending: false })
-        .limit(1);
-        
-      if (error) throw error;
+      // Use the edge function to update the instructions
+      const response = await supabase.functions.invoke('update-instructions', {
+        body: { instructions: terryRealInstructions },
+      });
+      
+      if (response.error) {
+        throw new Error(response.error.message || 'Unknown error');
+      }
       
       toast({
         title: "Success",
-        description: "Bot instructions updated to Terry Real's approach."
+        description: "Bot instructions updated to Terry Real's couples coaching approach."
       });
     } catch (error) {
       console.error("Error updating instructions:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to update instructions."
+        description: "Failed to update instructions: " + (error.message || 'Unknown error')
       });
     }
   };
@@ -109,7 +107,7 @@ const Admin = () => {
         <div className="mb-8">
           <h2 className="text-xl font-semibold mb-4 text-gray-700">Quick Actions</h2>
           <div className="flex flex-wrap gap-4">
-            <Button onClick={updateInstructions}>
+            <Button onClick={updateInstructionsWithTerryReal}>
               Update to Terry Real Approach
             </Button>
           </div>

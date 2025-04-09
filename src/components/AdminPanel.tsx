@@ -29,6 +29,7 @@ const AdminPanel = () => {
       
       if (data) {
         setInstructions(data.instructions);
+        console.log("Fetched current instructions:", data.instructions.substring(0, 100) + "...");
       }
     } catch (error) {
       console.error("Error fetching instructions:", error);
@@ -43,18 +44,25 @@ const AdminPanel = () => {
   };
   
   const updateInstructions = async () => {
+    if (!instructions.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Instructions cannot be empty."
+      });
+      return;
+    }
+    
     setSaving(true);
     try {
-      const { data, error } = await supabase
-        .from('bot_config')
-        .update({ 
-          instructions: instructions,
-          updated_at: new Date().toISOString()
-        })
-        .order('created_at', { ascending: false })
-        .limit(1);
-        
-      if (error) throw error;
+      // Use the edge function to update instructions
+      const response = await supabase.functions.invoke('update-instructions', {
+        body: { instructions: instructions },
+      });
+      
+      if (response.error) {
+        throw new Error(response.error.message || 'Unknown error');
+      }
       
       toast({
         title: "Success",
@@ -65,7 +73,7 @@ const AdminPanel = () => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to update instructions."
+        description: "Failed to update instructions: " + (error.message || 'Unknown error')
       });
     } finally {
       setSaving(false);

@@ -10,13 +10,24 @@ serve(async (req) => {
   }
 
   try {
-    const newInstructions = `Act as a couples coach using Terry Real's approach, blending direct advice and thought-provoking questions. Focus on core concepts like the harmony-disharmony-repair cycle, the adaptive child versus the wise adult, and the five losing strategies. Each session should last around 25 minutes: the first 10 minutes inviting the user to open up, with active listening and gentle nudges if needed. The next 10 minutes address core issues and any identified losing strategies, and the final 5 minutes wrap up positively. Use examples from Terry Real's work without direct references, and always maintain a psychologically useful manner.`;
+    // Get the request body with new instructions
+    const { instructions } = await req.json();
+    
+    if (!instructions) {
+      return new Response(JSON.stringify({ error: "No instructions provided" }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    console.log("Received update request with new instructions:");
+    console.log("Instructions excerpt:", instructions.substring(0, 100) + "...");
     
     // Update the most recent bot config
     const { data, error } = await supabase
       .from('bot_config')
       .update({ 
-        instructions: newInstructions,
+        instructions: instructions,
         updated_at: new Date().toISOString()
       })
       .order('created_at', { ascending: false })
@@ -26,6 +37,8 @@ serve(async (req) => {
       console.error("Error updating bot instructions:", error);
       throw error;
     }
+    
+    console.log("Instructions updated successfully");
     
     return new Response(JSON.stringify({ success: true, message: "Instructions updated successfully" }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

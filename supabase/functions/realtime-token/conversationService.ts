@@ -25,6 +25,10 @@ export async function getBotConfig() {
     throw new Error(`Failed to fetch bot configuration: ${botConfigError.message}`);
   }
   
+  console.log("Bot config fetched successfully");
+  console.log("Instructions length:", botConfig.instructions.length);
+  console.log("Instructions excerpt:", botConfig.instructions.substring(0, 100) + "...");
+  
   return botConfig;
 }
 
@@ -104,17 +108,6 @@ export async function getConversationHistory(userId: string): Promise<{
       }
       console.log("--- END CONVERSATION SAMPLE ---");
       
-      // Verify database connectivity - additional debugging
-      const { count, error: countError } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('conversation_id', conversationId);
-      
-      if (countError) {
-        console.error("Error verifying message count:", countError);
-      } else {
-        console.log(`Database verification: ${count} messages in conversation ${conversationId}`);
-      }
     } else {
       console.log("No previous message history found");
       instructions += "\n\nThis is your first conversation with this user.";
