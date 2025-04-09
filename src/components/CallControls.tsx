@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Mic, MicOff, Volume, VolumeX, X } from 'lucide-react';
+import { PhoneOff, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface CallControlsProps {
@@ -54,7 +54,7 @@ const CallControls: React.FC<CallControlsProps> = ({
         {isMuted ? (
           <VolumeX className="h-20 w-20 text-attune-purple" strokeWidth={1.75} />
         ) : (
-          <Volume className="h-20 w-20 text-attune-purple" strokeWidth={1.75} />
+          <Volume2 className="h-20 w-20 text-attune-purple" strokeWidth={1.75} />
         )}
       </Button>
 
@@ -64,7 +64,7 @@ const CallControls: React.FC<CallControlsProps> = ({
         size="icon"
         className="w-24 h-24 rounded-full bg-attune-blue/20 border-none backdrop-blur-md shadow-lg hover:bg-attune-blue/30 transition-all"
       >
-        <X className="h-20 w-20 text-attune-purple" strokeWidth={1.75} />
+        <PhoneOff className="h-20 w-20 text-attune-purple" strokeWidth={1.75} />
       </Button>
     </div>
   );
