@@ -1,10 +1,8 @@
-
 import React from 'react';
 import { Message } from '@/utils/types';
 import { VoiceActivityState } from '../VoiceActivityIndicator';
 import CallControls from '@/components/CallControls';
 import AttuneLogo from '@/components/AttuneLogo';
-
 interface VoiceAssistantDisplayProps {
   user: any;
   status: string;
@@ -21,7 +19,6 @@ interface VoiceAssistantDisplayProps {
   onEndConversation: () => void;
   onStartConversation: () => void;
 }
-
 const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   user,
   isConnected,
@@ -34,33 +31,25 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   onEndConversation,
   onStartConversation
 }) => {
-  return (
-    <div className="flex flex-col h-full">
+  return <div className="flex flex-col h-full">
       {/* Logo and Header */}
       <div className="mb-6 flex justify-center">
         <AttuneLogo />
       </div>
       
       {/* Voice interaction instructions */}
-      {!isConnected && (
-        <div className="text-center my-6 text-attune-purple/80">
-          <p>Feel like talking? Attune remembers your past conversations, so you can always pick up where you left off — or not.</p>
-        </div>
-      )}
+      {!isConnected && <div className="text-center my-6 text-attune-purple/80">
+          <p>Feel like talking?
+Attune remembers past conversations, so you can always pick up where you left off — or not.</p>
+        </div>}
       
-      {isConnected && (
-        <div className="text-center my-6 text-attune-purple/80">
+      {isConnected && <div className="text-center my-6 text-attune-purple/80">
           <p>Speak naturally to interact with the AI. The assistant will listen and respond with voice.</p>
-        </div>
-      )}
+        </div>}
 
       {/* Call controls */}
       <div className="flex justify-center mt-auto mb-6">
-        {!isConnected ? (
-          <div 
-            onClick={onStartConversation}
-            className="w-20 h-20 rounded-full bg-attune-blue/20 border-none shadow-lg hover:bg-attune-blue/30 transition-all cursor-pointer flex items-center justify-center"
-          >
+        {!isConnected ? <div onClick={onStartConversation} className="w-20 h-20 rounded-full bg-attune-blue/20 border-none shadow-lg hover:bg-attune-blue/30 transition-all cursor-pointer flex items-center justify-center">
             <div className="h-10 w-10 text-attune-purple">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
@@ -69,19 +58,8 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
                 <line x1="8" y1="23" x2="16" y2="23"></line>
               </svg>
             </div>
-          </div>
-        ) : (
-          <CallControls
-            isMicOn={isMicOn}
-            isMuted={isMuted}
-            onToggleMic={onToggleMicrophone}
-            onToggleMute={onToggleMute}
-            onEndCall={onEndConversation}
-          />
-        )}
+          </div> : <CallControls isMicOn={isMicOn} isMuted={isMuted} onToggleMic={onToggleMicrophone} onToggleMute={onToggleMute} onEndCall={onEndConversation} />}
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default VoiceAssistantDisplay;
