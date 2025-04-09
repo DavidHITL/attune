@@ -23,9 +23,12 @@ const RealtimeChat: React.FC = () => {
     console.log("Handling message event:", event);
     
     if (event.type === 'response.audio.delta') {
-      // Audio is playing
+      // Audio is playing (original event - keeping for backward compatibility)
       setVoiceActivityState(VoiceActivityState.Output);
-    } else if (event.type === 'response.audio.done') {
+    } else if (event.type === 'response.audio_transcript.delta') {
+      // Using transcript delta as indicator that AI is speaking
+      setVoiceActivityState(VoiceActivityState.Output);
+    } else if (event.type === 'response.audio.done' || event.type === 'response.audio_transcript.done') {
       // Audio finished playing
       setVoiceActivityState(VoiceActivityState.Idle);
     } else if (event.type === 'input_audio_activity_started') {
@@ -39,6 +42,14 @@ const RealtimeChat: React.FC = () => {
         title: "Connected to Voice AI",
         description: "Start speaking to interact with the AI",
       });
+    } else if (event.type === 'response.created') {
+      // AI has started generating a response
+      console.log("AI response started");
+      setVoiceActivityState(VoiceActivityState.Output);
+    } else if (event.type === 'response.done') {
+      // AI has finished generating a response
+      console.log("AI response done");
+      setVoiceActivityState(VoiceActivityState.Idle);
     }
   };
 
