@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/RealtimeAudio';
@@ -121,22 +122,24 @@ const RealtimeChat: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Status indicator */}
+      {/* Title and visualization */}
       <div className="text-center text-attune-purple mb-8 mt-4">
-        <div className="text-xl font-semibold mb-2">
+        <div className="text-xl font-semibold mb-4">
           {isConnected ? "Voice Assistant Active" : "Voice Assistant"}
         </div>
-        <div className="text-sm flex flex-col items-center justify-center gap-2">
-          <div>Status: {status}</div>
-          
-          {/* Voice activity indicator - always visible */}
-          <div className="flex flex-col gap-2 mt-2">
-            <div className="flex items-center gap-2 justify-center">
-              {isConnected && (
-                <VoiceActivityIndicator state={voiceActivityState} />
-              )}
+        
+        {/* Voice activity indicator - always visible, but larger when connected */}
+        <div className="flex justify-center mt-4">
+          {isConnected ? (
+            <div className="scale-150 transform">
+              <VoiceActivityIndicator state={voiceActivityState} />
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="text-sm mb-2">Status: {status}</div>
+              {isConnected && <VoiceActivityIndicator state={voiceActivityState} />}
+            </>
+          )}
         </div>
       </div>
       
