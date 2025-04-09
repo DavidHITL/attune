@@ -1,5 +1,5 @@
 
-import { SaveMessageCallback } from '../types';
+import { Message, SaveMessageCallback } from '../types';
 
 export class MessageQueue {
   private messageQueue: { role: 'user' | 'assistant', content: string }[] = [];
@@ -57,7 +57,10 @@ export class MessageQueue {
         
         while (!saved && attempts < maxAttempts) {
           try {
-            await this.saveMessageCallback(message.role, message.content);
+            await this.saveMessageCallback({
+              role: message.role,
+              content: message.content
+            });
             console.log(`Successfully saved ${message.role} message to database (attempt ${attempts + 1})`);
             saved = true;
           } catch (error) {
@@ -93,7 +96,10 @@ export class MessageQueue {
     for (const msg of remainingMessages) {
       try {
         console.log(`Processing message during flush: ${msg.role} - ${msg.content.substring(0, 30)}...`);
-        await this.saveMessageCallback(msg.role, msg.content);
+        await this.saveMessageCallback({
+          role: msg.role,
+          content: msg.content
+        });
         console.log(`Successfully saved message during flush`);
       } catch (error) {
         console.error("Error saving message during flush:", error);

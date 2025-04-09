@@ -18,7 +18,7 @@ export class RealtimeChat {
   constructor(
     private messageCallback: MessageCallback,
     private statusCallback: StatusCallback,
-    saveMessageCallback: SaveMessageCallback
+    private saveMessageCallback: SaveMessageCallback
   ) {
     this.audioProcessor = new AudioProcessor((state) => {
       this.messageCallback({

@@ -183,43 +183,8 @@ export const useChatClient = () => {
     hasContext,
     messageCount,
     startConversation,
-    endConversation: useCallback(() => {
-      console.log("Ending conversation");
-      if (chatClientRef.current) {
-        chatClientRef.current.disconnect();
-        chatClientRef.current = null;
-      }
-      setIsConnected(false);
-      setVoiceActivityState(VoiceActivityState.Idle);
-      setIsMicOn(false);
-      setStatus("Disconnected");
-      
-      toast({
-        title: "Voice assistant deactivated",
-        description: "Voice connection closed",
-      });
-    }, []),
-    toggleMicrophone: useCallback(() => {
-      if (!isConnected) {
-        startConversation();
-      } else {
-        setIsMicOn(!isMicOn);
-        if (chatClientRef.current) {
-          // Toggle microphone state in the RealtimeAudio utility
-          if (isMicOn) {
-            chatClientRef.current.pauseMicrophone();
-          } else {
-            chatClientRef.current.resumeMicrophone();
-          }
-        }
-      }
-    }, [isConnected, isMicOn, startConversation]),
-    toggleMute: useCallback(() => {
-      setIsMuted(!isMuted);
-      if (chatClientRef.current) {
-        // Toggle audio output mute state in the RealtimeAudio utility
-        chatClientRef.current.setMuted(!isMuted);
-      }
-    }, [isMuted])
+    endConversation,
+    toggleMicrophone,
+    toggleMute
   };
 };
