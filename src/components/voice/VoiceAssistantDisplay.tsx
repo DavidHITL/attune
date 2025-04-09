@@ -3,6 +3,7 @@ import React from 'react';
 import { Message } from '@/utils/types';
 import { VoiceActivityState } from '../VoiceActivityIndicator';
 import CallControls from '@/components/CallControls';
+import AttuneLogo from '@/components/AttuneLogo';
 
 interface VoiceAssistantDisplayProps {
   user: any;
@@ -35,6 +36,11 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
 }) => {
   return (
     <div className="flex flex-col h-full">
+      {/* Logo and Header */}
+      <div className="mb-6 flex justify-center">
+        <AttuneLogo />
+      </div>
+      
       {/* Voice interaction instructions */}
       {!isConnected && (
         <div className="text-center my-6 text-attune-purple/80">
