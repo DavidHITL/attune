@@ -1,14 +1,15 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Button } from "@/components/ui/button";
-import { Mic, MicOff, Volume, VolumeX } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/RealtimeAudio';
+import CallControls from '@/components/CallControls';
 
 const RealtimeChat: React.FC = () => {
   const [status, setStatus] = useState<string>("Disconnected");
   const [isConnected, setIsConnected] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isMicOn, setIsMicOn] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const chatClientRef = useRef<RealtimeChatClient | null>(null);
   
   useEffect(() => {
@@ -48,6 +49,7 @@ const RealtimeChat: React.FC = () => {
       
       await chatClientRef.current.init();
       setIsConnected(true);
+      setIsMicOn(true);
       
       toast({
         title: "Voice assistant active",
@@ -67,12 +69,29 @@ const RealtimeChat: React.FC = () => {
     chatClientRef.current?.disconnect();
     setIsConnected(false);
     setIsSpeaking(false);
+    setIsMicOn(false);
     setStatus("Disconnected");
     
     toast({
       title: "Voice assistant deactivated",
       description: "Voice connection closed",
     });
+  };
+
+  const toggleMicrophone = () => {
+    if (!isConnected) {
+      startConversation();
+    } else {
+      setIsMicOn(!isMicOn);
+      // Here you would add logic to actually mute the microphone input
+      // This would need to be implemented in the RealtimeAudio.ts utility
+    }
+  };
+
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+    // Here you would add logic to actually mute the audio output
+    // This would need to be implemented in the RealtimeAudio.ts utility
   };
 
   return (
@@ -103,35 +122,27 @@ const RealtimeChat: React.FC = () => {
       {/* Call controls */}
       <div className="flex justify-center mt-auto mb-8">
         {!isConnected ? (
-          <Button
+          <div 
             onClick={startConversation}
-            variant="outline"
-            size="icon"
-            className="w-20 h-20 rounded-full bg-attune-blue/20 border-none hover:bg-attune-blue/30 transition-all"
+            className="w-20 h-20 rounded-full bg-attune-blue/20 border-none shadow-lg hover:bg-attune-blue/30 transition-all cursor-pointer flex items-center justify-center"
           >
-            <Mic className="h-10 w-10 text-attune-purple" strokeWidth={2} />
-          </Button>
-        ) : (
-          <div className="flex gap-12">
-            <Button
-              onClick={endConversation}
-              variant="outline"
-              size="icon"
-              className="w-20 h-20 rounded-full bg-attune-blue/20 border-none hover:bg-attune-blue/30 transition-all"
-            >
-              <MicOff className="h-10 w-10 text-attune-purple" strokeWidth={2} />
-            </Button>
-            
-            <div
-              className={`w-20 h-20 rounded-full flex items-center justify-center ${isSpeaking ? 'bg-attune-purple/20 animate-pulse' : 'bg-attune-blue/20'} transition-all`}
-            >
-              {isSpeaking ? (
-                <Volume className="h-10 w-10 text-attune-purple" strokeWidth={2} />
-              ) : (
-                <VolumeX className="h-10 w-10 text-attune-purple/50" strokeWidth={2} />
-              )}
+            <div className="h-10 w-10 text-attune-purple">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+              </svg>
             </div>
           </div>
+        ) : (
+          <CallControls
+            isMicOn={isMicOn}
+            isMuted={isMuted}
+            onToggleMic={toggleMicrophone}
+            onToggleMute={toggleMute}
+            onEndCall={endConversation}
+          />
         )}
       </div>
     </div>
