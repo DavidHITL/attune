@@ -7,7 +7,7 @@ const AttuneContent = () => {
   const { user } = useAuth();
 
   return (
-    <div className="flex-1 flex flex-col items-center w-full max-w-[390px] mt-16">
+    <div className="flex flex-col items-center w-full">
       <AttuneLogo />
       
       <div className="mt-10 text-center max-w-[350px]">

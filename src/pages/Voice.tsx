@@ -11,7 +11,7 @@ const Voice = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-attune-blue flex flex-col items-center py-12 px-4 pt-20 text-black font-sans">
-        <div className="w-full max-w-4xl h-[500px] max-h-[60vh] flex items-center justify-center">
+        <div className="w-full max-w-[390px] h-[500px] max-h-[60vh] flex items-center justify-center">
           <p className="text-attune-purple">Loading...</p>
         </div>
       </div>
@@ -20,7 +20,7 @@ const Voice = () => {
 
   return (
     <div className="min-h-screen bg-attune-blue flex flex-col items-center py-12 px-4 pt-20 text-black font-sans">
-      <div className="w-full max-w-4xl h-[500px] max-h-[60vh]">
+      <div className="w-full max-w-[390px] h-[500px] max-h-[60vh]">
         {user ? (
           <RealtimeChat />
         ) : (
