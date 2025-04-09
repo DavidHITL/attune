@@ -48,13 +48,30 @@ export const useConnectionManager = (
   const endConversation = useCallback(() => {
     console.log("Ending conversation");
     if (chatClientRef.current) {
+      // Make sure we properly disconnect and clean up resources
       chatClientRef.current.disconnect();
       chatClientRef.current = null;
     }
+    
+    // Reset all states
     setIsConnected(false);
     setVoiceActivityState(0); // Idle state
     setIsMicOn(false);
     setStatus("Disconnected");
+    
+    // Force releasing microphone
+    try {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          // Stop all tracks to ensure microphone is fully released
+          stream.getTracks().forEach(track => {
+            track.stop();
+          });
+        })
+        .catch(err => console.error("Error accessing microphone during cleanup:", err));
+    } catch (e) {
+      console.error("Error during forced microphone cleanup:", e);
+    }
   }, [chatClientRef, setIsConnected, setVoiceActivityState, setIsMicOn, setStatus]);
 
   return {

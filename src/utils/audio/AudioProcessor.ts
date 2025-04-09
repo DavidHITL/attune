@@ -118,22 +118,35 @@ export class AudioProcessor {
   }
   
   cleanup() {
+    // Stop and cleanup all media recorder resources
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      try {
+        this.mediaRecorder.stop();
+      } catch (e) {
+        console.warn("Error stopping media recorder:", e);
+      }
+      this.mediaRecorder = null;
+    }
+
+    // Stop and release all audio tracks
     if (this.audioStream) {
       this.audioStream.getTracks().forEach(track => {
-        track.stop();
+        try {
+          track.stop();
+        } catch (e) {
+          console.warn("Error stopping audio track:", e);
+        }
       });
       this.audioStream = null;
     }
     
-    if (this.mediaRecorder) {
-      this.mediaRecorder = null;
-    }
-    
+    // Clean up silence detector
     if (this.silenceDetector) {
       this.silenceDetector.cleanup();
       this.silenceDetector = null;
     }
     
+    // Clean up activity monitor
     if (this.activityMonitor) {
       this.activityMonitor.cleanup();
       this.activityMonitor = null;
@@ -141,6 +154,9 @@ export class AudioProcessor {
     
     this.audioChunks = [];
     this.microphoneActive = false;
+    
+    // Send the stop activity signal to ensure UI is updated
+    this.activityCallback('stop');
     console.log("AudioProcessor cleanup completed.");
   }
 }
