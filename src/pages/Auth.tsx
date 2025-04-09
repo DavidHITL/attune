@@ -71,7 +71,7 @@ export default function Auth() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-attune-blue p-4">
-      <Card className="w-full max-w-md bg-attune-blue border-none">
+      <Card className="w-full max-w-md bg-attune-blue border-none shadow-none">
         <CardHeader className="space-y-1 border-none">
           <CardTitle className="text-2xl font-bold text-center">Welcome to Attune</CardTitle>
           <CardDescription className="text-center">
@@ -80,9 +80,9 @@ export default function Auth() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 shadow-none">
+              <TabsTrigger value="login" className="shadow-none">Login</TabsTrigger>
+              <TabsTrigger value="signup" className="shadow-none">Sign Up</TabsTrigger>
             </TabsList>
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4 mt-4">
