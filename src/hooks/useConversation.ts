@@ -5,6 +5,7 @@ import { useConversationHelpers } from "./conversation/useConversationHelpers";
 import { useConversationLoading } from "./conversation/useConversationLoading";
 import { useSaveMessage } from "./conversation/useSaveMessage";
 import { Message, UseConversationReturn } from "@/utils/types";
+import { useCallback } from "react";
 
 export type { Message };
 
@@ -24,7 +25,7 @@ export const useConversation = (): UseConversationReturn => {
   const { saveMessage: saveMessageToDb } = useSaveMessage(user, conversationId, validateRole);
   
   // Define loadMessages before using it in useConversationLoading
-  const loadMessages = async (convoId: string): Promise<Message[]> => {
+  const loadMessages = useCallback(async (convoId: string): Promise<Message[]> => {
     try {
       const validMessages = await loadMessagesHelper(convoId);
       setMessages(validMessages);
@@ -33,7 +34,7 @@ export const useConversation = (): UseConversationReturn => {
       console.error('Error in loadMessages:', error);
       throw error;
     }
-  };
+  }, [loadMessagesHelper, setMessages]);
 
   // Initialize and load conversation when user changes
   useConversationLoading(
@@ -42,7 +43,8 @@ export const useConversation = (): UseConversationReturn => {
     setMessages, 
     setLoading, 
     validateRole, 
-    loadMessages
+    loadMessages,
+    conversationId
   );
 
   // Save a new message

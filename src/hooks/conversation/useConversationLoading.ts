@@ -13,14 +13,15 @@ export const useConversationLoading = (
   setMessages: (messages: Message[]) => void,
   setLoading: (loading: boolean) => void,
   validateRole: (role: string) => 'user' | 'assistant',
-  loadMessages: (convoId: string) => Promise<Message[]>
+  loadMessages: (convoId: string) => Promise<Message[]>,
+  conversationId: string | null
 ) => {
   const { toast } = useToast();
   const loadingRef = useRef(false);
   
   useEffect(() => {
-    // Skip if already loading or no user
-    if (!user || loadingRef.current) {
+    // Skip if already loading, no user, or we already have a conversation ID
+    if (!user || loadingRef.current || conversationId) {
       setLoading(false);
       return;
     }
@@ -66,5 +67,5 @@ export const useConversationLoading = (
     return () => {
       loadingRef.current = false;
     };
-  }, [user, setConversationId, loadMessages, setLoading, setMessages, toast, validateRole]);
+  }, [user, conversationId, setConversationId, loadMessages, setLoading, setMessages, toast, validateRole]);
 };

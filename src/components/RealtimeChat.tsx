@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { VoiceActivityState } from './VoiceActivityIndicator';
 import { useConversation } from '@/hooks/useConversation';
 import { useAuth } from '@/context/AuthContext';
@@ -24,6 +24,13 @@ const RealtimeChat: React.FC = () => {
     toggleMute
   } = useChatClient();
 
+  // Prevent auto-connecting - only connect when user explicitly requests it
+  const handleStartConversation = useCallback(() => {
+    if (!isConnected) {
+      startConversation();
+    }
+  }, [isConnected, startConversation]);
+
   return (
     <VoiceAssistantDisplay
       user={user}
@@ -39,7 +46,7 @@ const RealtimeChat: React.FC = () => {
       onToggleMicrophone={toggleMicrophone}
       onToggleMute={toggleMute}
       onEndConversation={endConversation}
-      onStartConversation={startConversation}
+      onStartConversation={handleStartConversation}
     />
   );
 };

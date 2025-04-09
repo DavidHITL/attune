@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
+
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
 import { VoiceActivityState } from '../VoiceActivityIndicator';
@@ -16,24 +17,9 @@ export const useChatClient = () => {
   
   const { saveMessage, messages } = useConversation();
 
-  useEffect(() => {
-    // Update conversation context indicator when messages change
-    setHasContext(messages.length > 0);
-    setMessageCount(messages.length);
-  }, [messages]);
-
-  // Cleanup effect on unmount
-  useEffect(() => {
-    return () => {
-      if (chatClientRef.current) {
-        console.log("Component unmounting - disconnecting chat client");
-        chatClientRef.current.disconnect();
-      }
-    };
-  }, []);
-
-  const handleMessageEvent = (event: any) => {
-    console.log("Handling message event:", event);
+  // Memoize the message event handler to avoid recreation on every render
+  const handleMessageEvent = useCallback((event: any) => {
+    console.log("Handling message event:", event.type);
     
     if (event.type === 'response.audio.delta') {
       // Audio is playing (original event - keeping for backward compatibility)
@@ -75,9 +61,10 @@ export const useChatClient = () => {
       console.log("AI response done");
       setVoiceActivityState(VoiceActivityState.Idle);
     }
-  };
+  }, []);
 
-  const saveMessageToDb = async (role: 'user' | 'assistant', content: string): Promise<void> => {
+  // Memoize the save message callback to avoid recreation on every render
+  const saveMessageToDb = useCallback(async (role: 'user' | 'assistant', content: string): Promise<void> => {
     if (!content || content.trim() === '') {
       console.log(`Empty ${role} message, not saving to database`);
       return;
@@ -91,9 +78,26 @@ export const useChatClient = () => {
       console.error("Failed to save message:", error);
       throw error; // Let the caller handle the retry logic
     }
-  };
+  }, [saveMessage]);
 
-  const startConversation = async () => {
+  // Update context and message count when messages change
+  useEffect(() => {
+    setHasContext(messages.length > 0);
+    setMessageCount(messages.length);
+  }, [messages]);
+
+  // Cleanup effect on unmount
+  useEffect(() => {
+    return () => {
+      if (chatClientRef.current) {
+        console.log("Component unmounting - disconnecting chat client");
+        chatClientRef.current.disconnect();
+      }
+    };
+  }, []);
+
+  // Memoize conversation start to avoid recreation on every render
+  const startConversation = useCallback(async () => {
     try {
       if (chatClientRef.current) {
         chatClientRef.current.disconnect();
@@ -102,7 +106,7 @@ export const useChatClient = () => {
       chatClientRef.current = new RealtimeChatClient(
         handleMessageEvent, 
         (newStatus) => setStatus(newStatus),
-        saveMessageToDb // Pass the save message callback
+        saveMessageToDb
       );
       
       await chatClientRef.current.init();
@@ -118,9 +122,10 @@ export const useChatClient = () => {
         variant: "destructive",
       });
     }
-  };
+  }, [handleMessageEvent, saveMessageToDb]);
 
-  const endConversation = () => {
+  // Memoize conversation end to avoid recreation on every render
+  const endConversation = useCallback(() => {
     console.log("Ending conversation");
     chatClientRef.current?.disconnect();
     setIsConnected(false);
@@ -132,9 +137,10 @@ export const useChatClient = () => {
       title: "Voice assistant deactivated",
       description: "Voice connection closed",
     });
-  };
+  }, []);
 
-  const toggleMicrophone = () => {
+  // Memoize microphone toggle to avoid recreation on every render
+  const toggleMicrophone = useCallback(() => {
     if (!isConnected) {
       startConversation();
     } else {
@@ -148,15 +154,16 @@ export const useChatClient = () => {
         }
       }
     }
-  };
+  }, [isConnected, isMicOn, startConversation]);
 
-  const toggleMute = () => {
+  // Memoize mute toggle to avoid recreation on every render
+  const toggleMute = useCallback(() => {
     setIsMuted(!isMuted);
     if (chatClientRef.current) {
       // Toggle audio output mute state in the RealtimeAudio utility
       chatClientRef.current.setMuted(!isMuted);
     }
-  };
+  }, [isMuted]);
 
   return {
     status,
