@@ -3,7 +3,6 @@ import React from 'react';
 import AttuneLogo from '@/components/AttuneLogo';
 import RealtimeChat from '@/components/RealtimeChat';
 import { Toaster } from '@/components/ui/toaster';
-import { Card } from '@/components/ui/card';
 
 const Index = () => {
   return (
@@ -13,9 +12,9 @@ const Index = () => {
       <div className="flex-1 flex flex-col items-center w-full max-w-4xl">
         <AttuneLogo />
         
-        <Card className="w-full mt-10 h-[500px] max-h-[60vh] border-none backdrop-blur-sm bg-white/10 shadow-lg">
+        <div className="w-full mt-10 h-[500px] max-h-[60vh] backdrop-blur-sm bg-white/10 shadow-lg flex flex-col">
           <RealtimeChat />
-        </Card>
+        </div>
       </div>
     </div>
   );
