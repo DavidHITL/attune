@@ -21,10 +21,6 @@ const CallControls: React.FC<CallControlsProps> = ({
 }) => {
   const handleToggleMic = () => {
     onToggleMic();
-    toast({
-      title: isMicOn ? "Microphone turned off" : "Microphone turned on",
-      duration: 2000,
-    });
   };
 
   const handleToggleMute = () => {
@@ -37,10 +33,6 @@ const CallControls: React.FC<CallControlsProps> = ({
 
   const handleEndCall = () => {
     onEndCall();
-    toast({
-      title: "Call ended",
-      duration: 2000,
-    });
   };
 
   return (

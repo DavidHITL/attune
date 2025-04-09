@@ -1,7 +1,6 @@
 
 import { useCallback } from 'react';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
-import { toast } from '@/components/ui/use-toast';
 import { MessageCallback, StatusCallback, SaveMessageCallback } from '@/utils/types';
 
 /**
@@ -43,11 +42,6 @@ export const useConnectionManager = (
       // The session.created event will handle showing the context-aware toast
     } catch (error) {
       console.error('Failed to start conversation:', error);
-      toast({
-        title: "Connection failed",
-        description: error instanceof Error ? error.message : "Failed to connect to the voice assistant",
-        variant: "destructive",
-      });
     }
   }, [chatClientRef, handleMessageEvent, saveMessage, setStatus, setIsConnected, setIsMicOn]);
 
@@ -61,11 +55,6 @@ export const useConnectionManager = (
     setVoiceActivityState(0); // Idle state
     setIsMicOn(false);
     setStatus("Disconnected");
-    
-    toast({
-      title: "Voice assistant deactivated",
-      description: "Voice connection closed",
-    });
   }, [chatClientRef, setIsConnected, setVoiceActivityState, setIsMicOn, setStatus]);
 
   return {
