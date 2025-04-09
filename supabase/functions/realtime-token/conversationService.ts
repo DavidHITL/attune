@@ -27,7 +27,7 @@ export async function getBotConfig() {
   
   console.log("Bot config fetched successfully");
   console.log("Instructions length:", botConfig.instructions.length);
-  console.log("Instructions excerpt:", botConfig.instructions.substring(0, 100) + "...");
+  console.log("Instructions excerpt:", botConfig.instructions.substring(0, 200) + "...");
   
   return botConfig;
 }
@@ -82,7 +82,8 @@ export async function getConversationHistory(userId: string): Promise<{
       instructions = `${instructions}\n\nYou have conversed with this user before. Here is the recent conversation history to maintain continuity:\n\n${historyContext}\n\nContinue the conversation naturally, acknowledging previous context when relevant. The user is expecting you to remember this history.`;
       
       console.log("Added conversation history to instructions");
-      console.log("History length:", historyContext.length, "characters");
+      console.log("Instructions base length:", botConfig.instructions.length);
+      console.log("Final instructions length (with history):", instructions.length);
       console.log("First message:", recentMessages[0]?.content?.substring(0, 30) || "None");
       console.log("Last message:", recentMessages[recentMessages.length - 1]?.content?.substring(0, 30) || "None");
       
@@ -110,6 +111,7 @@ export async function getConversationHistory(userId: string): Promise<{
       
     } else {
       console.log("No previous message history found");
+      console.log("Using base instructions (length):", instructions.length);
       instructions += "\n\nThis is your first conversation with this user.";
     }
     

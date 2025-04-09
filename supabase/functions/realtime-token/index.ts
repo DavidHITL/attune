@@ -24,7 +24,8 @@ serve(async (req) => {
     const botConfig = await getBotConfig();
     
     console.log("Retrieved bot configuration:");
-    console.log("Instructions (first 100 chars):", botConfig.instructions.substring(0, 100));
+    console.log("Instructions (first 200 chars):", botConfig.instructions.substring(0, 200));
+    console.log("Instructions length:", botConfig.instructions.length);
     console.log("Voice:", botConfig.voice);
     
     instructions = botConfig.instructions;
@@ -37,7 +38,8 @@ serve(async (req) => {
         recentMessages = result.recentMessages;
         
         console.log("Using authenticated instructions with conversation history");
-        console.log("Instructions start (first 100 chars):", instructions.substring(0, 100));
+        console.log("Instructions start (first 200 chars):", instructions.substring(0, 200));
+        console.log("Instructions length:", instructions.length);
         console.log("Has history:", recentMessages.length > 0);
       } catch (historyError) {
         console.error("Error processing conversation history:", historyError);
@@ -47,7 +49,8 @@ serve(async (req) => {
       console.log("No authenticated user, skipping conversation history");
       instructions += "\n\nNote: The user is not authenticated, so this conversation will not be remembered.";
       console.log("Using non-authenticated instructions");
-      console.log("Instructions start (first 100 chars):", instructions.substring(0, 100));
+      console.log("Instructions start (first 200 chars):", instructions.substring(0, 200));
+      console.log("Instructions length:", instructions.length);
     }
 
     // Request an ephemeral token from OpenAI

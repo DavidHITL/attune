@@ -30,6 +30,7 @@ const AdminPanel = () => {
       if (data) {
         setInstructions(data.instructions);
         console.log("Fetched current instructions:", data.instructions.substring(0, 100) + "...");
+        console.log("Instructions length:", data.instructions.length);
       }
     } catch (error) {
       console.error("Error fetching instructions:", error);
@@ -55,19 +56,28 @@ const AdminPanel = () => {
     
     setSaving(true);
     try {
+      console.log("Sending instructions update request...");
+      console.log("Instructions length:", instructions.length);
+      
       // Use the edge function to update instructions
       const response = await supabase.functions.invoke('update-instructions', {
         body: { instructions: instructions },
       });
       
       if (response.error) {
+        console.error("Update error:", response.error);
         throw new Error(response.error.message || 'Unknown error');
       }
       
+      console.log("Update response:", response.data);
+      
       toast({
         title: "Success",
-        description: "Bot instructions updated successfully."
+        description: `Bot instructions updated successfully. Length: ${instructions.length} characters.`
       });
+      
+      // Verify the update by refetching
+      await fetchCurrentInstructions();
     } catch (error) {
       console.error("Error updating instructions:", error);
       toast({
@@ -98,9 +108,12 @@ const AdminPanel = () => {
               id="instructions"
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
-              className="min-h-[200px]"
+              className="min-h-[300px]"
               placeholder="Enter bot instructions..."
             />
+            <p className="text-sm text-gray-500">
+              Character count: {instructions.length}
+            </p>
           </div>
           
           <div className="flex justify-end">

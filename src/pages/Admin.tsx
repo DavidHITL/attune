@@ -52,6 +52,9 @@ const Admin = () => {
     try {
       const terryRealInstructions = `Act as a couples coach using Terry Real's approach, blending direct advice and thought-provoking questions. Focus on core concepts like the harmony-disharmony-repair cycle, the adaptive child versus the wise adult, and the five losing strategies. Each session should last around 25 minutes: the first 10 minutes inviting the user to open up, with active listening and gentle nudges if needed. The next 10 minutes address core issues and any identified losing strategies, and the final 5 minutes wrap up positively. Use examples from Terry Real's work without direct references, and always maintain a psychologically useful manner.`;
       
+      console.log("Updating instructions to Terry Real approach");
+      console.log("Instructions length:", terryRealInstructions.length);
+      
       // Use the edge function to update the instructions
       const response = await supabase.functions.invoke('update-instructions', {
         body: { instructions: terryRealInstructions },
@@ -61,10 +64,19 @@ const Admin = () => {
         throw new Error(response.error.message || 'Unknown error');
       }
       
+      console.log("Update response:", response.data);
+      
       toast({
         title: "Success",
         description: "Bot instructions updated to Terry Real's couples coaching approach."
       });
+      
+      // Refresh the admin panel to show updated instructions
+      const adminPanelElement = document.querySelector('#admin-panel') as HTMLElement;
+      if (adminPanelElement) {
+        const event = new Event('refresh');
+        adminPanelElement.dispatchEvent(event);
+      }
     } catch (error) {
       console.error("Error updating instructions:", error);
       toast({
@@ -113,7 +125,9 @@ const Admin = () => {
           </div>
         </div>
         
-        <AdminPanel />
+        <div id="admin-panel">
+          <AdminPanel />
+        </div>
       </div>
     </div>
   );

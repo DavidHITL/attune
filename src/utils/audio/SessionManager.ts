@@ -34,30 +34,38 @@ export class SessionManager {
       console.log("No authentication token available");
     }
     
-    const response = await supabase.functions.invoke('realtime-token', {
-      headers: headers
-    });
-    
-    if (response.error) {
-      throw new Error(`Failed to get session token: ${response.error.message || 'Unknown error'}`);
-    }
-    
-    const data = await response.data;
-    
-    if (!data || !data.client_secret?.value) {
-      throw new Error("Invalid session token response");
-    }
+    try {
+      console.log("Calling realtime-token edge function");
+      const response = await supabase.functions.invoke('realtime-token', {
+        headers: headers
+      });
+      
+      if (response.error) {
+        console.error("Error from edge function:", response.error);
+        throw new Error(`Failed to get session token: ${response.error.message || 'Unknown error'}`);
+      }
+      
+      const data = await response.data;
+      
+      if (!data || !data.client_secret?.value) {
+        console.error("Invalid session token response:", data);
+        throw new Error("Invalid session token response");
+      }
 
-    // Log conversation context for debugging
-    if (data.conversation_context) {
-      console.log(
-        "Conversation context:", 
-        data.conversation_context.has_history ? 
-          `Loaded ${data.conversation_context.message_count} previous messages` : 
-          "No previous conversation history"
-      );
+      // Log conversation context for debugging
+      if (data.conversation_context) {
+        console.log(
+          "Conversation context:", 
+          data.conversation_context.has_history ? 
+            `Loaded ${data.conversation_context.message_count} previous messages` : 
+            "No previous conversation history"
+        );
+      }
+      
+      return data;
+    } catch (error) {
+      console.error("Error in getSessionToken:", error);
+      throw error;
     }
-    
-    return data;
   }
 }
