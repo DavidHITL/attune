@@ -1,1 +1,23 @@
+
 project_id = "pixnanztazgzrtwzdpfi"
+
+[api]
+enabled = true
+
+[db]
+shadow_database_port = 54320
+
+[db.pooler]
+enabled = false
+port = 54322
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+
+[[edge_functions]]
+name = "realtime-token"
+verify_jwt = true
