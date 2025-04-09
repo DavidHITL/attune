@@ -1,18 +1,16 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Home, User, Info } from 'lucide-react';
+
 const Navigation = () => {
   const location = useLocation();
-  const {
-    user
-  } = useAuth();
-  return <nav className="w-full bg-attune-blue shadow-sm py-2 px-4 flex justify-center fixed top-0 z-10">
-      <div className="max-w-4xl w-full flex justify-between items-center">
-        <Link to="/">
-          
-        </Link>
+  const { user } = useAuth();
 
+  return (
+    <nav className="w-full bg-attune-blue shadow-sm py-2 px-4 flex justify-center fixed top-0 z-10">
+      <div className="max-w-4xl w-full flex justify-between items-center">
         <div className="flex gap-6">
           <Link to="/" className={`text-attune-purple hover:text-attune-indigo transition-colors ${location.pathname === '/' ? 'text-attune-indigo' : ''}`}>
             <Home className="w-6 h-6" />
@@ -26,7 +24,13 @@ const Navigation = () => {
             <User className="w-6 h-6" />
           </Link>
         </div>
+        
+        <Link to="/">
+          
+        </Link>
       </div>
-    </nav>;
+    </nav>
+  );
 };
+
 export default Navigation;
