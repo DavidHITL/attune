@@ -39,9 +39,9 @@ const CallControls: React.FC<CallControlsProps> = ({
         className="w-20 h-20 rounded-full bg-attune-blue/20 border-none backdrop-blur-md shadow-lg hover:bg-attune-blue/30 transition-all"
       >
         {isMicOn ? (
-          <Mic className="h-10 w-10 text-attune-purple" strokeWidth={2.5} />
+          <Mic className="h-12 w-12 text-attune-purple" strokeWidth={2.5} />
         ) : (
-          <MicOff className="h-10 w-10 text-attune-purple" strokeWidth={2.5} />
+          <MicOff className="h-12 w-12 text-attune-purple" strokeWidth={2.5} />
         )}
       </Button>
 
@@ -52,9 +52,9 @@ const CallControls: React.FC<CallControlsProps> = ({
         className="w-20 h-20 rounded-full bg-attune-blue/20 border-none backdrop-blur-md shadow-lg hover:bg-attune-blue/30 transition-all"
       >
         {isMuted ? (
-          <VolumeX className="h-10 w-10 text-attune-purple" strokeWidth={2.5} />
+          <VolumeX className="h-12 w-12 text-attune-purple" strokeWidth={2.5} />
         ) : (
-          <Volume className="h-10 w-10 text-attune-purple" strokeWidth={2.5} />
+          <Volume className="h-12 w-12 text-attune-purple" strokeWidth={2.5} />
         )}
       </Button>
 
@@ -64,7 +64,7 @@ const CallControls: React.FC<CallControlsProps> = ({
         size="icon"
         className="w-20 h-20 rounded-full bg-attune-blue/20 border-none backdrop-blur-md shadow-lg hover:bg-attune-blue/30 transition-all"
       >
-        <X className="h-10 w-10 text-attune-purple" strokeWidth={2.5} />
+        <X className="h-12 w-12 text-attune-purple" strokeWidth={2.5} />
       </Button>
     </div>
   );
