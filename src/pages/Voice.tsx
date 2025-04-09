@@ -5,6 +5,7 @@ import RealtimeChat from '@/components/RealtimeChat';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useBackground, BACKGROUND_COLORS } from '@/context/BackgroundContext';
+import AttuneLogo from '@/components/AttuneLogo';
 
 const Voice = () => {
   const { user, loading } = useAuth();
@@ -31,6 +32,12 @@ const Voice = () => {
           <RealtimeChat />
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-center">
+            <AttuneLogo />
+            
+            <p className="text-attune-purple/80 mt-6 mb-4">
+              "Love isn't something that you have. It's something you do. And you can do it better." — Terry Real
+            </p>
+            
             <h2 className="text-xl font-semibold mb-4 text-attune-purple">Sign In to Use Voice Assistant</h2>
             <p className="text-attune-purple/80 mb-6">
               To use the voice assistant with conversation history, please sign in or create an account.
