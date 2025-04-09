@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from '@/components/ui/use-toast';
-import { RealtimeChat as RealtimeChatClient } from '@/utils/RealtimeAudio';
+import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
 import CallControls from '@/components/CallControls';
 import VoiceActivityIndicator, { VoiceActivityState } from './VoiceActivityIndicator';
 import { useConversation, Message } from '@/hooks/useConversation';
