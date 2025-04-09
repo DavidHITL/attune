@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/RealtimeAudio';
@@ -24,25 +23,20 @@ const RealtimeChat: React.FC = () => {
     console.log("Handling message event:", event);
     
     if (event.type === 'response.audio.delta') {
-      // Audio is playing
+      // Audio is playing (original event - keeping for backward compatibility)
       setVoiceActivityState(VoiceActivityState.Output);
     } else if (event.type === 'response.audio_transcript.delta') {
       // Using transcript delta as indicator that AI is speaking
       setVoiceActivityState(VoiceActivityState.Output);
     } else if (event.type === 'response.audio.done' || event.type === 'response.audio_transcript.done') {
       // Audio finished playing
-      setTimeout(() => {
-        // Add a small delay before setting to idle to ensure all audio is processed
-        setVoiceActivityState(VoiceActivityState.Idle);
-      }, 300);
+      setVoiceActivityState(VoiceActivityState.Idle);
     } else if (event.type === 'input_audio_activity_started') {
       // Microphone input is active
       setVoiceActivityState(VoiceActivityState.Input);
     } else if (event.type === 'input_audio_activity_stopped') {
       // Microphone input has stopped
-      setTimeout(() => {
-        setVoiceActivityState(VoiceActivityState.Idle);
-      }, 300);
+      setVoiceActivityState(VoiceActivityState.Idle);
     } else if (event.type === 'session.created') {
       toast({
         title: "Connected to Voice AI",
@@ -55,9 +49,7 @@ const RealtimeChat: React.FC = () => {
     } else if (event.type === 'response.done') {
       // AI has finished generating a response
       console.log("AI response done");
-      setTimeout(() => {
-        setVoiceActivityState(VoiceActivityState.Idle);
-      }, 300);
+      setVoiceActivityState(VoiceActivityState.Idle);
     }
   };
 
@@ -129,12 +121,12 @@ const RealtimeChat: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Voice activity visualization - always visible with fixed position */}
-      <div className="flex flex-col items-center justify-center flex-grow">
+      {/* Visualization */}
+      <div className="text-center mb-8 mt-8">
         {/* Voice activity indicator - always visible, but larger when connected */}
-        <div className="flex justify-center items-center my-8 h-32">
+        <div className="flex justify-center mt-4">
           {isConnected ? (
-            <div className="scale-150 transform transition-all duration-300">
+            <div className="scale-150 transform">
               <VoiceActivityIndicator state={voiceActivityState} />
             </div>
           ) : (
