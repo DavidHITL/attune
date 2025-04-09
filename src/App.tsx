@@ -11,6 +11,7 @@ import Navigation from "@/components/Navigation";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Voice from "./pages/Voice";
+import Admin from "./pages/Admin";
 import ProfilePage from "./pages/ProfilePage";
 import NotFound from "./pages/NotFound";
 
@@ -33,6 +34,7 @@ const AppLayout = () => {
         {/* Protected routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/admin" element={<Admin />} />
         </Route>
         
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
