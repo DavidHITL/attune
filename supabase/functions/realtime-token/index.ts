@@ -29,7 +29,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "gpt-4o-realtime-preview-2024-12-17",
         voice: "alloy",
-        instructions: "You are a helpful AI assistant. You can discuss topics, answer questions, and engage in casual conversation to help the user."
+        instructions: "You are a helpful voice assistant. Respond in a conversational and friendly way. Keep your responses concise and focused on the user's needs. Your goal is to provide helpful information through voice interaction."
       }),
     });
 
