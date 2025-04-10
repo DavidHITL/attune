@@ -44,7 +44,7 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
         </div>}
       
       {isConnected && <div className="text-center my-6 text-attune-purple/80">
-          <p>Attune remembers past conversations, and keeps them secret, so you can always pick up where you left off — or not.</p>
+          <p>Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.</p>
         </div>}
 
       {/* Call controls */}
