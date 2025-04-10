@@ -4,22 +4,30 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue 
+} from '@/components/ui/select';
 
 const AdminPanel = () => {
   const [instructions, setInstructions] = useState<string>('');
+  const [voice, setVoice] = useState<string>('alloy');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const { toast } = useToast();
   
-  const fetchCurrentInstructions = useCallback(async () => {
+  const fetchCurrentConfig = useCallback(async () => {
     setLoading(true);
     try {
-      console.log("Fetching current instructions from database...");
+      console.log("Fetching current bot configuration from database...");
       
       const { data, error } = await supabase
         .from('bot_config')
-        .select('instructions, updated_at, id')
+        .select('instructions, voice, updated_at, id')
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
@@ -28,10 +36,12 @@ const AdminPanel = () => {
       
       if (data) {
         setInstructions(data.instructions);
+        setVoice(data.voice || 'alloy');
         setLastUpdated(data.updated_at);
         
         console.log("Fetched current instructions:", data.instructions.substring(0, 100) + "...");
         console.log("Instructions length:", data.instructions.length);
+        console.log("Voice setting:", data.voice);
         console.log("Bot config ID:", data.id);
         console.log("Last updated:", data.updated_at);
         
@@ -42,11 +52,11 @@ const AdminPanel = () => {
         console.log("Instructions appear to use Terry Real approach:", terryRealApproach);
       }
     } catch (error) {
-      console.error("Error fetching instructions:", error);
+      console.error("Error fetching configuration:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch current instructions."
+        description: "Failed to fetch current bot configuration."
       });
     } finally {
       setLoading(false);
@@ -54,12 +64,12 @@ const AdminPanel = () => {
   }, [toast]);
   
   useEffect(() => {
-    fetchCurrentInstructions();
+    fetchCurrentConfig();
     
     // Listen for refresh events from parent component
     const handleRefresh = () => {
       console.log("Refresh event received, fetching current instructions");
-      fetchCurrentInstructions();
+      fetchCurrentConfig();
     };
     
     document.getElementById('admin-panel')?.addEventListener('refresh', handleRefresh);
@@ -67,7 +77,7 @@ const AdminPanel = () => {
     return () => {
       document.getElementById('admin-panel')?.removeEventListener('refresh', handleRefresh);
     };
-  }, [fetchCurrentInstructions]);
+  }, [fetchCurrentConfig]);
   
   const updateInstructions = async () => {
     if (!instructions.trim()) {
@@ -84,10 +94,14 @@ const AdminPanel = () => {
       console.log("Sending instructions update request...");
       console.log("Instructions length:", instructions.length);
       console.log("Instructions excerpt:", instructions.substring(0, 100) + "...");
+      console.log("Voice setting:", voice);
       
       // Use the edge function to update instructions
       const response = await supabase.functions.invoke('update-instructions', {
-        body: { instructions: instructions },
+        body: { 
+          instructions: instructions,
+          voice: voice 
+        },
       });
       
       if (response.error) {
@@ -98,22 +112,26 @@ const AdminPanel = () => {
       console.log("Update response:", response.data);
       
       // Verify the update by refetching
-      await fetchCurrentInstructions();
+      await fetchCurrentConfig();
       
       toast({
         title: "Success",
-        description: `Bot instructions updated successfully. Length: ${instructions.length} characters.`
+        description: `Bot configuration updated successfully. Voice: ${voice}, Instructions length: ${instructions.length} characters.`
       });
     } catch (error) {
-      console.error("Error updating instructions:", error);
+      console.error("Error updating configuration:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to update instructions: " + (error instanceof Error ? error.message : 'Unknown error')
+        description: "Failed to update configuration: " + (error instanceof Error ? error.message : 'Unknown error')
       });
     } finally {
       setSaving(false);
     }
+  };
+
+  const updateVoice = async (newVoice: string) => {
+    setVoice(newVoice);
   };
   
   const formatDateTime = (dateTimeStr: string | null) => {
@@ -128,10 +146,32 @@ const AdminPanel = () => {
       
       {loading ? (
         <div className="flex items-center justify-center h-40">
-          <p>Loading instructions...</p>
+          <p>Loading configuration...</p>
         </div>
       ) : (
         <>
+          <div className="space-y-2">
+            <label className="block font-medium text-gray-700">
+              Bot Voice
+            </label>
+            <Select value={voice} onValueChange={updateVoice}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select voice" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="alloy">Alloy - Neutral</SelectItem>
+                <SelectItem value="echo">Echo - Male</SelectItem>
+                <SelectItem value="fable">Fable - Male</SelectItem>
+                <SelectItem value="onyx">Onyx - Male</SelectItem>
+                <SelectItem value="nova">Nova - Female</SelectItem>
+                <SelectItem value="shimmer">Shimmer - Female</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-gray-500">
+              Choose the voice personality for the bot
+            </p>
+          </div>
+
           <div className="space-y-2">
             <div className="flex flex-row items-center justify-between">
               <label htmlFor="instructions" className="block font-medium text-gray-700">
@@ -168,7 +208,7 @@ const AdminPanel = () => {
               onClick={updateInstructions}
               disabled={saving}
             >
-              {saving ? 'Saving...' : 'Update Instructions'}
+              {saving ? 'Saving...' : 'Update Configuration'}
             </Button>
           </div>
         </>

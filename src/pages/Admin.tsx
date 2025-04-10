@@ -58,9 +58,12 @@ const Admin = () => {
       console.log("Updating instructions to Terry Real approach");
       console.log("Instructions length:", terryRealInstructions.length);
       
-      // Use the edge function to update the instructions
+      // Use the edge function to update the instructions with fable voice
       const response = await supabase.functions.invoke('update-instructions', {
-        body: { instructions: terryRealInstructions },
+        body: { 
+          instructions: terryRealInstructions,
+          voice: 'fable'
+        },
       });
       
       if (response.error) {
@@ -72,52 +75,55 @@ const Admin = () => {
       // Now verify that the instructions were properly stored
       const { data: verifyData, error: verifyError } = await supabase
         .from('bot_config')
-        .select('instructions')
+        .select('instructions, voice')
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
         
       if (verifyError) {
-        console.error("Error verifying instructions:", verifyError);
-        throw new Error("Failed to verify instructions update");
+        console.error("Error verifying configuration:", verifyError);
+        throw new Error("Failed to verify configuration update");
       }
       
-      console.log("Verified instructions from database:");
+      console.log("Verified configuration from database:");
       console.log("Instructions length:", verifyData.instructions.length);
       console.log("Instructions:", verifyData.instructions.substring(0, 200) + "...");
+      console.log("Voice setting:", verifyData.voice);
       
       // Check if the stored instructions match what we sent
-      if (verifyData.instructions !== terryRealInstructions) {
-        console.error("Instructions verification failed - stored values don't match");
-        console.error("Expected:", terryRealInstructions);
-        console.error("Got:", verifyData.instructions);
+      if (verifyData.instructions !== terryRealInstructions || verifyData.voice !== 'fable') {
+        console.error("Configuration verification failed - stored values don't match");
+        console.error("Expected instructions:", terryRealInstructions);
+        console.error("Got instructions:", verifyData.instructions);
+        console.error("Expected voice:", 'fable');
+        console.error("Got voice:", verifyData.voice);
         
         toast({
           variant: "destructive",
           title: "Warning",
-          description: "Instructions were updated but verification found discrepancies."
+          description: "Configuration was updated but verification found discrepancies."
         });
       } else {
-        console.log("Instructions verification successful");
+        console.log("Configuration verification successful");
         
         toast({
           title: "Success",
-          description: "Bot instructions updated to Terry Real's couples coaching approach."
+          description: "Bot updated to Terry Real's couples coaching approach with Fable voice."
         });
       }
       
-      // Refresh the admin panel to show updated instructions
+      // Refresh the admin panel to show updated configuration
       const adminPanelElement = document.querySelector('#admin-panel') as HTMLElement;
       if (adminPanelElement) {
         const event = new Event('refresh');
         adminPanelElement.dispatchEvent(event);
       }
     } catch (error) {
-      console.error("Error updating instructions:", error);
+      console.error("Error updating configuration:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to update instructions: " + (error instanceof Error ? error.message : 'Unknown error')
+        description: "Failed to update configuration: " + (error instanceof Error ? error.message : 'Unknown error')
       });
     } finally {
       setUpdatingInstructions(false);
@@ -161,7 +167,7 @@ const Admin = () => {
               disabled={updatingInstructions}
               className="bg-green-600 hover:bg-green-700"
             >
-              {updatingInstructions ? 'Updating...' : 'Update to Terry Real Approach'}
+              {updatingInstructions ? 'Updating...' : 'Update to Terry Real Approach with Fable Voice'}
             </Button>
           </div>
         </div>

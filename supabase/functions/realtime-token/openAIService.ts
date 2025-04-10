@@ -32,6 +32,7 @@ export async function requestOpenAIToken(instructions: string, voice: string): P
     console.log("[REALTIME-TOKEN] Sending request to OpenAI API with final instructions");
     console.log("[REALTIME-TOKEN] Final instructions first 200 chars:", finalInstructions.substring(0, 200));
     console.log("[REALTIME-TOKEN] Final instructions last 200 chars:", finalInstructions.substring(finalInstructions.length - 200));
+    console.log("[REALTIME-TOKEN] Using voice:", voice);
     
     // Check if final instructions contain key phrases from Terry Real approach
     const terryRealPhrases = [
@@ -68,6 +69,7 @@ export async function requestOpenAIToken(instructions: string, voice: string): P
     console.log("[REALTIME-TOKEN] OpenAI session created successfully");
     console.log("[REALTIME-TOKEN] Response status:", response.status);
     console.log("[REALTIME-TOKEN] Response contains client_secret:", !!responseData?.client_secret);
+    console.log("[REALTIME-TOKEN] Voice used:", voice);
     
     return responseData;
   } catch (error) {

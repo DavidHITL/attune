@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Message } from '@/utils/types';
 import { VoiceActivityState } from '../VoiceActivityIndicator';
