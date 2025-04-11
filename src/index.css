@@ -103,4 +103,9 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-sans text-black;
   }
+  
+  /* Force all text elements to use sans-serif */
+  p, span, div, a, button, input, textarea, select, option, label, li {
+    @apply font-sans text-black;
+  }
 }
