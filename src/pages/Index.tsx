@@ -8,24 +8,24 @@ import { useAudioLibrary } from '@/hooks/useAudioLibrary';
 import FeaturedAudio from '@/components/audio/FeaturedAudio';
 import AudioGrid from '@/components/audio/AudioGrid';
 import AudioPlayer from '@/components/audio/AudioPlayer';
-
 const Index = () => {
-  const { setBackgroundColor } = useBackground();
-  const { user } = useAuth();
-  const { 
-    loading, 
-    featuredContent, 
+  const {
+    setBackgroundColor
+  } = useBackground();
+  const {
+    user
+  } = useAuth();
+  const {
+    loading,
+    featuredContent,
     audioContent,
-    updateProgress 
+    updateProgress
   } = useAudioLibrary();
-  
   const [playingAudio, setPlayingAudio] = useState<any>(null);
-
   useEffect(() => {
     // Always use cream background for this page
     setBackgroundColor(BACKGROUND_COLORS.CREAM);
   }, [setBackgroundColor]);
-  
   const handlePlayAudio = (audioItem: any) => {
     setPlayingAudio(audioItem);
     toast({
@@ -33,12 +33,10 @@ const Index = () => {
       description: audioItem.title
     });
   };
-  
   const handleProgressUpdate = (seconds: number) => {
     if (!playingAudio) return;
     updateProgress(playingAudio.id, seconds);
   };
-  
   const handleComplete = () => {
     if (!playingAudio) return;
     updateProgress(playingAudio.id, playingAudio.duration, true);
@@ -47,62 +45,30 @@ const Index = () => {
       description: `You've completed ${playingAudio.title}`
     });
   };
-
-  return (
-    <div className="min-h-screen flex flex-col items-center py-12 px-4 pb-24 text-black font-sans">
+  return <div className="min-h-screen flex flex-col items-center py-12 px-4 pb-24 text-black font-sans bg-[EEE0CB]">
       <Toaster />
       <div className="w-full max-w-[800px]">
-        {user ? (
-          !loading ? (
-            <>
+        {user ? !loading ? <>
               {/* Featured Content - Introductory Course */}
-              {featuredContent && (
-                <FeaturedAudio
-                  id={featuredContent.id}
-                  title="INTRODUCTORY COURSE"
-                  duration={featuredContent.duration}
-                  onPlay={() => handlePlayAudio(featuredContent)}
-                />
-              )}
+              {featuredContent && <FeaturedAudio id={featuredContent.id} title="INTRODUCTORY COURSE" duration={featuredContent.duration} onPlay={() => handlePlayAudio(featuredContent)} />}
               
               {/* Audio List */}
               <div className="bg-white/10 backdrop-blur-sm rounded-lg">
-                <AudioGrid 
-                  items={audioContent.map(audio => ({
-                    ...audio,
-                    progress: audio.progress?.progress_seconds
-                  }))}
-                  onSelectAudio={(id) => {
-                    const audio = audioContent.find(item => item.id === id);
-                    if (audio) handlePlayAudio(audio);
-                  }}
-                />
+                <AudioGrid items={audioContent.map(audio => ({
+            ...audio,
+            progress: audio.progress?.progress_seconds
+          }))} onSelectAudio={id => {
+            const audio = audioContent.find(item => item.id === id);
+            if (audio) handlePlayAudio(audio);
+          }} />
               </div>
               
               {/* Audio Player */}
-              {playingAudio && (
-                <AudioPlayer 
-                  title={playingAudio.title}
-                  audioUrl={playingAudio.audio_url}
-                  coverImage={playingAudio.cover_image_url}
-                  initialProgress={playingAudio.progress?.progress_seconds || 0}
-                  onClose={() => setPlayingAudio(null)}
-                  onProgressUpdate={handleProgressUpdate}
-                  onComplete={handleComplete}
-                />
-              )}
-            </>
-          ) : (
-            <div className="flex justify-center items-center h-64">
+              {playingAudio && <AudioPlayer title={playingAudio.title} audioUrl={playingAudio.audio_url} coverImage={playingAudio.cover_image_url} initialProgress={playingAudio.progress?.progress_seconds || 0} onClose={() => setPlayingAudio(null)} onProgressUpdate={handleProgressUpdate} onComplete={handleComplete} />}
+            </> : <div className="flex justify-center items-center h-64">
               <p className="text-black">Loading audio library...</p>
-            </div>
-          )
-        ) : (
-          <AttuneContent />
-        )}
+            </div> : <AttuneContent />}
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
