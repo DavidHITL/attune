@@ -19,7 +19,7 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({
       <div className="mb-2">
         <AttuneLogo />
       </div>
-      <div className="text-sm flex flex-col items-center justify-center gap-2">
+      <div className="text-sm font-sans flex flex-col items-center justify-center gap-2">
         <div>Status: {status}</div>
         
         {/* Voice activity indicator - always visible when connected */}

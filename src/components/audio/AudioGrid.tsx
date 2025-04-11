@@ -19,7 +19,7 @@ interface AudioGridProps {
 const AudioGrid: React.FC<AudioGridProps> = ({ items, onSelectAudio }) => {
   if (items.length === 0) {
     return (
-      <div className="py-8 text-center text-black">
+      <div className="py-8 text-center text-black font-sans">
         No audio content available
       </div>
     );
@@ -34,10 +34,10 @@ const AudioGrid: React.FC<AudioGridProps> = ({ items, onSelectAudio }) => {
             onClick={() => onSelectAudio(item.id)}
           >
             <div className="flex-1">
-              <h3 className="font-medium text-black">{item.title}</h3>
+              <h3 className="font-sans font-medium text-black">{item.title}</h3>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-black">{formatTime(item.duration)}</span>
+              <span className="text-sm font-sans text-black">{formatTime(item.duration)}</span>
               <svg 
                 xmlns="http://www.w3.org/2000/svg" 
                 width="24" 

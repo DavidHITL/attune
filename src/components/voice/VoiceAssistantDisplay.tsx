@@ -67,20 +67,20 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
       
       {/* Voice interaction instructions */}
       {!isConnected && (
-        <div className="text-center my-6 text-black">
+        <div className="text-center my-6 text-black font-sans">
           <p>Feel like talking? Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.</p>
         </div>
       )}
       
       {isConnected && (
-        <div className="text-center my-6 text-black">
+        <div className="text-center my-6 text-black font-sans">
           <p>Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.</p>
         </div>
       )}
       
       {/* Countdown timer */}
       <div className="text-center mt-4 mb-8">
-        <p className="text-sm text-black">{minutesLeft} min remaining</p>
+        <p className="text-sm text-black font-sans">{minutesLeft} min remaining</p>
       </div>
 
       {/* Call controls */}
