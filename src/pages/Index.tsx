@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Toaster } from '@/components/ui/toaster';
 import { toast } from '@/hooks/use-toast';
@@ -23,8 +22,9 @@ const Index = () => {
   const [playingAudio, setPlayingAudio] = useState<any>(null);
 
   useEffect(() => {
-    setBackgroundColor(BACKGROUND_COLORS.HOME_BLUE);
-  }, [setBackgroundColor]);
+    // Use cream background for non-logged-in users, blue for logged-in users
+    setBackgroundColor(user ? BACKGROUND_COLORS.HOME_BLUE : BACKGROUND_COLORS.CREAM);
+  }, [setBackgroundColor, user]);
   
   const handlePlayAudio = (audioItem: any) => {
     setPlayingAudio(audioItem);
@@ -49,7 +49,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-attune-deep-blue flex flex-col items-center py-12 px-4 pb-24 text-black font-sans">
+    <div className="min-h-screen flex flex-col items-center py-12 px-4 pb-24 text-black font-sans">
       <Toaster />
       <div className="w-full max-w-[800px]">
         {user ? (

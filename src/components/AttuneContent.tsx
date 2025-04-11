@@ -11,7 +11,7 @@ const AttuneContent = () => {
       <AttuneLogo />
       
       <div className="mt-10 text-center max-w-[350px]">
-        <p className="text-attune-purple/80">
+        <p className="text-attune-purple/80 font-sans">
           "Love isn't something that you have. It's something you do. And you can do it better." — Terry Real
         </p>
         
@@ -19,7 +19,7 @@ const AttuneContent = () => {
           <div className="mt-6">
             <a 
               href="/auth" 
-              className="bg-attune-purple text-white px-6 py-2 rounded-full hover:bg-attune-indigo transition-colors"
+              className="bg-attune-purple text-white px-6 py-2 rounded-full hover:bg-attune-indigo transition-colors font-sans"
             >
               Sign In
             </a>

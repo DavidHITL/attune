@@ -30,5 +30,6 @@ export const useBackground = (): BackgroundContextType => {
 export const BACKGROUND_COLORS = {
   BLUE: 'bg-attune-blue',
   VOICE_BLUE: 'bg-[#6DAEDB]',
-  HOME_BLUE: 'bg-[#1B4965]'  // Added new deep blue color
+  HOME_BLUE: 'bg-[#1B4965]',
+  CREAM: 'bg-[#EEE0CB]'  // Added new cream color
 };
