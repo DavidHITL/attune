@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { BookOpen, User, Mic } from 'lucide-react';
+import { BookOpen, User, MessageCircle } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useBackground } from '@/context/BackgroundContext';
 
@@ -33,7 +33,7 @@ const Navigation = () => {
               : 'bg-white/10 hover:bg-white/15'} 
               w-12 h-12 rounded-full transition-all duration-300 shadow-md`}
           >
-            <Mic className="w-5 h-5 text-black" />
+            <MessageCircle className="w-5 h-5 text-black" />
           </Link>
           
           <Link 
