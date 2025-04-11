@@ -31,5 +31,5 @@ export const BACKGROUND_COLORS = {
   BLUE: 'bg-attune-blue',
   VOICE_BLUE: 'bg-[#6DAEDB]',
   HOME_BLUE: 'bg-[#1B4965]',
-  CREAM: 'bg-[#EEE0CB]'  // Added new cream color
+  CREAM: 'bg-[#EEE0CB]'  // Fixed to ensure proper format
 };

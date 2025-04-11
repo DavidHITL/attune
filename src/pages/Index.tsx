@@ -8,6 +8,7 @@ import { useAudioLibrary } from '@/hooks/useAudioLibrary';
 import FeaturedAudio from '@/components/audio/FeaturedAudio';
 import AudioGrid from '@/components/audio/AudioGrid';
 import AudioPlayer from '@/components/audio/AudioPlayer';
+
 const Index = () => {
   const {
     setBackgroundColor
@@ -22,10 +23,12 @@ const Index = () => {
     updateProgress
   } = useAudioLibrary();
   const [playingAudio, setPlayingAudio] = useState<any>(null);
+
   useEffect(() => {
     // Always use cream background for this page
     setBackgroundColor(BACKGROUND_COLORS.CREAM);
   }, [setBackgroundColor]);
+
   const handlePlayAudio = (audioItem: any) => {
     setPlayingAudio(audioItem);
     toast({
@@ -33,10 +36,12 @@ const Index = () => {
       description: audioItem.title
     });
   };
+
   const handleProgressUpdate = (seconds: number) => {
     if (!playingAudio) return;
     updateProgress(playingAudio.id, seconds);
   };
+
   const handleComplete = () => {
     if (!playingAudio) return;
     updateProgress(playingAudio.id, playingAudio.duration, true);
@@ -45,7 +50,8 @@ const Index = () => {
       description: `You've completed ${playingAudio.title}`
     });
   };
-  return <div className="min-h-screen flex flex-col items-center py-12 px-4 pb-24 text-black font-sans bg-[EEE0CB]">
+
+  return <div className="min-h-screen flex flex-col items-center py-12 px-4 pb-24 text-black font-sans bg-[#EEE0CB]">
       <Toaster />
       <div className="w-full max-w-[800px]">
         {user ? !loading ? <>
@@ -71,4 +77,5 @@ const Index = () => {
       </div>
     </div>;
 };
+
 export default Index;
