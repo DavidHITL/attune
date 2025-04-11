@@ -7,6 +7,7 @@ const customColors = {
   "attune-pink": "#ef6cb1",
   "attune-blue": "#6DAEDB",
   "attune-purple": "#6F47AF",
+  "attune-deep-blue": "#1B4965", // Added new deep blue color
 };
 
 const config = {

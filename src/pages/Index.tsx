@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Toaster } from '@/components/ui/toaster';
 import { toast } from '@/hooks/use-toast';
 import AttuneContent from '@/components/AttuneContent';
-import { useBackground } from '@/context/BackgroundContext';
+import { useBackground, BACKGROUND_COLORS } from '@/context/BackgroundContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAudioLibrary } from '@/hooks/useAudioLibrary';
 import FeaturedAudio from '@/components/audio/FeaturedAudio';
@@ -23,7 +23,7 @@ const Index = () => {
   const [playingAudio, setPlayingAudio] = useState<any>(null);
 
   useEffect(() => {
-    setBackgroundColor('bg-attune-blue');
+    setBackgroundColor(BACKGROUND_COLORS.HOME_BLUE);
   }, [setBackgroundColor]);
   
   const handlePlayAudio = (audioItem: any) => {
@@ -49,7 +49,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center py-12 px-4 pb-24">
+    <div className="min-h-screen bg-attune-deep-blue flex flex-col items-center py-12 px-4 pb-24 text-white font-sans">
       <Toaster />
       <div className="w-full max-w-[800px]">
         {user ? (
@@ -66,7 +66,7 @@ const Index = () => {
               )}
               
               {/* Audio List */}
-              <div className="bg-white rounded-lg shadow">
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg">
                 <AudioGrid 
                   items={audioContent.map(audio => ({
                     ...audio,
@@ -94,7 +94,7 @@ const Index = () => {
             </>
           ) : (
             <div className="flex justify-center items-center h-64">
-              <p className="text-gray-500">Loading audio library...</p>
+              <p className="text-white/70">Loading audio library...</p>
             </div>
           )
         ) : (
