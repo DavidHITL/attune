@@ -94,18 +94,25 @@
 @layer base {
   * {
     @apply border-border;
+    font-family: Inter, system-ui, Helvetica, Arial, sans-serif !important;
+  }
+
+  html, body {
+    font-family: Inter, system-ui, Helvetica, Arial, sans-serif !important;
   }
 
   body {
-    @apply bg-background font-sans text-black;
+    @apply bg-background text-black;
+    font-family: Inter, system-ui, Helvetica, Arial, sans-serif !important;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-sans text-black;
+    font-family: Inter, system-ui, Helvetica, Arial, sans-serif !important;
+    @apply text-black;
   }
   
-  /* Force all text elements to use sans-serif */
   p, span, div, a, button, input, textarea, select, option, label, li {
-    @apply font-sans text-black;
+    font-family: Inter, system-ui, Helvetica, Arial, sans-serif !important;
+    @apply text-black;
   }
 }
