@@ -22,9 +22,9 @@ const Index = () => {
   const [playingAudio, setPlayingAudio] = useState<any>(null);
 
   useEffect(() => {
-    // Use cream background for non-logged-in users, blue for logged-in users
-    setBackgroundColor(user ? BACKGROUND_COLORS.HOME_BLUE : BACKGROUND_COLORS.CREAM);
-  }, [setBackgroundColor, user]);
+    // Always use cream background for this page
+    setBackgroundColor(BACKGROUND_COLORS.CREAM);
+  }, [setBackgroundColor]);
   
   const handlePlayAudio = (audioItem: any) => {
     setPlayingAudio(audioItem);

@@ -11,7 +11,7 @@ const AttuneContent = () => {
       <AttuneLogo />
       
       <div className="mt-10 text-center max-w-[350px]">
-        <p className="text-attune-purple/80 font-sans">
+        <p className="text-black font-sans">
           "Love isn't something that you have. It's something you do. And you can do it better." — Terry Real
         </p>
         
