@@ -5,6 +5,7 @@ import { VoiceActivityState } from '../VoiceActivityIndicator';
 import CallControls from '@/components/CallControls';
 import AttuneLogo from '@/components/AttuneLogo';
 import { PhoneCall } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface VoiceAssistantDisplayProps {
   user: any;
@@ -37,6 +38,7 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
 }) => {
   // Countdown timer state - 25 minutes in milliseconds
   const [timeLeft, setTimeLeft] = useState(25 * 60 * 1000);
+  const isMobile = useIsMobile();
   
   // Start the countdown timer
   useEffect(() => {
@@ -83,8 +85,8 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
         <p className="text-sm text-black font-sans">{minutesLeft} min remaining</p>
       </div>
 
-      {/* Call controls - Added px-8 for increased horizontal spacing */}
-      <div className="flex justify-center mt-auto mb-16 px-8">
+      {/* Call controls - Added increased padding for mobile */}
+      <div className={`flex justify-center mt-auto mb-16 ${isMobile ? 'px-12' : 'px-8'}`}>
         {!isConnected ? (
           <div
             onClick={onStartConversation}
