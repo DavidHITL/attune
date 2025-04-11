@@ -15,7 +15,7 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({
   voiceActivityState 
 }) => {
   return (
-    <div className="text-center text-attune-purple mb-4 mt-4">
+    <div className="text-center text-black mb-4 mt-4">
       <div className="mb-2">
         <AttuneLogo />
       </div>

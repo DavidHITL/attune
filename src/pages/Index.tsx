@@ -49,7 +49,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-attune-deep-blue flex flex-col items-center py-12 px-4 pb-24 text-white font-sans">
+    <div className="min-h-screen bg-attune-deep-blue flex flex-col items-center py-12 px-4 pb-24 text-black font-sans">
       <Toaster />
       <div className="w-full max-w-[800px]">
         {user ? (
@@ -94,7 +94,7 @@ const Index = () => {
             </>
           ) : (
             <div className="flex justify-center items-center h-64">
-              <p className="text-white/70">Loading audio library...</p>
+              <p className="text-black">Loading audio library...</p>
             </div>
           )
         ) : (

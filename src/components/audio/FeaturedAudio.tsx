@@ -25,20 +25,20 @@ const FeaturedAudio: React.FC<FeaturedAudioProps> = ({
   return (
     <div className="w-full rounded-xl overflow-hidden bg-gray-100 mb-8">
       <div className="p-6">
-        <div className="text-sm text-gray-600 mb-1">
+        <div className="text-sm text-black mb-1">
           Day {day} of {totalDays}
         </div>
         
-        <h2 className="text-4xl font-bold uppercase tracking-tight mb-10">
+        <h2 className="text-4xl font-bold uppercase tracking-tight mb-10 text-black">
           {title}
         </h2>
         
         <div className="border-t border-b border-gray-300 py-4 mb-4">
           <div className="flex justify-between items-center">
-            <div className="font-medium">Start Here</div>
+            <div className="font-medium text-black">Start Here</div>
             <div className="flex items-center">
-              <span className="mr-2">{formatTime(duration)}</span>
-              <Play className="h-5 w-5 fill-current" />
+              <span className="mr-2 text-black">{formatTime(duration)}</span>
+              <Play className="h-5 w-5 fill-current text-black" />
             </div>
           </div>
         </div>
@@ -47,10 +47,10 @@ const FeaturedAudio: React.FC<FeaturedAudioProps> = ({
           className="flex justify-between items-center py-4 cursor-pointer"
           onClick={onPlay}
         >
-          <div className="font-medium">Meditation 1</div>
+          <div className="font-medium text-black">Meditation 1</div>
           <div className="flex items-center">
-            <span className="mr-2">8m 45s</span>
-            <Play className="h-5 w-5 fill-current" />
+            <span className="mr-2 text-black">8m 45s</span>
+            <Play className="h-5 w-5 fill-current text-black" />
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 
 import React from 'react';
 import AudioCard from './AudioCard';
+import { formatTime } from '@/utils/formatters';
 
 interface AudioItem {
   id: string;
@@ -18,7 +19,7 @@ interface AudioGridProps {
 const AudioGrid: React.FC<AudioGridProps> = ({ items, onSelectAudio }) => {
   if (items.length === 0) {
     return (
-      <div className="py-8 text-center text-gray-500">
+      <div className="py-8 text-center text-black">
         No audio content available
       </div>
     );
@@ -33,10 +34,10 @@ const AudioGrid: React.FC<AudioGridProps> = ({ items, onSelectAudio }) => {
             onClick={() => onSelectAudio(item.id)}
           >
             <div className="flex-1">
-              <h3 className="font-medium">{item.title}</h3>
+              <h3 className="font-medium text-black">{item.title}</h3>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-500">{formatTime(item.duration)}</span>
+              <span className="text-sm text-black">{formatTime(item.duration)}</span>
               <svg 
                 xmlns="http://www.w3.org/2000/svg" 
                 width="24" 
@@ -47,7 +48,7 @@ const AudioGrid: React.FC<AudioGridProps> = ({ items, onSelectAudio }) => {
                 strokeWidth="2" 
                 strokeLinecap="round" 
                 strokeLinejoin="round" 
-                className="text-attune-blue"
+                className="text-black"
               >
                 <polygon points="5 3 19 12 5 21 5 3"></polygon>
               </svg>
@@ -60,6 +61,3 @@ const AudioGrid: React.FC<AudioGridProps> = ({ items, onSelectAudio }) => {
 };
 
 export default AudioGrid;
-
-// Import the formatter function
-import { formatTime } from '@/utils/formatters';

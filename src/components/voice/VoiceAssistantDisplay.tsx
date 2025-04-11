@@ -58,33 +58,52 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   // Convert milliseconds to minutes (rounded down)
   const minutesLeft = Math.floor(timeLeft / (60 * 1000));
   
-  return <div className="flex flex-col h-full">
+  return (
+    <div className="flex flex-col h-full">
       {/* Logo and Header */}
       <div className="mb-8 flex justify-center">
         <AttuneLogo />
       </div>
       
       {/* Voice interaction instructions */}
-      {!isConnected && <div className="text-center my-6 text-attune-purple/80">
+      {!isConnected && (
+        <div className="text-center my-6 text-black">
           <p>Feel like talking? Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.</p>
-        </div>}
+        </div>
+      )}
       
-      {isConnected && <div className="text-center my-6 text-attune-purple/80">
+      {isConnected && (
+        <div className="text-center my-6 text-black">
           <p>Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.</p>
-        </div>}
+        </div>
+      )}
       
       {/* Countdown timer */}
       <div className="text-center mt-4 mb-8">
-        <p className="text-sm text-attune-purple/60">{minutesLeft} min remaining</p>
+        <p className="text-sm text-black">{minutesLeft} min remaining</p>
       </div>
 
       {/* Call controls */}
       <div className="flex justify-center mt-auto mb-6">
-        {!isConnected ? <div onClick={onStartConversation} className="w-24 h-24 rounded-full bg-slate-300/80 border-none shadow-lg hover:bg-slate-300/90 transition-all cursor-pointer flex items-center justify-center">
+        {!isConnected ? (
+          <div
+            onClick={onStartConversation}
+            className="w-24 h-24 rounded-full bg-slate-300/80 border-none shadow-lg hover:bg-slate-300/90 transition-all cursor-pointer flex items-center justify-center"
+          >
             <PhoneCall className="h-6 w-6 text-black" strokeWidth={1.5} />
-          </div> : <CallControls isMicOn={isMicOn} isMuted={isMuted} onToggleMic={onToggleMicrophone} onToggleMute={onToggleMute} onEndCall={onEndConversation} />}
+          </div>
+        ) : (
+          <CallControls
+            isMicOn={isMicOn}
+            isMuted={isMuted}
+            onToggleMic={onToggleMicrophone}
+            onToggleMute={onToggleMute}
+            onEndCall={onEndConversation}
+          />
+        )}
       </div>
-    </div>;
+    </div>
+  );
 };
 
 export default VoiceAssistantDisplay;
