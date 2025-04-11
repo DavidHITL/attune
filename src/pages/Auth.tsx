@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -112,7 +113,11 @@ export default function Auth() {
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-black hover:bg-gray-800 text-white transition-colors" 
+                    disabled={loading}
+                  >
                     {loading ? "Logging in..." : "Login"}
                   </Button>
                 </form>
@@ -139,7 +144,11 @@ export default function Auth() {
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-black hover:bg-gray-800 text-white transition-colors" 
+                    disabled={loading}
+                  >
                     {loading ? "Creating account..." : "Sign Up"}
                   </Button>
                 </form>
