@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Message } from '@/utils/types';
 import { VoiceActivityState } from '../VoiceActivityIndicator';
 import CallControls from '@/components/CallControls';
@@ -35,6 +35,29 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   onEndConversation,
   onStartConversation
 }) => {
+  // Countdown timer state - 25 minutes in milliseconds
+  const [timeLeft, setTimeLeft] = useState(25 * 60 * 1000);
+  
+  // Start the countdown timer
+  useEffect(() => {
+    // Update every minute
+    const timer = setInterval(() => {
+      setTimeLeft(prevTime => {
+        // Stop at zero
+        if (prevTime <= 60000) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prevTime - 60000;
+      });
+    }, 60000);
+    
+    return () => clearInterval(timer);
+  }, []);
+  
+  // Convert milliseconds to minutes (rounded down)
+  const minutesLeft = Math.floor(timeLeft / (60 * 1000));
+  
   return <div className="flex flex-col h-full">
       {/* Logo and Header */}
       <div className="mb-8 flex justify-center">
@@ -49,6 +72,11 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
       {isConnected && <div className="text-center my-6 text-attune-purple/80">
           <p>Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.</p>
         </div>}
+      
+      {/* Countdown timer */}
+      <div className="text-center mt-4 mb-8">
+        <p className="text-sm text-attune-purple/60">{minutesLeft} min remaining</p>
+      </div>
 
       {/* Call controls */}
       <div className="flex justify-center mt-auto mb-6">
