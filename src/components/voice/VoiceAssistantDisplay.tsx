@@ -83,8 +83,8 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
         <p className="text-sm text-black font-sans">{minutesLeft} min remaining</p>
       </div>
 
-      {/* Call controls */}
-      <div className="flex justify-center mt-auto mb-6">
+      {/* Call controls - Added mb-16 to increase bottom margin */}
+      <div className="flex justify-center mt-auto mb-16">
         {!isConnected ? (
           <div
             onClick={onStartConversation}
