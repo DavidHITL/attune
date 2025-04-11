@@ -25,20 +25,41 @@ const AudioGrid: React.FC<AudioGridProps> = ({ items, onSelectAudio }) => {
   }
   
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 gap-2">
       {items.map((item) => (
-        <AudioCard
-          key={item.id}
-          id={item.id}
-          title={item.title}
-          duration={item.duration}
-          imageUrl={item.cover_image_url}
-          progress={item.progress}
-          onClick={() => onSelectAudio(item.id)}
-        />
+        <div key={item.id} className="border-b border-gray-200 last:border-b-0">
+          <div 
+            className="py-4 px-2 flex justify-between items-center cursor-pointer hover:bg-gray-50"
+            onClick={() => onSelectAudio(item.id)}
+          >
+            <div className="flex-1">
+              <h3 className="font-medium">{item.title}</h3>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-500">{formatTime(item.duration)}</span>
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="24" 
+                height="24" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                className="text-attune-blue"
+              >
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </div>
+          </div>
+        </div>
       ))}
     </div>
   );
 };
 
 export default AudioGrid;
+
+// Import the formatter function
+import { formatTime } from '@/utils/formatters';
