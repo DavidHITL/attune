@@ -19,7 +19,7 @@ const AttuneContent = () => {
           <div className="mt-6">
             <a 
               href="/auth" 
-              className="bg-attune-purple text-white px-6 py-2 rounded-full hover:bg-attune-indigo transition-colors font-sans"
+              className="bg-black text-white px-6 py-2 rounded-full hover:bg-gray-800 transition-colors font-sans"
             >
               Sign In
             </a>
