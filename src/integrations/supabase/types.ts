@@ -24,6 +24,53 @@ export type Database = {
         }
         Relationships: []
       }
+      audio_content: {
+        Row: {
+          audio_url: string
+          category_id: string | null
+          cover_image_url: string | null
+          created_at: string | null
+          description: string | null
+          duration: number
+          id: string
+          is_featured: boolean | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          audio_url: string
+          category_id?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          duration: number
+          id?: string
+          is_featured?: boolean | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          audio_url?: string
+          category_id?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          duration?: number
+          id?: string
+          is_featured?: boolean | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_audio_content_category"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bot_config: {
         Row: {
           created_at: string
@@ -48,6 +95,24 @@ export type Database = {
           name?: string
           updated_at?: string
           voice?: string
+        }
+        Relationships: []
+      }
+      categories: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
         }
         Relationships: []
       }
@@ -106,6 +171,47 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_progress: {
+        Row: {
+          completed: boolean | null
+          content_id: string
+          created_at: string | null
+          id: string
+          last_played_at: string | null
+          progress_seconds: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean | null
+          content_id: string
+          created_at?: string | null
+          id?: string
+          last_played_at?: string | null
+          progress_seconds?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed?: boolean | null
+          content_id?: string
+          created_at?: string | null
+          id?: string
+          last_played_at?: string | null
+          progress_seconds?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_progress_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "audio_content"
             referencedColumns: ["id"]
           },
         ]

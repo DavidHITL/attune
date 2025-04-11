@@ -21,3 +21,7 @@ port = 54323
 [[edge_functions]]
 name = "realtime-token"
 verify_jwt = true
+
+[[edge_functions]]
+name = "seed-audio-content"
+verify_jwt = true

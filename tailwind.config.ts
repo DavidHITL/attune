@@ -1,6 +1,12 @@
+import type { Config } from "tailwindcss";
+import { fontFamily } from "tailwindcss/defaultTheme";
+import svgToDataUri from "mini-svg-data-uri";
 
-import type { Config } from "tailwindcss"
-import { fontFamily } from "tailwindcss/defaultTheme"
+const customColors = {
+  "attune-pink": "#ef6cb1",
+  "attune-blue": "#6DAEDB",
+  "attune-purple": "#6F47AF",
+};
 
 const config = {
   darkMode: ["class"],
@@ -20,13 +26,8 @@ const config = {
       },
     },
     extend: {
-      fontFamily: {
-        sans: ["system-ui", "sans-serif", ...fontFamily.sans],
-      },
       colors: {
-        "attune-blue": "#EEE0CB", // Updated from EBF9FA to EEE0CB
-        "attune-purple": "#000000",
-        "attune-indigo": "#000000",
+        ...customColors,
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -66,6 +67,9 @@ const config = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      fontFamily: {
+        sans: ["var(--font-sans)", ...fontFamily.sans],
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -75,39 +79,19 @@ const config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        "sound-wave-1": {
-          "0%, 100%": { height: "0.75rem" },
-          "50%": { height: "2rem" },
-        },
-        "sound-wave-2": {
-          "0%, 100%": { height: "0.5rem" },
-          "50%": { height: "1.75rem" },
-        },
-        "sound-wave-3": {
-          "0%, 100%": { height: "1.25rem" },
-          "50%": { height: "3rem" },
-        },
-        "sound-wave-4": {
-          "0%, 100%": { height: "0.85rem" },
-          "50%": { height: "2.25rem" },
-        },
-        "sound-wave-5": {
-          "0%, 100%": { height: "0.6rem" },
-          "50%": { height: "1.5rem" },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "sound-wave-1": "sound-wave-1 1s ease-in-out infinite",
-        "sound-wave-2": "sound-wave-2 1.2s ease-in-out infinite",
-        "sound-wave-3": "sound-wave-3 1.1s ease-in-out infinite",
-        "sound-wave-4": "sound-wave-4 0.9s ease-in-out infinite",
-        "sound-wave-5": "sound-wave-5 1.3s ease-in-out infinite",
+      },
+      backgroundImage: {
+        "select-indicator": `url("${svgToDataUri(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`
+        )}")`,
       },
     },
   },
   plugins: [require("tailwindcss-animate")],
-} satisfies Config
+} satisfies Config;
 
-export default config
+export default config;

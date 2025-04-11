@@ -1,180 +1,39 @@
 
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
+import React, { useState } from 'react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { useBackground } from '@/context/BackgroundContext';
 import AdminPanel from '@/components/AdminPanel';
-import { useBackground, BACKGROUND_COLORS } from '@/context/BackgroundContext';
+import AudioContentManager from '@/components/admin/AudioContentManager';
 
 const Admin = () => {
-  const { user, loading: authLoading } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [checkingAdmin, setCheckingAdmin] = useState(true);
-  const [updatingInstructions, setUpdatingInstructions] = useState(false);
-  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState('bot');
   const { setBackgroundColor } = useBackground();
   
-  useEffect(() => {
-    setBackgroundColor(BACKGROUND_COLORS.VOICE_BLUE);
+  React.useEffect(() => {
+    setBackgroundColor('bg-slate-100');
   }, [setBackgroundColor]);
   
-  useEffect(() => {
-    const checkAdminStatus = async () => {
-      if (!user) {
-        setCheckingAdmin(false);
-        return;
-      }
-      
-      try {
-        const { data, error } = await supabase.rpc('is_admin', { user_id: user.id });
-        
-        if (error) throw error;
-        
-        setIsAdmin(data || false);
-      } catch (error) {
-        console.error("Error checking admin status:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to verify admin privileges."
-        });
-      } finally {
-        setCheckingAdmin(false);
-      }
-    };
-    
-    if (user) {
-      checkAdminStatus();
-    }
-  }, [user, toast]);
-  
-  const updateInstructionsWithTerryReal = async () => {
-    try {
-      setUpdatingInstructions(true);
-      
-      const terryRealInstructions = `Act as a couples coach using Terry Real's approach, blending direct advice and thought-provoking questions. Focus on core concepts like the harmony-disharmony-repair cycle, the adaptive child versus the wise adult, and the five losing strategies. Each session should last around 25 minutes: the first 10 minutes inviting the user to open up, with active listening and gentle nudges if needed. The next 10 minutes address core issues and any identified losing strategies, and the final 5 minutes wrap up positively. Use examples from Terry Real's work without direct references, and always maintain a psychologically useful manner.`;
-      
-      console.log("Updating instructions to Terry Real approach");
-      console.log("Instructions length:", terryRealInstructions.length);
-      
-      // Use the edge function to update the instructions with fable voice
-      const response = await supabase.functions.invoke('update-instructions', {
-        body: { 
-          instructions: terryRealInstructions,
-          voice: 'fable'
-        },
-      });
-      
-      if (response.error) {
-        throw new Error(response.error.message || 'Unknown error');
-      }
-      
-      console.log("Update response:", response.data);
-      
-      // Now verify that the instructions were properly stored
-      const { data: verifyData, error: verifyError } = await supabase
-        .from('bot_config')
-        .select('instructions, voice')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-        
-      if (verifyError) {
-        console.error("Error verifying configuration:", verifyError);
-        throw new Error("Failed to verify configuration update");
-      }
-      
-      console.log("Verified configuration from database:");
-      console.log("Instructions length:", verifyData.instructions.length);
-      console.log("Instructions:", verifyData.instructions.substring(0, 200) + "...");
-      console.log("Voice setting:", verifyData.voice);
-      
-      // Check if the stored instructions match what we sent
-      if (verifyData.instructions !== terryRealInstructions || verifyData.voice !== 'fable') {
-        console.error("Configuration verification failed - stored values don't match");
-        console.error("Expected instructions:", terryRealInstructions);
-        console.error("Got instructions:", verifyData.instructions);
-        console.error("Expected voice:", 'fable');
-        console.error("Got voice:", verifyData.voice);
-        
-        toast({
-          variant: "destructive",
-          title: "Warning",
-          description: "Configuration was updated but verification found discrepancies."
-        });
-      } else {
-        console.log("Configuration verification successful");
-        
-        toast({
-          title: "Success",
-          description: "Bot updated to Terry Real's couples coaching approach with Fable voice."
-        });
-      }
-      
-      // Refresh the admin panel to show updated configuration
-      const adminPanelElement = document.querySelector('#admin-panel') as HTMLElement;
-      if (adminPanelElement) {
-        const event = new Event('refresh');
-        adminPanelElement.dispatchEvent(event);
-      }
-    } catch (error) {
-      console.error("Error updating configuration:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to update configuration: " + (error instanceof Error ? error.message : 'Unknown error')
-      });
-    } finally {
-      setUpdatingInstructions(false);
-    }
-  };
-  
-  if (authLoading || checkingAdmin) {
-    return (
-      <div className="min-h-screen bg-[#6DAEDB] flex flex-col items-center justify-center text-attune-purple">
-        <p>Loading...</p>
-      </div>
-    );
-  }
-  
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-[#6DAEDB] flex flex-col items-center justify-center text-attune-purple">
-        <p>Please sign in to access this page.</p>
-      </div>
-    );
-  }
-  
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-[#6DAEDB] flex flex-col items-center justify-center text-attune-purple">
-        <p>You don't have permission to access this page.</p>
-      </div>
-    );
-  }
-  
   return (
-    <div className="min-h-screen bg-[#6DAEDB] flex flex-col items-center py-12 px-4 pt-20 pb-24">
-      <div className="w-full max-w-3xl bg-white rounded-lg shadow-lg p-6">
-        <h1 className="text-2xl font-bold mb-6 text-gray-800">Admin Dashboard</h1>
-        
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4 text-gray-700">Quick Actions</h2>
-          <div className="flex flex-wrap gap-4">
-            <Button 
-              onClick={updateInstructionsWithTerryReal} 
-              disabled={updatingInstructions}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {updatingInstructions ? 'Updating...' : 'Update to Terry Real Approach with Fable Voice'}
-            </Button>
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center pt-20 pb-24 px-4">
+      <div className="max-w-4xl w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <div className="bg-white p-4 rounded-t-lg">
+            <TabsList>
+              <TabsTrigger value="bot">Bot Configuration</TabsTrigger>
+              <TabsTrigger value="content">Audio Content</TabsTrigger>
+            </TabsList>
           </div>
-        </div>
-        
-        <div id="admin-panel">
-          <AdminPanel />
-        </div>
+          
+          <TabsContent value="bot" className="mt-0">
+            <div id="admin-panel">
+              <AdminPanel />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="content" className="mt-0">
+            <AudioContentManager />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
