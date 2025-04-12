@@ -5,7 +5,7 @@ import VoiceSelector from './VoiceSelector';
 import InstructionsEditor from './InstructionsEditor';
 import { useBotConfig } from '@/hooks/admin/useBotConfig';
 
-const BotConfig = () => {
+const BotConfigPanel = () => {
   const {
     instructions,
     setInstructions,
@@ -69,4 +69,4 @@ const BotConfig = () => {
   );
 };
 
-export default BotConfig;
+export default BotConfigPanel;

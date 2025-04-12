@@ -1,11 +1,11 @@
 
 import React from 'react';
-import BotConfig from './admin/bot-config/BotConfig';
+import BotConfigPanel from './admin/bot-config/BotConfigPanel';
 
 const AdminPanel = () => {
   return (
     <div id="admin-panel">
-      <BotConfig />
+      <BotConfigPanel />
     </div>
   );
 };
