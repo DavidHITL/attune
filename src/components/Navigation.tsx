@@ -18,32 +18,35 @@ const Navigation = () => {
         <div className="w-full flex justify-between items-center">
           <Link 
             to="/" 
-            className={`flex items-center justify-center ${location.pathname === '/' 
+            className={`flex flex-col items-center justify-center ${location.pathname === '/' 
               ? 'bg-white/20 backdrop-blur-md' 
               : 'bg-white/10 hover:bg-white/15'} 
-              w-12 h-12 rounded-full transition-all duration-300 shadow-md`}
+              w-16 h-16 rounded-md transition-all duration-300 shadow-md`}
           >
             <BookOpen className="w-5 h-5 text-black" />
+            <span className="text-xs text-black mt-1">Learn</span>
           </Link>
           
           <Link 
             to="/voice" 
-            className={`flex items-center justify-center ${location.pathname === '/voice' 
+            className={`flex flex-col items-center justify-center ${location.pathname === '/voice' 
               ? 'bg-white/20 backdrop-blur-md' 
               : 'bg-white/10 hover:bg-white/15'} 
-              w-12 h-12 rounded-full transition-all duration-300 shadow-md`}
+              w-16 h-16 rounded-md transition-all duration-300 shadow-md`}
           >
             <MessageCircle className="w-5 h-5 text-black" />
+            <span className="text-xs text-black mt-1">Voice</span>
           </Link>
           
           <Link 
             to={user ? '/profile' : '/auth'} 
-            className={`flex items-center justify-center ${location.pathname === '/profile' || location.pathname === '/auth' 
+            className={`flex flex-col items-center justify-center ${location.pathname === '/profile' || location.pathname === '/auth' 
               ? 'bg-white/20 backdrop-blur-md' 
               : 'bg-white/10 hover:bg-white/15'} 
-              w-12 h-12 rounded-full transition-all duration-300 shadow-md`}
+              w-16 h-16 rounded-md transition-all duration-300 shadow-md`}
           >
             <User className="w-5 h-5 text-black" />
+            <span className="text-xs text-black mt-1">Profile</span>
           </Link>
         </div>
       </div>
