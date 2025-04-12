@@ -65,7 +65,6 @@ const AudioControls: React.FC<AudioControlsProps> = ({
       <Button 
         variant="ghost" 
         size="icon"
-        className="text-green-600 hover:text-green-700"
         onClick={onComplete}
       >
         <CheckCircle className="h-5 w-5" />

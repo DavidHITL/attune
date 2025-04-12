@@ -47,6 +47,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     onComplete
   });
   
+  const handleComplete = () => {
+    onComplete();
+    onClose();
+  };
+  
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Frosted glass background */}
@@ -92,7 +97,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             loaded={loaded}
             onTogglePlay={togglePlayPause}
             onSkipBackward={skipBackward}
-            onComplete={onComplete}
+            onComplete={handleComplete}
             onRewind30={rewind30}
             onForward15={forward15}
           />
