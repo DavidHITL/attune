@@ -26,8 +26,8 @@ const Index = () => {
   const [isAudioValidating, setIsAudioValidating] = useState(false);
 
   useEffect(() => {
-    // Use the dark purple color for logged out users
-    setBackgroundColor(BACKGROUND_COLORS.GROW_PURPLE);
+    // Use the lighter blue color for this page
+    setBackgroundColor(BACKGROUND_COLORS.HOME_BLUE);
   }, [setBackgroundColor]);
 
   // Helper function to validate audio URLs
@@ -119,7 +119,7 @@ const Index = () => {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col items-center py-12 px-4 pt-20 pb-24 text-black font-sans ${user ? 'bg-attune-blue' : 'bg-[#310A31]'}`}>
+    <div className="min-h-screen flex flex-col items-center py-12 px-4 pt-20 pb-24 text-black font-sans bg-attune-blue">
       {/* Mobile container with fixed max-width */}
       <div className="w-full max-w-[390px] mx-auto">
         {/* Always show AttuneContent for non-logged in users */}
