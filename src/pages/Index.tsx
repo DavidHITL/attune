@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState } from 'react';
-import AttuneContent from '@/components/AttuneContent';
+import AttuneContent, { AttuneHero } from '@/components/AttuneContent';
 import { useBackground, BACKGROUND_COLORS } from '@/context/BackgroundContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAudioLibrary } from '@/hooks/useAudioLibrary';
@@ -122,9 +121,19 @@ const Index = () => {
     <div className="min-h-screen flex flex-col items-center py-12 px-4 pt-20 pb-24 text-black font-sans bg-attune-blue">
       {/* Mobile container with fixed max-width */}
       <div className="w-full max-w-[390px] mx-auto">
-        {/* Always show AttuneContent for non-logged in users */}
+        {/* Always show the hero section with logo and quote */}
+        <AttuneHero />
+        
+        {/* Show login button for non-logged in users */}
         {!user && (
-          <AttuneContent />
+          <div className="flex justify-center my-8">
+            <Link
+              to="/auth" 
+              className="bg-white text-black px-6 py-2 rounded-full hover:bg-gray-100 transition-colors font-sans inline-block"
+            >
+              Sign In
+            </Link>
+          </div>
         )}
         
         {/* Show audio content for logged in users */}

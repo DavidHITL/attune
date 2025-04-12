@@ -25,25 +25,26 @@ const FeaturedAudio: React.FC<FeaturedAudioProps> = ({
   totalDays = 28,
   onPlay
 }) => {
+  // Use a default image if none is provided
+  const coverImage = imageUrl || "/lovable-uploads/821af16d-86d3-43f1-945b-6d7c2a091621.png";
+  
   return (
     <div className="w-full bg-white rounded-xl overflow-hidden shadow-sm mb-8">
-      {/* Cover image with proper aspect ratio */}
-      {imageUrl && (
-        <AspectRatio ratio={16 / 9} className="bg-muted">
-          <img 
-            src={imageUrl || "/public/lovable-uploads/821af16d-86d3-43f1-945b-6d7c2a091621.png"} 
-            alt={title} 
-            className="object-cover w-full h-full"
-          />
-        </AspectRatio>
-      )}
+      {/* Cover image with proper aspect ratio - always show image */}
+      <AspectRatio ratio={16 / 9} className="bg-muted">
+        <img 
+          src={coverImage} 
+          alt={title || "Featured Audio"} 
+          className="object-cover w-full h-full"
+        />
+      </AspectRatio>
       
       <div className="p-6">
-        <div className="text-sm text-black mb-1">
+        <div className="text-sm font-medium text-black mb-2">
           Day {day} of {totalDays}
         </div>
         
-        <h2 className="text-3xl font-bold uppercase tracking-tight text-black mb-2">
+        <h2 className="text-3xl font-bold uppercase tracking-tight text-black mb-3">
           {title || "START HERE"}
         </h2>
         
@@ -58,7 +59,7 @@ const FeaturedAudio: React.FC<FeaturedAudioProps> = ({
           className="flex items-center justify-between border-t border-gray-200 pt-4 mt-4 cursor-pointer"
         >
           <span className="text-lg font-medium text-black">{formatTime(duration)}</span>
-          <button className="bg-black rounded-full p-2 hover:bg-gray-800 transition-colors">
+          <button className="bg-black rounded-full p-3 hover:bg-gray-800 transition-colors">
             <Play className="h-5 w-5 fill-white text-white" />
           </button>
         </div>

@@ -5,34 +5,41 @@ import { useAuth } from '@/context/AuthContext';
 import AdminContentGuide from '@/components/AdminContentGuide';
 import { Link } from 'react-router-dom';
 
+// Separate component for the hero section that's always visible
+export const AttuneHero = () => {
+  return (
+    <div className="mb-8 text-center">
+      <div className="mb-6">
+        <AttuneLogo />
+      </div>
+      
+      <p className="text-black font-sans px-4">
+        "Love isn't something that you have. It's something you do. And you can do it better." — Terry Real
+      </p>
+    </div>
+  );
+};
+
 const AttuneContent = () => {
   const { user } = useAuth();
 
   return (
     <div className="flex flex-col items-center justify-center h-full w-full">
       <div className="w-full max-w-[390px] h-[500px] max-h-[60vh] flex flex-col items-center justify-center text-center px-4">
-        <div className="mb-8">
-          <AttuneLogo />
-        </div>
+        <AttuneHero />
         
-        <div className="mb-8">
-          <p className="text-black font-sans">
-            "Love isn't something that you have. It's something you do. And you can do it better." — Terry Real
-          </p>
-          
-          {!user ? (
-            <div className="mt-8">
-              <Link
-                to="/auth" 
-                className="bg-white text-black px-6 py-2 rounded-full hover:bg-gray-100 transition-colors font-sans inline-block"
-              >
-                Sign In
-              </Link>
-            </div>
-          ) : (
-            <AdminContentGuide />
-          )}
-        </div>
+        {!user ? (
+          <div className="mt-8">
+            <Link
+              to="/auth" 
+              className="bg-white text-black px-6 py-2 rounded-full hover:bg-gray-100 transition-colors font-sans inline-block"
+            >
+              Sign In
+            </Link>
+          </div>
+        ) : (
+          <AdminContentGuide />
+        )}
       </div>
     </div>
   );
