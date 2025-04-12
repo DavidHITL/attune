@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { useAudioControl } from '@/hooks/useAudioControl';
-import { toast } from 'sonner';
+import { useAudioLoadingState } from '@/hooks/audio/useAudioLoadingState';
 import AudioControls from './AudioControls';
 import AudioProgress from './AudioProgress';
 import AudioCover from './AudioCover';
@@ -29,9 +30,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   onProgressUpdate,
   onComplete
 }) => {
-  const [loadAttempts, setLoadAttempts] = useState(0);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  
   const {
     isPlaying,
     duration,
@@ -50,6 +48,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     onComplete
   });
   
+  const { loadError, loadAttempts } = useAudioLoadingState({ loaded });
+  
   // Prevent the audio player from being closed accidentally while playing
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -63,31 +63,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isPlaying]);
-  
-  // Check if we've loaded after a timeout
-  useEffect(() => {
-    if (loaded) return;
-    
-    // After 5 seconds, check if audio has loaded
-    const timeout = setTimeout(() => {
-      if (!loaded) {
-        // Increment load attempts
-        setLoadAttempts(prev => {
-          const newAttempt = prev + 1;
-          
-          // If we've tried 3 times, show an error toast
-          if (newAttempt >= 3) {
-            setLoadError("Audio is taking longer than expected to load. You may need to refresh the page.");
-            toast.error("Audio failed to load properly. Try refreshing the page.");
-          }
-          
-          return newAttempt;
-        });
-      }
-    }, 5000);
-    
-    return () => clearTimeout(timeout);
-  }, [loaded]);
   
   const handleComplete = () => {
     onComplete();
