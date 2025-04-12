@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -22,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from '@/components/ui/switch';
 import { formatTime } from '@/utils/formatters';
+import FileDropzone from './FileDropzone';
 
 const AudioContentManager = () => {
   const [loading, setLoading] = useState(true);
@@ -38,6 +38,7 @@ const AudioContentManager = () => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState<string | null>(null);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
   
   const { toast } = useToast();
 
@@ -101,6 +102,28 @@ const AudioContentManager = () => {
     });
   };
 
+  const handleAudioUploaded = (url: string, file: File) => {
+    setAudioFile(file);
+    setFormData({
+      ...formData,
+      audio_url: url
+    });
+    
+    // Try to get audio duration if possible
+    if (window.Audio) {
+      const audio = new Audio();
+      audio.src = url;
+      audio.addEventListener('loadedmetadata', () => {
+        if (audio.duration && !isNaN(audio.duration)) {
+          setFormData(prev => ({
+            ...prev,
+            duration: Math.round(audio.duration)
+          }));
+        }
+      });
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       title: '',
@@ -113,6 +136,7 @@ const AudioContentManager = () => {
     });
     setIsEditing(false);
     setCurrentId(null);
+    setAudioFile(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -228,6 +252,16 @@ const AudioContentManager = () => {
             />
           </div>
           
+          <div>
+            <label className="block text-sm font-medium mb-1">Upload MP3 File</label>
+            <FileDropzone onFileUploaded={handleAudioUploaded} />
+            {audioFile && (
+              <div className="mt-2 text-sm text-gray-500">
+                Selected file: {audioFile.name} ({Math.round(audioFile.size / 1024)} KB)
+              </div>
+            )}
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Audio URL</label>
@@ -238,6 +272,9 @@ const AudioContentManager = () => {
                 placeholder="https://example.com/audio.mp3"
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">
+                URL will be auto-filled when you upload a file using the dropzone
+              </p>
             </div>
             
             <div>
@@ -262,6 +299,9 @@ const AudioContentManager = () => {
                 min={1}
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Duration will be auto-detected when you upload a file (if supported by your browser)
+              </p>
             </div>
             
             <div>

@@ -29,3 +29,34 @@ export const formatDate = (date: string | Date): string => {
     day: 'numeric'
   });
 };
+
+/**
+ * Get audio duration from a file
+ */
+export const getAudioDuration = (file: File): Promise<number> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const audio = new Audio();
+      audio.preload = 'metadata';
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        audio.src = e.target?.result as string;
+        audio.addEventListener('loadedmetadata', () => {
+          if (audio.duration && !isNaN(audio.duration)) {
+            resolve(Math.round(audio.duration));
+          } else {
+            reject(new Error('Could not determine audio duration'));
+          }
+        });
+        audio.addEventListener('error', () => {
+          reject(new Error('Error loading audio file'));
+        });
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
