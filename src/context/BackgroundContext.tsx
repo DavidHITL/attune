@@ -32,6 +32,7 @@ export const BACKGROUND_COLORS = {
   VOICE_BLUE: 'bg-attune-deep-blue',
   HOME_BLUE: 'bg-attune-blue',
   CREAM: 'bg-[#EEE0CB]',
-  DARK_PURPLE: 'bg-attune-dark-purple'
+  DARK_PURPLE: 'bg-attune-dark-purple',
+  GROW_PURPLE: 'bg-[#310A31]'  // Added the new color
 };
 

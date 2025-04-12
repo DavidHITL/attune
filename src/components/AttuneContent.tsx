@@ -16,7 +16,7 @@ const AttuneContent = () => {
         </div>
         
         <div className="mb-8">
-          <p className="text-black font-sans">
+          <p className="text-white font-sans">
             "Love isn't something that you have. It's something you do. And you can do it better." — Terry Real
           </p>
           
@@ -24,7 +24,7 @@ const AttuneContent = () => {
             <div className="mt-8">
               <Link
                 to="/auth" 
-                className="bg-white text-attune-blue px-6 py-2 rounded-full hover:bg-gray-100 transition-colors font-sans inline-block"
+                className="bg-white text-[#310A31] px-6 py-2 rounded-full hover:bg-gray-100 transition-colors font-sans inline-block"
               >
                 Sign In
               </Link>
