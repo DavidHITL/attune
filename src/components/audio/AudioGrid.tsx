@@ -51,9 +51,6 @@ const AudioGrid: React.FC<AudioGridProps> = ({ items, onSelectAudio }) => {
               
               <div className="flex-1">
                 <h3 className="font-sans font-medium text-black">{item.title}</h3>
-                {item.description && (
-                  <p className="text-sm text-gray-600 line-clamp-1">{item.description}</p>
-                )}
                 
                 {item.progress !== undefined && item.progress > 0 && (
                   <div className="mt-1 w-full h-1 bg-slate-200 rounded-full overflow-hidden">
