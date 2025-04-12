@@ -24,7 +24,7 @@ const AttuneContent = () => {
             <div className="mt-8">
               <Link
                 to="/auth" 
-                className="bg-white text-attune-blue px-6 py-2 rounded-full hover:bg-gray-100 transition-colors font-sans inline-block"
+                className="bg-white text-black px-6 py-2 rounded-full hover:bg-gray-100 transition-colors font-sans inline-block"
               >
                 Sign In
               </Link>
