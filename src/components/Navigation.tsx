@@ -21,7 +21,7 @@ const Navigation = () => {
             className={`flex flex-col items-center justify-center ${location.pathname === '/' 
               ? 'bg-white/20 backdrop-blur-md' 
               : 'bg-white/10 hover:bg-white/15'} 
-              w-16 h-16 rounded-md transition-all duration-300 shadow-md nav-item-animation`}
+              w-16 h-16 rounded-md transition-all duration-300 shadow-md nav-item-animation click-animation card-hover`}
           >
             <BookOpen className="w-5 h-5 text-black" />
             <span className="text-xs text-black mt-1">Learn</span>
@@ -32,7 +32,7 @@ const Navigation = () => {
             className={`flex flex-col items-center justify-center ${location.pathname === '/voice' 
               ? 'bg-white/20 backdrop-blur-md' 
               : 'bg-white/10 hover:bg-white/15'} 
-              w-16 h-16 rounded-md transition-all duration-300 shadow-md nav-item-animation`}
+              w-16 h-16 rounded-md transition-all duration-300 shadow-md nav-item-animation click-animation card-hover`}
           >
             <MessageCircle className="w-5 h-5 text-black" />
             <span className="text-xs text-black mt-1">Talk</span>
@@ -43,7 +43,7 @@ const Navigation = () => {
             className={`flex flex-col items-center justify-center ${location.pathname === '/profile' || location.pathname === '/auth' 
               ? 'bg-white/20 backdrop-blur-md' 
               : 'bg-white/10 hover:bg-white/15'} 
-              w-16 h-16 rounded-md transition-all duration-300 shadow-md nav-item-animation`}
+              w-16 h-16 rounded-md transition-all duration-300 shadow-md nav-item-animation click-animation card-hover`}
           >
             <User className="w-5 h-5 text-black" />
             <span className="text-xs text-black mt-1">Grow</span>

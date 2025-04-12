@@ -36,7 +36,7 @@ const CallControls: React.FC<CallControlsProps> = ({
         onClick={handleToggleMic}
         variant="outline"
         size="icon"
-        className="w-24 h-24 rounded-full bg-slate-300/80 border-none shadow-lg hover:bg-slate-300/90 transition-all call-control-hover"
+        className="w-24 h-24 rounded-full bg-slate-300/80 border-none shadow-lg hover:bg-slate-300/90 transition-all call-control-hover hover-animation"
       >
         {isMicOn ? (
           <Mic className="h-6 w-6 text-black" strokeWidth={1.5} />
@@ -49,7 +49,7 @@ const CallControls: React.FC<CallControlsProps> = ({
         onClick={handleToggleMute}
         variant="outline"
         size="icon"
-        className="w-24 h-24 rounded-full bg-slate-300/80 border-none shadow-lg hover:bg-slate-300/90 transition-all call-control-hover"
+        className="w-24 h-24 rounded-full bg-slate-300/80 border-none shadow-lg hover:bg-slate-300/90 transition-all call-control-hover hover-animation"
       >
         {isMuted ? (
           <VolumeX className="h-6 w-6 text-black" strokeWidth={1.5} />
@@ -62,7 +62,7 @@ const CallControls: React.FC<CallControlsProps> = ({
         onClick={handleEndCall}
         variant="outline"
         size="icon"
-        className="w-24 h-24 rounded-full bg-slate-300/80 border-none shadow-lg hover:bg-slate-300/90 transition-all call-control-hover"
+        className="w-24 h-24 rounded-full bg-slate-300/80 border-none shadow-lg hover:bg-slate-300/90 transition-all call-control-hover hover-animation"
       >
         <PhoneOff className="h-6 w-6 text-black" strokeWidth={1.5} />
       </Button>

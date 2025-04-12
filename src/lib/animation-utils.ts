@@ -34,3 +34,28 @@ export const createRipple = (event: React.MouseEvent<HTMLButtonElement>) => {
     ripple.remove();
   }, 600);
 };
+
+// Apply hover animation to any element
+export const applyHoverAnimation = (element: HTMLElement) => {
+  element.classList.add('hover-animation');
+};
+
+// Apply click animation to any element
+export const applyClickAnimation = (element: HTMLElement) => {
+  element.classList.add('click-animation');
+  
+  // Remove the animation class after it completes
+  setTimeout(() => {
+    element.classList.remove('click-animation');
+  }, 300);
+};
+
+// Apply pulse animation to any element
+export const applyPulseAnimation = (element: HTMLElement) => {
+  element.classList.add('pulse-animation');
+};
+
+// Remove pulse animation from any element
+export const removePulseAnimation = (element: HTMLElement) => {
+  element.classList.remove('pulse-animation');
+};
