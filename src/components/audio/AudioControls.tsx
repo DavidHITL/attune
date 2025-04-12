@@ -24,14 +24,19 @@ const AudioControls: React.FC<AudioControlsProps> = ({
 }) => {
   return (
     <div className="flex justify-center items-center space-x-4">
-      <Button variant="ghost" size="icon" onClick={onSkipBackward}>
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        onClick={onSkipBackward}
+        className="control-button-hover"
+      >
         <SkipBack className="h-5 w-5" />
       </Button>
       
       <Button 
         variant="ghost"
         onClick={onRewind30}
-        className="flex items-center justify-center h-12 w-12 rounded-full hover:bg-black/5 relative"
+        className="flex items-center justify-center h-12 w-12 rounded-full hover:bg-black/5 relative control-button-hover"
       >
         <div className="relative">
           <Rewind className="h-5 w-5" />
@@ -41,7 +46,7 @@ const AudioControls: React.FC<AudioControlsProps> = ({
       
       <Button 
         disabled={!loaded} 
-        className="rounded-full h-14 w-14 flex items-center justify-center"
+        className={`rounded-full h-14 w-14 flex items-center justify-center ${isPlaying ? 'pulse-animation' : ''}`}
         onClick={onTogglePlay}
       >
         {isPlaying ? (
@@ -54,7 +59,7 @@ const AudioControls: React.FC<AudioControlsProps> = ({
       <Button 
         variant="ghost"
         onClick={onForward15}
-        className="flex items-center justify-center h-12 w-12 rounded-full hover:bg-black/5 relative"
+        className="flex items-center justify-center h-12 w-12 rounded-full hover:bg-black/5 relative control-button-hover"
       >
         <div className="relative">
           <FastForward className="h-5 w-5" />
@@ -66,8 +71,9 @@ const AudioControls: React.FC<AudioControlsProps> = ({
         variant="ghost" 
         size="icon"
         onClick={onComplete}
+        className="control-button-hover"
       >
-        <CheckCircle className="h-5 w-5" />
+        <CheckCircle className="h-5 w-5 text-black" />
       </Button>
     </div>
   );

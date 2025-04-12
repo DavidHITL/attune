@@ -116,3 +116,74 @@
     @apply text-black;
   }
 }
+
+/* Button animation styles */
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  transform: scale(0);
+  background-color: rgba(255, 255, 255, 0.4);
+  animation: ripple 0.6s linear;
+  pointer-events: none;
+}
+
+/* Special animations for controls */
+.control-button-hover {
+  transition: all 0.2s ease;
+}
+
+.control-button-hover:hover {
+  transform: translateY(-2px);
+}
+
+/* Adding subtle hover effects to navigation items */
+.nav-item-animation {
+  transition: all 0.3s ease;
+}
+
+.nav-item-animation:hover {
+  transform: translateY(-1px);
+}
+
+/* For audio control buttons */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  }
+}
+
+.pulse-animation {
+  animation: pulse 2s infinite;
+}
+
+/* Call control animations */
+.call-control-hover {
+  transition: all 0.3s ease;
+}
+
+.call-control-hover:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* For toggle buttons */
+.toggle-animation {
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.toggle-animation:active {
+  transform: rotate(5deg);
+}
