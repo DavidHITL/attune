@@ -1,4 +1,6 @@
+
 import { RefObject } from 'react';
+import { AudioNavigationControls } from '../useAudioProgress';
 
 interface NavigationProps {
   audioRef: RefObject<HTMLAudioElement | null>;
@@ -17,7 +19,7 @@ export function useAudioNavigation({
   isPlaying,
   setCurrentTime,
   onProgressUpdate
-}: NavigationProps) {
+}: NavigationProps): AudioNavigationControls {
   // Handle seeking
   const handleSeek = (value: number[]) => {
     if (!audioRef.current || !setCurrentTime) return;

@@ -12,6 +12,15 @@ interface UseAudioProgressProps {
   createAudio?: () => HTMLAudioElement;
 }
 
+// Define a consistent return type for the navigation functions
+export interface AudioNavigationControls {
+  handleSeek: (value: number[]) => void;
+  skipBackward: () => void;
+  skipForward: () => void;
+  rewind30: () => void;
+  forward15: () => void;
+}
+
 /**
  * Combined hook for audio progress management and navigation
  */
@@ -23,7 +32,7 @@ export function useAudioProgress({
   setCurrentTime,
   onProgressUpdate,
   createAudio
-}: UseAudioProgressProps) {
+}: UseAudioProgressProps): AudioNavigationControls {
   // Use navigation controls if we have setCurrentTime function
   const navigation = useAudioNavigation({
     audioRef,
@@ -47,6 +56,12 @@ export function useAudioProgress({
     return navigation;
   }
   
-  // Otherwise return nothing (for the progress tracking effect)
-  return {};
+  // Otherwise return empty functions that maintain the same interface
+  return {
+    handleSeek: () => {},
+    skipBackward: () => {},
+    skipForward: () => {},
+    rewind30: () => {},
+    forward15: () => {}
+  };
 }
