@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 
 interface UseAudioControlProps {
@@ -69,7 +70,8 @@ export function useAudioControl({
     
     const interval = setInterval(() => {
       if (audioRef.current) {
-        onProgressUpdate(audioRef.current.currentTime);
+        // Ensure we're sending an integer value to fix the database error
+        onProgressUpdate(Math.floor(audioRef.current.currentTime));
       }
     }, 5000); // Update every 5 seconds while playing
     
@@ -82,7 +84,8 @@ export function useAudioControl({
     
     if (isPlaying) {
       audioRef.current.pause();
-      onProgressUpdate(audioRef.current.currentTime);
+      // Ensure we're sending an integer value to fix the database error
+      onProgressUpdate(Math.floor(audioRef.current.currentTime));
     } else {
       audioRef.current.play().catch(err => {
         console.error("Error playing audio:", err);
@@ -97,7 +100,8 @@ export function useAudioControl({
     const newTime = value[0];
     audioRef.current.currentTime = newTime;
     setCurrentTime(newTime);
-    onProgressUpdate(newTime);
+    // Ensure we're sending an integer value to fix the database error
+    onProgressUpdate(Math.floor(newTime));
     
     // If already playing, continue playback
     // If paused, keep it paused
@@ -112,7 +116,8 @@ export function useAudioControl({
   const skipBackward = () => {
     if (!audioRef.current) return;
     
-    const newTime = Math.max(0, audioRef.current.currentTime - 10);
+    // Jump to 1 second (which is min 0, sec 1)
+    const newTime = 1;
     audioRef.current.currentTime = newTime;
     setCurrentTime(newTime);
     
