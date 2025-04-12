@@ -9,9 +9,9 @@ const AttuneLogo: React.FC = () => {
         alt="Attune Logo"
         width="100" 
         height="100"
-        className="mb-2"
+        className="mb-2 filter brightness-0 invert"
       />
-      <h1 className="text-5xl font-sans font-bold text-black">Attune</h1>
+      <h1 className="text-5xl font-sans font-bold text-white">Attune</h1>
     </div>
   );
 };
