@@ -24,8 +24,8 @@ const Index = () => {
   const [playingAudio, setPlayingAudio] = useState<any>(null);
 
   useEffect(() => {
-    // Always use cream background for this page
-    setBackgroundColor(BACKGROUND_COLORS.CREAM);
+    // Use the deep blue color for this page
+    setBackgroundColor(BACKGROUND_COLORS.HOME_BLUE);
   }, [setBackgroundColor]);
 
   const handlePlayAudio = (audioItem: any) => {
@@ -43,7 +43,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center py-12 px-4 pb-24 text-black font-sans bg-[#EEE0CB]">
+    <div className="min-h-screen flex flex-col items-center py-12 px-4 pb-24 text-white font-sans bg-attune-deep-blue">
       {/* Mobile container with fixed max-width */}
       <div className="w-full max-w-[390px] mx-auto">
         {user ? !loading ? (
@@ -91,7 +91,7 @@ const Index = () => {
           </>
         ) : (
           <div className="flex justify-center items-center h-64">
-            <p className="text-black">Loading audio library...</p>
+            <p className="text-white">Loading audio library...</p>
           </div>
         ) : (
           <AttuneContent />
