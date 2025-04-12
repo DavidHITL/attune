@@ -7,13 +7,15 @@ interface UseAudioElementProps {
   initialProgress: number;
   onComplete: () => void;
   setLoaded: (loaded: boolean) => void;
+  onError?: (error: Error) => void; // Added the missing onError property
 }
 
 export function useAudioElement({
   audioUrl,
   initialProgress,
   onComplete,
-  setLoaded
+  setLoaded,
+  onError
 }: UseAudioElementProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [duration, setDuration] = useState(0);
@@ -41,6 +43,7 @@ export function useAudioElement({
     if (!audioUrl || typeof audioUrl !== 'string' || audioUrl.trim() === '') {
       console.error("Invalid audio URL provided:", audioUrl);
       toast.error("Invalid audio URL. Please try a different audio track.");
+      if (onError) onError(new Error("Invalid audio URL provided"));
       return null;
     }
     
@@ -75,6 +78,9 @@ export function useAudioElement({
     // Handle errors
     audio.addEventListener('error', (e) => {
       console.error("Audio error:", e, audio.error);
+      
+      const errorMessage = audio.error ? audio.error.message : "Unknown audio error";
+      if (onError) onError(new Error(errorMessage));
       
       // Attempt to retry loading the audio
       if (retryCountRef.current < maxRetries) {
@@ -140,7 +146,7 @@ export function useAudioElement({
     
     // Return the audio element
     return audio;
-  }, [audioUrl, initialProgress, onComplete, setLoaded]);
+  }, [audioUrl, initialProgress, onComplete, setLoaded, onError]);
   
   // Set up audio element
   useEffect(() => {
