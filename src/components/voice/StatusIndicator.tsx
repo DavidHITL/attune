@@ -15,12 +15,12 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({
   voiceActivityState 
 }) => {
   return (
-    <div className="text-center mb-4 mt-4">
+    <div className="text-center text-black mb-4 mt-4">
       <div className="mb-2">
         <AttuneLogo />
       </div>
       <div className="text-sm font-sans flex flex-col items-center justify-center gap-2">
-        <div className="text-white">Status: {status}</div>
+        <div>Status: {status}</div>
         
         {/* Voice activity indicator - always visible when connected */}
         {isConnected && (

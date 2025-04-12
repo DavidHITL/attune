@@ -69,24 +69,20 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
       
       {/* Voice interaction instructions */}
       {!isConnected && (
-        <div className="text-center my-6">
-          <p className="text-white text-lg font-sans">
-            Feel like talking? Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.
-          </p>
+        <div className="text-center my-6 text-white font-sans">
+          <p>Feel like talking? Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.</p>
         </div>
       )}
       
       {isConnected && (
-        <div className="text-center my-6">
-          <p className="text-white text-lg font-sans">
-            Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.
-          </p>
+        <div className="text-center my-6 text-white font-sans">
+          <p>Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.</p>
         </div>
       )}
       
       {/* Countdown timer */}
       <div className="text-center mt-4 mb-8">
-        <p className="text-lg font-medium text-[#33C3F0] font-sans">{minutesLeft} min remaining</p>
+        <p className="text-sm text-white font-sans">{minutesLeft} min remaining</p>
       </div>
 
       {/* Call controls - Added increased padding for mobile */}
@@ -94,9 +90,9 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
         {!isConnected ? (
           <div
             onClick={onStartConversation}
-            className="w-24 h-24 rounded-full bg-[#33C3F0] hover:bg-[#1EAEDB] border-none shadow-lg transition-all cursor-pointer flex items-center justify-center"
+            className="w-24 h-24 rounded-full bg-slate-300/80 border-none shadow-lg hover:bg-slate-300/90 transition-all cursor-pointer flex items-center justify-center"
           >
-            <PhoneCall className="h-8 w-8 text-white" strokeWidth={1.5} />
+            <PhoneCall className="h-6 w-6 text-black" strokeWidth={1.5} />
           </div>
         ) : (
           <CallControls
