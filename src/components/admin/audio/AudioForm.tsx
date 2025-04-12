@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -83,6 +84,7 @@ const AudioForm: React.FC<AudioFormProps> = ({
   };
 
   const handleAudioUploaded = (url: string, file: File) => {
+    console.log("Audio file uploaded successfully:", url);
     setAudioFile(file);
     setFormData({
       ...formData,
@@ -107,7 +109,27 @@ const AudioForm: React.FC<AudioFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!formData.title) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Title is required"
+      });
+      return;
+    }
+    
+    if (!formData.audio_url) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Audio file is required"
+      });
+      return;
+    }
+    
     try {
+      console.log("Submitting form data:", formData);
+      
       if (isEditing && initialData?.id) {
         // Update existing content
         const { error } = await supabase
@@ -115,7 +137,10 @@ const AudioForm: React.FC<AudioFormProps> = ({
           .update(formData)
           .eq('id', initialData.id);
         
-        if (error) throw error;
+        if (error) {
+          console.error("Error updating audio content:", error);
+          throw error;
+        }
         
         toast({
           title: "Success",
@@ -127,7 +152,10 @@ const AudioForm: React.FC<AudioFormProps> = ({
           .from('audio_content')
           .insert([formData]);
         
-        if (error) throw error;
+        if (error) {
+          console.error("Error creating audio content:", error);
+          throw error;
+        }
         
         toast({
           title: "Success",
@@ -152,7 +180,7 @@ const AudioForm: React.FC<AudioFormProps> = ({
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to save data"
+        description: "Failed to save data: " + (error instanceof Error ? error.message : "Unknown error")
       });
     }
   };

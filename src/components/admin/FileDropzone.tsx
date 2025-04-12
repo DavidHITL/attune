@@ -45,6 +45,19 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
       const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
       const filePath = `${storagePath}${fileName}`;
 
+      console.log(`Uploading to bucket: ${bucketName}, path: ${filePath}`);
+
+      // Check if bucket exists, if not we'll get an error during upload
+      const { data: bucketData, error: bucketError } = await supabase.storage
+        .getBucket(bucketName);
+
+      if (bucketError) {
+        console.error('Error checking bucket existence:', bucketError);
+        throw new Error(`Bucket "${bucketName}" not found. Please create it in Supabase.`);
+      }
+
+      console.log('Bucket exists, proceeding with upload');
+
       // Upload the file
       const { data, error } = await supabase.storage
         .from(bucketName)
@@ -55,12 +68,16 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
 
       if (error) throw error;
 
+      console.log('File uploaded successfully:', data);
+
       // Get the public URL
       const { data: { publicUrl } } = supabase.storage
         .from(bucketName)
         .getPublicUrl(filePath);
       
       setUploadProgress(100);
+      
+      console.log('Public URL generated:', publicUrl);
       
       onFileUploaded(publicUrl, file);
       

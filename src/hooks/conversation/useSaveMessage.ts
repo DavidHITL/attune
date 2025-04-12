@@ -19,6 +19,11 @@ export const useSaveMessage = (
   const saveMessage = async (message: Message): Promise<Message | null> => {
     if (!user || !conversationId) {
       console.error('Cannot save message: User not authenticated or conversation not initialized');
+      toast({
+        variant: "destructive",
+        title: "Authentication error",
+        description: "Please make sure you are signed in",
+      });
       return null;
     }
     
