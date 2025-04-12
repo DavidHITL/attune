@@ -1,7 +1,9 @@
+
 import React from 'react';
 import { Play } from 'lucide-react';
 import { formatTime } from '@/utils/formatters';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
+
 interface FeaturedAudioProps {
   id: string;
   title: string;
@@ -13,6 +15,7 @@ interface FeaturedAudioProps {
   totalDays?: number;
   onPlay: () => void;
 }
+
 const FeaturedAudio: React.FC<FeaturedAudioProps> = ({
   title,
   description,
@@ -22,41 +25,46 @@ const FeaturedAudio: React.FC<FeaturedAudioProps> = ({
   totalDays = 28,
   onPlay
 }) => {
-  return <div className="w-full rounded-xl overflow-hidden bg-gray-100 mb-8">
-      <div className="p-4">
-        <div className="flex flex-col items-start gap-4 mb-6">
-          {/* Cover image */}
-          {imageUrl && <div className="w-full rounded-lg overflow-hidden">
-              <AspectRatio ratio={1.5 / 1} className="bg-muted">
-                <img src={imageUrl} alt={title} className="object-cover w-full h-full" />
-              </AspectRatio>
-            </div>}
-          
-          <div className="w-full">
-            <div className="text-sm text-black mb-1">
-              Day {day} of {totalDays}
-            </div>
-            
-            <h2 className="text-2xl font-bold uppercase tracking-tight text-black">
-              {title}
-            </h2>
-            
-            {description && <p className="mt-2 text-black/70">
-                {description}
-              </p>}
-          </div>
+  return (
+    <div className="w-full bg-white rounded-xl overflow-hidden shadow-sm mb-8">
+      {/* Cover image with proper aspect ratio */}
+      {imageUrl && (
+        <AspectRatio ratio={16 / 9} className="bg-muted">
+          <img 
+            src={imageUrl || "/public/lovable-uploads/821af16d-86d3-43f1-945b-6d7c2a091621.png"} 
+            alt={title} 
+            className="object-cover w-full h-full"
+          />
+        </AspectRatio>
+      )}
+      
+      <div className="p-6">
+        <div className="text-sm text-black mb-1">
+          Day {day} of {totalDays}
         </div>
         
-        <div onClick={onPlay} className="align-right border-t border-gray-300 py-3 cursor-pointer">
-          <div className="flex justify-between items-center">
-            
-            <div className="flex items-center">
-              <span className="mr-2 text-black">{formatTime(duration)}</span>
-              <Play className="h-5 w-5 fill-current text-black" />
-            </div>
-          </div>
+        <h2 className="text-3xl font-bold uppercase tracking-tight text-black mb-2">
+          {title || "START HERE"}
+        </h2>
+        
+        {description && (
+          <p className="mt-2 text-black/70 mb-6">
+            {description}
+          </p>
+        )}
+        
+        <div 
+          onClick={onPlay} 
+          className="flex items-center justify-between border-t border-gray-200 pt-4 mt-4 cursor-pointer"
+        >
+          <span className="text-lg font-medium text-black">{formatTime(duration)}</span>
+          <button className="bg-black rounded-full p-2 hover:bg-gray-800 transition-colors">
+            <Play className="h-5 w-5 fill-white text-white" />
+          </button>
         </div>
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default FeaturedAudio;
