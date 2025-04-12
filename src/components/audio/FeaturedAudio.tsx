@@ -47,7 +47,7 @@ const FeaturedAudio: React.FC<FeaturedAudioProps> = ({
           </div>
         </div>
         
-        <div className="border-t border-gray-300 py-3 cursor-pointer" onClick={onPlay}>
+        <div onClick={onPlay} className="align-right border-t border-gray-300 py-3 cursor-pointer">
           <div className="flex justify-between items-center">
             
             <div className="flex items-center">
