@@ -3,6 +3,7 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import FileDropzone from '../../FileDropzone';
 
 interface TitleDescriptionFieldsProps {
@@ -18,8 +19,9 @@ export const TitleDescriptionFields: React.FC<TitleDescriptionFieldsProps> = ({
 }) => (
   <>
     <div>
-      <label className="block text-sm font-medium mb-1">Title</label>
+      <Label htmlFor="title" className="block text-sm font-medium mb-1">Title</Label>
       <Input
+        id="title"
         name="title"
         value={title}
         onChange={onChange}
@@ -28,8 +30,9 @@ export const TitleDescriptionFields: React.FC<TitleDescriptionFieldsProps> = ({
     </div>
     
     <div>
-      <label className="block text-sm font-medium mb-1">Description</label>
+      <Label htmlFor="description" className="block text-sm font-medium mb-1">Description</Label>
       <Textarea
+        id="description"
         name="description"
         value={description}
         onChange={onChange}
@@ -49,7 +52,7 @@ export const AudioUploadField: React.FC<AudioUploadFieldProps> = ({
   audioFile
 }) => (
   <div>
-    <label className="block text-sm font-medium mb-1">Upload MP3 File</label>
+    <Label htmlFor="audio-upload" className="block text-sm font-medium mb-1">Upload MP3 File</Label>
     <FileDropzone 
       onFileUploaded={onFileUploaded} 
       accept={{ 'audio/mpeg': ['.mp3'] }}
@@ -77,8 +80,9 @@ export const UrlFields: React.FC<UrlFieldsProps> = ({
 }) => (
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div>
-      <label className="block text-sm font-medium mb-1">Audio URL</label>
+      <Label htmlFor="audio_url" className="block text-sm font-medium mb-1">Audio URL</Label>
       <Input
+        id="audio_url"
         name="audio_url"
         value={audio_url}
         onChange={onChange}
@@ -91,8 +95,9 @@ export const UrlFields: React.FC<UrlFieldsProps> = ({
     </div>
     
     <div>
-      <label className="block text-sm font-medium mb-1">Cover Image URL</label>
+      <Label htmlFor="cover_image_url" className="block text-sm font-medium mb-1">Cover Image URL</Label>
       <Input
+        id="cover_image_url"
         name="cover_image_url"
         value={cover_image_url}
         onChange={onChange}
@@ -112,8 +117,9 @@ export const DurationField: React.FC<DurationFieldProps> = ({
   onChange
 }) => (
   <div>
-    <label className="block text-sm font-medium mb-1">Duration (seconds)</label>
+    <Label htmlFor="duration" className="block text-sm font-medium mb-1">Duration (seconds)</Label>
     <Input
+      id="duration"
       type="number"
       name="duration"
       value={duration}
@@ -138,13 +144,13 @@ export const FeaturedToggle: React.FC<FeaturedToggleProps> = ({
 }) => (
   <div className="flex items-center space-x-2">
     <Switch
+      id="featured"
       checked={is_featured}
       onCheckedChange={onToggle}
-      id="featured"
     />
-    <label htmlFor="featured" className="text-sm font-medium">
+    <Label htmlFor="featured" className="text-sm font-medium">
       Featured Content
-    </label>
+    </Label>
   </div>
 );
 

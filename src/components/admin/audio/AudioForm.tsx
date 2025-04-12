@@ -10,8 +10,7 @@ import {
   AudioUploadField,
   UrlFields,
   DurationField,
-  FeaturedToggle,
-  FormActionButtons
+  FeaturedToggle
 } from './components/FormFields';
 
 interface AudioFormProps {
