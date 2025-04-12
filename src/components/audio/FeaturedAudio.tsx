@@ -18,6 +18,7 @@ interface FeaturedAudioProps {
 
 const FeaturedAudio: React.FC<FeaturedAudioProps> = ({
   title,
+  description,
   duration,
   imageUrl,
   day = 1,
@@ -49,27 +50,25 @@ const FeaturedAudio: React.FC<FeaturedAudioProps> = ({
             <h2 className="text-2xl font-bold uppercase tracking-tight text-black">
               {title}
             </h2>
+            
+            {description && (
+              <p className="mt-2 text-black/70">
+                {description}
+              </p>
+            )}
           </div>
         </div>
         
-        <div className="border-t border-b border-gray-300 py-3 mb-3">
+        <div 
+          className="border-t border-gray-300 py-3 cursor-pointer"
+          onClick={onPlay}
+        >
           <div className="flex justify-between items-center">
             <div className="font-medium text-black">Start Here</div>
             <div className="flex items-center">
               <span className="mr-2 text-black">{formatTime(duration)}</span>
               <Play className="h-5 w-5 fill-current text-black" />
             </div>
-          </div>
-        </div>
-        
-        <div 
-          className="flex justify-between items-center py-3 cursor-pointer"
-          onClick={onPlay}
-        >
-          <div className="font-medium text-black">Meditation 1</div>
-          <div className="flex items-center">
-            <span className="mr-2 text-black">8m 45s</span>
-            <Play className="h-5 w-5 fill-current text-black" />
           </div>
         </div>
       </div>
