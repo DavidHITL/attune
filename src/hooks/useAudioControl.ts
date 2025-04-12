@@ -1,5 +1,5 @@
-
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 
 interface UseAudioControlProps {
   audioUrl: string;
@@ -19,15 +19,37 @@ export function useAudioControl({
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(initialProgress || 0);
   const [loaded, setLoaded] = useState(false);
+  const retryCountRef = useRef(0);
+  const maxRetries = 3;
   
-  // Set up audio element
-  useEffect(() => {
+  // Create audio element with error handling
+  const createAudio = useCallback(() => {
+    if (audioRef.current) {
+      // Clean up existing audio element first
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      
+      // Remove all event listeners
+      audioRef.current.removeEventListener('loadedmetadata', () => {});
+      audioRef.current.removeEventListener('timeupdate', () => {});
+      audioRef.current.removeEventListener('ended', () => {});
+      audioRef.current.removeEventListener('play', () => {});
+      audioRef.current.removeEventListener('pause', () => {});
+      audioRef.current.removeEventListener('error', () => {});
+    }
+    
+    console.log("Creating new audio element with URL:", audioUrl);
+    
+    // Create fresh audio element
     const audio = new Audio(audioUrl);
     audioRef.current = audio;
     
+    // Set up event listeners
     audio.addEventListener('loadedmetadata', () => {
+      console.log("Audio metadata loaded, duration:", audio.duration);
       setDuration(audio.duration);
       setLoaded(true);
+      retryCountRef.current = 0; // Reset retry counter on successful load
       
       // Set initial position if provided
       if (initialProgress && initialProgress > 0) {
@@ -53,6 +75,41 @@ export function useAudioControl({
       setIsPlaying(false);
     });
     
+    // Handle errors
+    audio.addEventListener('error', (e) => {
+      console.error("Audio error:", e, audio.error);
+      
+      // Attempt to retry loading the audio
+      if (retryCountRef.current < maxRetries) {
+        retryCountRef.current += 1;
+        console.log(`Retry attempt ${retryCountRef.current}/${maxRetries}`);
+        
+        // Small delay before retrying
+        setTimeout(() => {
+          createAudio();
+        }, 1000);
+      } else {
+        toast.error("Failed to load audio. Please try again later.");
+        console.error("Max retries reached for audio loading");
+      }
+    });
+    
+    // Add cache-busting parameter to prevent 304 responses
+    audio.src = audioUrl.includes('?') 
+      ? `${audioUrl}&_cb=${Date.now()}` 
+      : `${audioUrl}?_cb=${Date.now()}`;
+    
+    // Preload audio
+    audio.preload = "auto";
+    
+    // Return the audio element
+    return audio;
+  }, [audioUrl, initialProgress, onComplete]);
+  
+  // Set up audio element
+  useEffect(() => {
+    const audio = createAudio();
+    
     return () => {
       audio.pause();
       audio.src = '';
@@ -61,35 +118,63 @@ export function useAudioControl({
       audio.removeEventListener('ended', () => {});
       audio.removeEventListener('play', () => {});
       audio.removeEventListener('pause', () => {});
+      audio.removeEventListener('error', () => {});
     };
-  }, [audioUrl, initialProgress, onComplete]);
+  }, [audioUrl, initialProgress, onComplete, createAudio]);
   
-  // Update progress periodically
+  // Update progress periodically and keep playback alive
   useEffect(() => {
     if (!isPlaying) return;
     
-    const interval = setInterval(() => {
+    // Update progress every 5 seconds
+    const updateInterval = setInterval(() => {
       if (audioRef.current) {
         // Ensure we're sending an integer value to fix the database error
         onProgressUpdate(Math.floor(audioRef.current.currentTime));
       }
-    }, 5000); // Update every 5 seconds while playing
+    }, 5000);
     
-    // Add a separate progress tracking that doesn't affect playback
-    const continuousPlayInterval = setInterval(() => {
-      if (audioRef.current && isPlaying && audioRef.current.paused) {
-        // If we're supposed to be playing but the audio is paused, resume
-        audioRef.current.play().catch(err => {
-          console.error("Error resuming playback:", err);
-        });
+    // Add heartbeat to ensure continuous playback
+    const heartbeatInterval = setInterval(() => {
+      if (audioRef.current) {
+        if (isPlaying && audioRef.current.paused) {
+          console.log("Detected paused state when should be playing, resuming...");
+          
+          // If we're supposed to be playing but the audio is paused, resume
+          audioRef.current.play().catch(err => {
+            console.error("Error resuming playback:", err);
+            
+            // If playback fails, try to recreate the audio element
+            if (retryCountRef.current < maxRetries) {
+              retryCountRef.current += 1;
+              console.log(`Recreating audio element, attempt ${retryCountRef.current}/${maxRetries}`);
+              
+              const audio = createAudio();
+              audio.currentTime = currentTime;
+              audio.play().catch(e => console.error("Error playing after recreation:", e));
+            }
+          });
+        }
+        
+        // Check if audio position is stuck
+        if (isPlaying && !audioRef.current.paused) {
+          const lastTime = currentTime;
+          setTimeout(() => {
+            if (isPlaying && Math.abs(currentTime - lastTime) < 0.1) {
+              console.log("Audio position appears stuck, nudging playback");
+              // Nudge playback position slightly to unstick it
+              audioRef.current!.currentTime += 0.1;
+            }
+          }, 500);
+        }
       }
     }, 1000); // Check every second
     
     return () => {
-      clearInterval(interval);
-      clearInterval(continuousPlayInterval);
+      clearInterval(updateInterval);
+      clearInterval(heartbeatInterval);
     };
-  }, [isPlaying, onProgressUpdate]);
+  }, [isPlaying, onProgressUpdate, currentTime, createAudio]);
   
   // Handle play/pause
   const togglePlayPause = () => {
@@ -102,6 +187,18 @@ export function useAudioControl({
     } else {
       audioRef.current.play().catch(err => {
         console.error("Error playing audio:", err);
+        
+        // If playback fails, try to recreate the audio element
+        if (retryCountRef.current < maxRetries) {
+          retryCountRef.current += 1;
+          console.log(`Recreating audio element, attempt ${retryCountRef.current}/${maxRetries}`);
+          
+          const audio = createAudio();
+          audio.currentTime = currentTime;
+          audio.play().catch(e => console.error("Error playing after recreation:", e));
+        } else {
+          toast.error("Failed to play audio. Please try again later.");
+        }
       });
     }
   };
