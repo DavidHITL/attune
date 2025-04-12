@@ -12,10 +12,6 @@ export const AttuneHero = () => {
       <div className="mb-6">
         <AttuneLogo />
       </div>
-      
-      <p className="text-black font-sans px-4">
-        "Love isn't something that you have. It's something you do. And you can do it better." — Terry Real
-      </p>
     </div>
   );
 };
