@@ -122,10 +122,10 @@ const Index = () => {
     <div className="min-h-screen flex flex-col items-center py-12 px-4 pt-20 pb-24 text-black font-sans bg-attune-blue">
       {/* Mobile container with fixed max-width */}
       <div className="w-full max-w-[390px] mx-auto">
-        {/* IMPORTANT: Always show AttuneContent - Logo and Main title */}
-        <div className="mb-8">
+        {/* Always show AttuneContent for non-logged in users */}
+        {!user && (
           <AttuneContent />
-        </div>
+        )}
         
         {/* Show audio content for logged in users */}
         {user && !loading && (
