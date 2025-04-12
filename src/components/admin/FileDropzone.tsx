@@ -19,7 +19,7 @@ export interface FileDropzoneProps {
 const FileDropzone: React.FC<FileDropzoneProps> = ({
   onFileUploaded,
   accept,
-  maxSize = 10485760, // 10MB default
+  maxSize = 31457280, // Increased to 30MB from 10MB (10485760)
   bucketName = 'audio_files',
   storagePath = '',
   label = 'Drop file here, or click to select',
