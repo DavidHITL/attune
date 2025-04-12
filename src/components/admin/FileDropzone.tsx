@@ -47,18 +47,18 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
 
       console.log(`Uploading to bucket: ${bucketName}, path: ${filePath}`);
 
-      // Skip the bucket check since we know it exists
-      console.log('Proceeding with upload to existing bucket');
-
-      // Upload the file
+      // Upload the file with RLS policies in place
       const { data, error } = await supabase.storage
         .from(bucketName)
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: true // Changed to true to overwrite existing files with the same name
+          upsert: true
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Upload error:', error);
+        throw new Error(`Upload failed: ${error.message}`);
+      }
 
       console.log('File uploaded successfully:', data);
 
@@ -96,18 +96,6 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
     maxSize,
     multiple: false
   });
-
-  // Handle file rejection reasons
-  const fileRejectionItems = fileRejections.map(({ file, errors }) => (
-    <li key={file.name}>
-      <p>{file.name} - {file.size} bytes</p>
-      <ul>
-        {errors.map(e => (
-          <li key={e.code}>{e.message}</li>
-        ))}
-      </ul>
-    </li>
-  ));
 
   // Get file format description based on accept prop
   const getFileTypeDescription = () => {
@@ -168,7 +156,7 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
           <div className="flex flex-col items-center justify-center space-y-2">
             <Upload className="h-8 w-8 text-gray-500" />
             <p>{label}</p>
-            <p className="text-sm text-gray-500">{description}</p>
+            <p className="text-sm text-gray-500">{defaultDescription}</p>
           </div>
         )}
       </div>
