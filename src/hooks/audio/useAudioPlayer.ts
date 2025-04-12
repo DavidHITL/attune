@@ -1,5 +1,4 @@
-
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAudioElement } from './useAudioElement';
 import { useAudioProgress } from './useAudioProgress';
 import { usePlaybackControls } from './usePlaybackControls';
@@ -21,14 +20,32 @@ export function useAudioPlayer({
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   
-  // Validate the URL before proceeding
-  const isValidUrl = audioUrl && typeof audioUrl === 'string' && audioUrl.trim() !== '';
+  // Validate the URL thoroughly before proceeding
+  const isValidUrl = validateAudioUrl(audioUrl);
   
-  if (!isValidUrl) {
-    console.error("Invalid audio URL provided:", audioUrl);
-    // Don't show toast here as it could trigger multiple times during rendering
-    // We'll handle the error display in the component
+  function validateAudioUrl(url: string): boolean {
+    if (!url || typeof url !== 'string' || url.trim() === '') {
+      console.error("Empty or invalid audio URL:", url);
+      return false;
+    }
+    
+    try {
+      new URL(url); // Tests if URL is well-formed
+      return true;
+    } catch (e) {
+      console.error("Malformed URL:", url, e);
+      return false;
+    }
   }
+  
+  useEffect(() => {
+    if (!isValidUrl) {
+      setLoadError("Invalid audio URL provided");
+      toast.error("This audio file can't be played. It may be missing or unavailable.");
+    } else {
+      setLoadError(null);
+    }
+  }, [isValidUrl, audioUrl]);
   
   const {
     audioRef,
@@ -37,7 +54,7 @@ export function useAudioPlayer({
     setCurrentTime,
     createAudio
   } = useAudioElement({
-    audioUrl: isValidUrl ? audioUrl : '',
+    audioUrl: isValidUrl ? audioUrl : '', // Pass empty string if invalid to prevent errors
     initialProgress,
     onComplete,
     setLoaded,
@@ -69,13 +86,20 @@ export function useAudioPlayer({
   });
   
   // Update progress periodically and keep playback alive
-  useAudioProgress({
-    audioRef,
-    isPlaying,
-    currentTime,
-    onProgressUpdate,
-    createAudio
-  });
+  // Only run this if URL is valid
+  useEffect(() => {
+    if (!isValidUrl || !isPlaying || !onProgressUpdate || !createAudio) return;
+    
+    // Update progress every 5 seconds
+    const updateInterval = setInterval(() => {
+      if (audioRef.current) {
+        // Ensure we're sending an integer value
+        onProgressUpdate(Math.floor(audioRef.current.currentTime));
+      }
+    }, 5000);
+    
+    return () => clearInterval(updateInterval);
+  }, [isPlaying, audioRef, isValidUrl, onProgressUpdate, createAudio]);
 
   return {
     isPlaying,

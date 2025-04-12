@@ -31,14 +31,29 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   onProgressUpdate,
   onComplete
 }) => {
-  // Validate audio URL before proceeding
-  const isValidAudioUrl = audioUrl && typeof audioUrl === 'string' && audioUrl.trim() !== '';
+  // Validate audio URL thoroughly before proceeding
+  const isValidAudioUrl = validateAudioUrl(audioUrl);
   
   useEffect(() => {
     if (!isValidAudioUrl) {
       toast.error("Invalid audio file. Please try another track.");
     }
   }, [isValidAudioUrl]);
+  
+  function validateAudioUrl(url: string): boolean {
+    if (!url || typeof url !== 'string' || url.trim() === '') {
+      console.error("Empty or invalid audio URL:", url);
+      return false;
+    }
+    
+    try {
+      new URL(url); // Tests if URL is well-formed
+      return true;
+    } catch (e) {
+      console.error("Malformed URL:", url, e);
+      return false;
+    }
+  }
   
   if (!isValidAudioUrl) {
     return (

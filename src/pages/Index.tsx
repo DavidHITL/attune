@@ -30,28 +30,49 @@ const Index = () => {
     setBackgroundColor(BACKGROUND_COLORS.HOME_BLUE);
   }, [setBackgroundColor]);
 
+  // Helper function to validate audio URLs
+  const isValidAudioUrl = (url: string): boolean => {
+    if (!url || typeof url !== 'string' || url.trim() === '') {
+      return false;
+    }
+    
+    try {
+      new URL(url); // Test if URL is well-formed
+      return true;
+    } catch (e) {
+      console.error("Malformed URL:", url, e);
+      return false;
+    }
+  };
+
   const handlePlayAudio = (audioItem: any) => {
-    // Validate the audio item and URL before attempting to play
+    // Validate the audio item before attempting to play
     if (!audioItem) {
       toast.error("Cannot play audio: Missing audio data");
       return;
     }
     
-    if (!audioItem.audio_url || typeof audioItem.audio_url !== 'string' || audioItem.audio_url.trim() === '') {
+    if (!isValidAudioUrl(audioItem.audio_url)) {
       toast.error("This audio file can't be played. It may be missing or unavailable.");
       console.error("Invalid audio URL:", audioItem.audio_url);
       return;
     }
     
-    // Check if URL is valid before setting the playing audio
-    try {
-      // Basic validation - ensure it's a well-formed URL
-      new URL(audioItem.audio_url);
-      setPlayingAudio(audioItem);
-    } catch (error) {
-      console.error("Invalid audio URL format:", audioItem.audio_url, error);
-      toast.error("Invalid audio file URL. Please try another track.");
-    }
+    // Check if audio file exists before setting it
+    fetch(audioItem.audio_url, { method: 'HEAD' })
+      .then(response => {
+        if (response.ok) {
+          console.log("Audio file exists, setting playing audio");
+          setPlayingAudio(audioItem);
+        } else {
+          console.error("Audio file not found:", audioItem.audio_url);
+          toast.error("Audio file not found. Please try another track.");
+        }
+      })
+      .catch(error => {
+        console.error("Error checking audio file:", error);
+        toast.error("Error checking audio file. Please try again later.");
+      });
   };
 
   const handleProgressUpdate = (seconds: number) => {
