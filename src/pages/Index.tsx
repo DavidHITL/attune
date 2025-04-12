@@ -1,4 +1,6 @@
+
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import AttuneContent, { AttuneHero } from '@/components/AttuneContent';
 import { useBackground, BACKGROUND_COLORS } from '@/context/BackgroundContext';
 import { useAuth } from '@/context/AuthContext';
