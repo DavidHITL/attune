@@ -8,12 +8,12 @@ const AttuneContent = () => {
 
   return (
     <div className="flex flex-col items-center justify-center h-full w-full bg-[#EEE0CB]">
-      <div className="flex flex-col items-center justify-center text-center max-w-[390px] px-4 py-8">
+      <div className="w-full max-w-[390px] h-[500px] max-h-[60vh] flex flex-col items-center justify-center text-center px-4">
         <div className="mb-8">
           <AttuneLogo />
         </div>
         
-        <div className="text-center mb-8">
+        <div className="mb-8">
           <p className="text-black font-sans">
             "Love isn't something that you have. It's something you do. And you can do it better." — Terry Real
           </p>
