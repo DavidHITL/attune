@@ -10,52 +10,31 @@ interface AudioContent {
   audio_url: string;
   cover_image_url: string | null;
   duration: number;
-  category_id: string | null;
   is_featured: boolean;
+  rank: number;
   created_at: string;
   updated_at: string;
-  category?: {
-    name: string;
-  } | null;
   progress?: {
     progress_seconds: number | null;
     completed: boolean | null;
   } | null;
 }
 
-interface Category {
-  id: string;
-  name: string;
-}
-
 export function useAudioLibrary() {
   const [loading, setLoading] = useState(true);
   const [featuredContent, setFeaturedContent] = useState<AudioContent | null>(null);
   const [audioContent, setAudioContent] = useState<AudioContent[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const { user } = useAuth();
 
   const fetchLibrary = async () => {
     try {
       setLoading(true);
       
-      // Fetch categories
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from('categories')
-        .select('*')
-        .order('name');
-      
-      if (categoriesError) throw categoriesError;
-      setCategories(categoriesData || []);
-      
       // Fetch audio content
       let query = supabase
         .from('audio_content')
-        .select(`
-          *,
-          category:categories(name)
-        `)
-        .order('title');
+        .select('*')
+        .order('rank', { ascending: true });
       
       const { data: contentData, error: contentError } = await query;
       
@@ -137,7 +116,6 @@ export function useAudioLibrary() {
     loading,
     featuredContent,
     audioContent,
-    categories,
     updateProgress,
     refreshLibrary: fetchLibrary
   };

@@ -10,23 +10,14 @@ interface AudioContent {
   audio_url: string;
   cover_image_url: string | null;
   duration: number;
-  category_id: string | null;
   is_featured: boolean;
-  category?: {
-    name: string;
-  };
+  rank: number;
   [key: string]: any;
-}
-
-interface Category {
-  id: string;
-  name: string;
 }
 
 export function useAudioContent() {
   const [loading, setLoading] = useState(true);
   const [audioContent, setAudioContent] = useState<AudioContent[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [currentItem, setCurrentItem] = useState<AudioContent | null>(null);
   
@@ -36,22 +27,11 @@ export function useAudioContent() {
     try {
       setLoading(true);
       
-      // Fetch categories
-      const { data: categoriesData } = await supabase
-        .from('categories')
-        .select('*')
-        .order('name');
-      
-      setCategories(categoriesData || []);
-      
       // Fetch audio content
       const { data: contentData } = await supabase
         .from('audio_content')
-        .select(`
-          *,
-          category:categories(name)
-        `)
-        .order('title');
+        .select('*')
+        .order('rank', { ascending: true });
       
       setAudioContent(contentData || []);
     } catch (error) {
@@ -98,6 +78,46 @@ export function useAudioContent() {
     }
   }, [fetchData, toast]);
 
+  const updateRank = useCallback(async (id: string, newRank: number) => {
+    try {
+      const { error } = await supabase
+        .from('audio_content')
+        .update({ rank: newRank })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      fetchData();
+    } catch (error) {
+      console.error("Error updating rank:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update rank"
+      });
+    }
+  }, [fetchData, toast]);
+
+  const moveItemUp = useCallback((index: number) => {
+    if (index <= 0) return;
+    
+    const currentItem = audioContent[index];
+    const itemAbove = audioContent[index - 1];
+    
+    updateRank(currentItem.id, itemAbove.rank);
+    updateRank(itemAbove.id, currentItem.rank);
+  }, [audioContent, updateRank]);
+
+  const moveItemDown = useCallback((index: number) => {
+    if (index >= audioContent.length - 1) return;
+    
+    const currentItem = audioContent[index];
+    const itemBelow = audioContent[index + 1];
+    
+    updateRank(currentItem.id, itemBelow.rank);
+    updateRank(itemBelow.id, currentItem.rank);
+  }, [audioContent, updateRank]);
+
   const resetForm = useCallback(() => {
     setIsEditing(false);
     setCurrentItem(null);
@@ -110,12 +130,13 @@ export function useAudioContent() {
   return {
     loading,
     audioContent,
-    categories,
     isEditing,
     currentItem,
     fetchData,
     handleEdit,
     handleDelete,
-    resetForm
+    resetForm,
+    moveItemUp,
+    moveItemDown
   };
 }

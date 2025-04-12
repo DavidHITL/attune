@@ -10,15 +10,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatTime } from '@/utils/formatters';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 
 interface AudioItem {
   id: string;
   title: string;
-  category?: {
-    name: string;
-  };
   duration: number;
   is_featured: boolean;
+  rank: number;
   [key: string]: any;
 }
 
@@ -27,13 +26,17 @@ interface AudioListProps {
   loading: boolean;
   onEdit: (item: AudioItem) => void;
   onDelete: (id: string) => void;
+  onMoveUp: (index: number) => void;
+  onMoveDown: (index: number) => void;
 }
 
 const AudioList: React.FC<AudioListProps> = ({
   audioContent,
   loading,
   onEdit,
-  onDelete
+  onDelete,
+  onMoveUp,
+  onMoveDown
 }) => {
   return (
     <div className="bg-white p-6 rounded-lg shadow overflow-x-auto">
@@ -45,18 +48,42 @@ const AudioList: React.FC<AudioListProps> = ({
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Rank</TableHead>
               <TableHead>Title</TableHead>
-              <TableHead>Category</TableHead>
               <TableHead>Duration</TableHead>
               <TableHead>Featured</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {audioContent.map((item) => (
+            {audioContent.map((item, index) => (
               <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.title}</TableCell>
-                <TableCell>{item.category?.name || '-'}</TableCell>
+                <TableCell className="font-medium">
+                  <div className="flex items-center space-x-2">
+                    <span>{item.rank}</span>
+                    <div className="flex flex-col">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => onMoveUp(index)} 
+                        disabled={index === 0}
+                        className="h-6 w-6"
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => onMoveDown(index)} 
+                        disabled={index === audioContent.length - 1}
+                        className="h-6 w-6"
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>{item.title}</TableCell>
                 <TableCell>{formatTime(item.duration)}</TableCell>
                 <TableCell>{item.is_featured ? '✓' : '-'}</TableCell>
                 <TableCell>

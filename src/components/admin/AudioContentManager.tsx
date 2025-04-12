@@ -8,13 +8,14 @@ const AudioContentManager = () => {
   const {
     loading,
     audioContent,
-    categories,
     isEditing,
     currentItem,
     fetchData,
     handleEdit,
     handleDelete,
-    resetForm
+    resetForm,
+    moveItemUp,
+    moveItemDown
   } = useAudioContent();
 
   return (
@@ -27,7 +28,6 @@ const AudioContentManager = () => {
         <AudioForm
           initialData={currentItem}
           isEditing={isEditing}
-          categories={categories}
           onSubmitSuccess={() => {
             resetForm();
             fetchData();
@@ -41,6 +41,8 @@ const AudioContentManager = () => {
         loading={loading}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onMoveUp={moveItemUp}
+        onMoveDown={moveItemDown}
       />
     </div>
   );
