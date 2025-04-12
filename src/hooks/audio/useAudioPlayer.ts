@@ -19,11 +19,15 @@ export function useAudioPlayer({
   onComplete
 }: UseAudioPlayerProps) {
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   
   // Validate the URL before proceeding
-  if (!audioUrl || typeof audioUrl !== 'string' || audioUrl.trim() === '') {
+  const isValidUrl = audioUrl && typeof audioUrl === 'string' && audioUrl.trim() !== '';
+  
+  if (!isValidUrl) {
     console.error("Invalid audio URL provided:", audioUrl);
-    toast.error("Invalid audio URL. Please select a different audio track.");
+    // Don't show toast here as it could trigger multiple times during rendering
+    // We'll handle the error in the useEffect below
   }
   
   const {
@@ -33,10 +37,15 @@ export function useAudioPlayer({
     setCurrentTime,
     createAudio
   } = useAudioElement({
-    audioUrl,
+    audioUrl: isValidUrl ? audioUrl : '',
     initialProgress,
     onComplete,
-    setLoaded
+    setLoaded,
+    onError: (error) => {
+      console.error("Audio element error:", error);
+      setLoadError(error.message || "Failed to load audio");
+      toast.error("Failed to load audio. Please try again later.");
+    }
   });
   
   const { isPlaying, togglePlayPause } = usePlaybackControls({
@@ -73,6 +82,7 @@ export function useAudioPlayer({
     duration,
     currentTime,
     loaded,
+    error: loadError,
     togglePlayPause,
     handleSeek,
     skipBackward,

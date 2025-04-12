@@ -65,6 +65,7 @@ export class EventHandler {
       this.pendingAssistantMessage = true;
       this.assistantResponse = '';
       this.lastResponseDelta = Date.now();
+      this.responseParser.resetBuffer();
     }
     
     // Handle assistant message content
@@ -78,24 +79,24 @@ export class EventHandler {
           this.assistantResponse += extractedContent;
           console.log(`Updated assistant response (${this.assistantResponse.length} chars): "${this.assistantResponse.substring(0, 50)}${this.assistantResponse.length > 50 ? '...' : ''}"`);
         } else {
-          console.log("Warning: Received content delta without pending message flag. Setting flag now.");
+          console.log("Received content delta without pending message flag. Setting flag now.");
           this.pendingAssistantMessage = true;
           this.assistantResponse = extractedContent;
         }
       } else {
-        console.log("Response delta received but couldn't extract content:", JSON.stringify(event));
+        console.log("Response delta received but couldn't extract content:", JSON.stringify(event).substring(0, 200));
       }
     }
     
     // Handle assistant message completion
     if (event.type === "response.done") {
-      console.log("Response done event received", JSON.stringify(event));
+      console.log("Response done event received", JSON.stringify(event).substring(0, 200));
       
       // Extract final message from response.done event if possible
       let finalResponse = this.responseParser.extractCompletedResponseFromDoneEvent(event);
       
       // Use extracted response or fallback to accumulated response
-      const finalContent = finalResponse && finalResponse.trim() 
+      let finalContent = finalResponse && finalResponse.trim() 
         ? finalResponse 
         : this.assistantResponse;
         
@@ -113,6 +114,8 @@ export class EventHandler {
           this.messageQueue.queueMessage('assistant', fallbackMessage);
         } else {
           console.error("Failed to construct fallback message");
+          // Use a static message as last resort to prevent empty responses
+          this.messageQueue.queueMessage('assistant', "I'm listening. Could you please continue?");
         }
       }
       
@@ -120,6 +123,33 @@ export class EventHandler {
       this.pendingAssistantMessage = false;
       this.assistantResponse = '';
       this.responseParser.clearRawEvents();
+    }
+    
+    // Additional handling for edge cases - handle truncated conversations
+    if (event.type === "conversation.item.truncated") {
+      console.log("Conversation item truncated event received");
+      
+      // Check if we have a pending message that hasn't been saved yet
+      if (this.pendingAssistantMessage && this.assistantResponse && this.assistantResponse.trim()) {
+        console.log("Saving truncated assistant response:", this.assistantResponse.substring(0, 30) + "...");
+        this.messageQueue.queueMessage('assistant', this.assistantResponse);
+        
+        // Reset state
+        this.pendingAssistantMessage = false;
+        this.assistantResponse = '';
+      }
+    }
+    
+    // Handle finalized content parts that might contain the full response
+    if (event.type === "response.content_part.done" && event.content) {
+      console.log("Content part done event received with content");
+      
+      if (this.pendingAssistantMessage && (!this.assistantResponse || this.assistantResponse.trim() === '')) {
+        if (typeof event.content === 'string' && event.content.trim()) {
+          console.log("Using content from content_part.done:", event.content.substring(0, 30) + "...");
+          this.assistantResponse = event.content;
+        }
+      }
     }
   }
 
@@ -130,8 +160,18 @@ export class EventHandler {
       console.log("Saving pending assistant response during disconnect:", this.assistantResponse.substring(0, 30) + "...");
       this.messageQueue.queueMessage('assistant', this.assistantResponse);
     } else if (this.pendingAssistantMessage && Date.now() - this.lastResponseDelta > 5000) {
-      // If we haven't received response deltas for 5+ seconds, log this issue
+      // If we haven't received response deltas for 5+ seconds but have a pending message flag
       console.warn("Pending assistant message with no content and no recent deltas during disconnect");
+      
+      // Try to use a fallback method to get a message
+      const fallback = this.responseParser.constructFallbackMessage();
+      if (fallback) {
+        console.log("Using fallback method for pending message:", fallback.substring(0, 30) + "...");
+        this.messageQueue.queueMessage('assistant', fallback);
+      } else {
+        // Use a static message as last resort
+        this.messageQueue.queueMessage('assistant', "I'm listening. How can I help you?");
+      }
     }
 
     // Save any partial transcripts that weren't saved yet
