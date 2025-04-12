@@ -139,6 +139,37 @@ export function useAudioControl({
     }
   };
 
+  // New functions for 30 sec rewind and 15 sec forward
+  const rewind30 = () => {
+    if (!audioRef.current) return;
+    
+    const newTime = Math.max(0, audioRef.current.currentTime - 30);
+    audioRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+    
+    // Maintain current play state
+    if (isPlaying && audioRef.current.paused) {
+      audioRef.current.play().catch(err => {
+        console.error("Error resuming after rewinding 30 seconds:", err);
+      });
+    }
+  };
+  
+  const forward15 = () => {
+    if (!audioRef.current) return;
+    
+    const newTime = Math.min(duration, audioRef.current.currentTime + 15);
+    audioRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+    
+    // Maintain current play state
+    if (isPlaying && audioRef.current.paused) {
+      audioRef.current.play().catch(err => {
+        console.error("Error resuming after forwarding 15 seconds:", err);
+      });
+    }
+  };
+
   return {
     isPlaying,
     duration,
@@ -147,6 +178,8 @@ export function useAudioControl({
     togglePlayPause,
     handleSeek,
     skipBackward,
-    skipForward
+    skipForward,
+    rewind30,
+    forward15
   };
 }

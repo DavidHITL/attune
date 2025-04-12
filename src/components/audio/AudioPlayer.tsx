@@ -37,7 +37,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     togglePlayPause,
     handleSeek,
     skipBackward,
-    skipForward
+    skipForward,
+    rewind30,
+    forward15
   } = useAudioControl({
     audioUrl,
     initialProgress,
@@ -91,6 +93,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             onTogglePlay={togglePlayPause}
             onSkipBackward={skipBackward}
             onSkipForward={skipForward}
+            onRewind30={rewind30}
+            onForward15={forward15}
           />
         </CardContent>
       </Card>

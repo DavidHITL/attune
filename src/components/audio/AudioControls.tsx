@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Rewind, FastForward } from 'lucide-react';
 
 interface AudioControlsProps {
   isPlaying: boolean;
@@ -9,6 +9,8 @@ interface AudioControlsProps {
   onTogglePlay: () => void;
   onSkipBackward: () => void;
   onSkipForward: () => void;
+  onRewind30: () => void;
+  onForward15: () => void;
 }
 
 const AudioControls: React.FC<AudioControlsProps> = ({
@@ -16,10 +18,17 @@ const AudioControls: React.FC<AudioControlsProps> = ({
   loaded,
   onTogglePlay,
   onSkipBackward,
-  onSkipForward
+  onSkipForward,
+  onRewind30,
+  onForward15
 }) => {
   return (
-    <div className="flex justify-center items-center space-x-6">
+    <div className="flex justify-center items-center space-x-4">
+      <Button variant="ghost" size="icon" onClick={onRewind30} className="relative">
+        <Rewind className="h-5 w-5" />
+        <span className="absolute -bottom-4 text-xs font-medium">30</span>
+      </Button>
+      
       <Button variant="ghost" size="icon" onClick={onSkipBackward}>
         <SkipBack className="h-5 w-5" />
       </Button>
@@ -38,6 +47,11 @@ const AudioControls: React.FC<AudioControlsProps> = ({
       
       <Button variant="ghost" size="icon" onClick={onSkipForward}>
         <SkipForward className="h-5 w-5" />
+      </Button>
+      
+      <Button variant="ghost" size="icon" onClick={onForward15} className="relative">
+        <FastForward className="h-5 w-5" />
+        <span className="absolute -bottom-4 text-xs font-medium">15</span>
       </Button>
     </div>
   );
