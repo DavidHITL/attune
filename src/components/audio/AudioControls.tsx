@@ -24,13 +24,17 @@ const AudioControls: React.FC<AudioControlsProps> = ({
 }) => {
   return (
     <div className="flex justify-center items-center space-x-4">
-      <Button variant="ghost" size="icon" onClick={onRewind30} className="relative">
-        <Rewind className="h-5 w-5" />
-        <span className="absolute -bottom-4 text-xs font-medium">30</span>
-      </Button>
-      
       <Button variant="ghost" size="icon" onClick={onSkipBackward}>
         <SkipBack className="h-5 w-5" />
+      </Button>
+      
+      <Button 
+        variant="ghost" 
+        onClick={onRewind30} 
+        className="flex flex-col items-center justify-center h-12 w-12 rounded-full hover:bg-black/5"
+      >
+        <Rewind className="h-5 w-5" />
+        <span className="text-[10px] font-medium mt-1">30s</span>
       </Button>
       
       <Button 
@@ -45,13 +49,17 @@ const AudioControls: React.FC<AudioControlsProps> = ({
         )}
       </Button>
       
-      <Button variant="ghost" size="icon" onClick={onSkipForward}>
-        <SkipForward className="h-5 w-5" />
+      <Button 
+        variant="ghost" 
+        onClick={onForward15} 
+        className="flex flex-col items-center justify-center h-12 w-12 rounded-full hover:bg-black/5"
+      >
+        <FastForward className="h-5 w-5" />
+        <span className="text-[10px] font-medium mt-1">15s</span>
       </Button>
       
-      <Button variant="ghost" size="icon" onClick={onForward15} className="relative">
-        <FastForward className="h-5 w-5" />
-        <span className="absolute -bottom-4 text-xs font-medium">15</span>
+      <Button variant="ghost" size="icon" onClick={onSkipForward}>
+        <SkipForward className="h-5 w-5" />
       </Button>
     </div>
   );
