@@ -39,7 +39,7 @@ const Voice = () => {
             <p className="text-white mb-6">
               Attune remembers conversations, and keeps them secret, so you can always pick up where you left off — or not.
             </p>
-            <Link to="/auth" className="bg-white text-attune-deep-blue px-6 py-2 rounded-full hover:bg-gray-100 transition-colors font-sans inline-block">
+            <Link to="/auth" className="bg-white text-black px-6 py-2 rounded-full hover:bg-gray-100 transition-colors font-sans inline-block">
               Sign In
             </Link>
           </div>
