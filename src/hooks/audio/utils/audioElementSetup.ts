@@ -45,9 +45,18 @@ export function setupAudioElement(
     audio.addEventListener('error', onError);
   }
   
-  // Configure audio element
+  // Add canplaythrough event for debugging
+  audio.addEventListener('canplaythrough', () => {
+    console.log("Audio can play through without buffering");
+  });
+  
+  // Configure audio element for better performance
   audio.preload = "auto";
-  audio.crossOrigin = "anonymous";
+  audio.crossOrigin = "anonymous"; // Handle CORS issues
+  
+  // Some browsers may need this hint
+  audio.setAttribute('playsinline', '');
+  audio.setAttribute('webkit-playsinline', '');
   
   return audio;
 }
@@ -69,4 +78,5 @@ export function cleanupAudioElement(audio: HTMLAudioElement): void {
   audio.onplay = null;
   audio.onpause = null;
   audio.onerror = null;
+  audio.oncanplaythrough = null;
 }

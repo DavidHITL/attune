@@ -45,9 +45,13 @@ export function useAudioElement({
       // Create new audio element with proper initialization sequence
       const audio = new Audio();
       
+      // Set preload to auto before anything else
+      audio.preload = "auto";
+      
       // Set up the audio element with all required event handlers
       setupAudioElement(audio, {
         onMetadataLoaded: (audioDuration) => {
+          console.log("Audio metadata loaded, duration:", audioDuration);
           setDuration(audioDuration);
           setLoaded(true);
           retryCountRef.current = 0; // Reset retry counter on successful load
@@ -86,6 +90,9 @@ export function useAudioElement({
       setTimeout(() => {
         audio.src = urlWithCache;
         audio.load(); // Explicitly call load
+        
+        // Log that we're setting the source
+        console.log("Setting audio source to:", urlWithCache);
       }, 0);
       
       audioRef.current = audio;

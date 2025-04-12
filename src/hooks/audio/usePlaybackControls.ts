@@ -43,10 +43,16 @@ export function usePlaybackControls({
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
+      // Important: Log the play attempt to help with debugging
+      console.log("Attempting to play audio...");
+      
       const playPromise = audioRef.current.play();
       
       if (playPromise !== undefined) {
-        playPromise.catch(err => {
+        playPromise.then(() => {
+          console.log("Audio playback started successfully");
+          setIsPlaying(true);
+        }).catch(err => {
           console.error("Error playing audio:", err);
           
           // If playback fails, try to recreate the audio element
@@ -58,26 +64,35 @@ export function usePlaybackControls({
             if (audio) {
               // Make sure to set the current time before playing
               audio.currentTime = currentTime;
-              audio.play().catch(e => {
-                console.error("Error playing after recreation:", e);
-                setIsPlaying(false);
-                
-                if (e.name === 'NotSupportedError') {
-                  toast.error("This audio format is not supported by your browser.");
-                } else if (e.name === 'NotAllowedError') {
-                  toast.error("Playback was blocked. Please interact with the page first.");
-                } else {
-                  toast.error("Failed to play audio. Please try again later.");
-                }
-              });
+              // Add a small delay before attempting playback again
+              setTimeout(() => {
+                console.log("Attempting playback after recreation");
+                audio.play().then(() => {
+                  console.log("Playback successful after recreation");
+                  setIsPlaying(true);
+                }).catch(e => {
+                  console.error("Error playing after recreation:", e);
+                  setIsPlaying(false);
+                  
+                  if (e.name === 'NotSupportedError') {
+                    toast.error("This audio format is not supported by your browser.");
+                  } else if (e.name === 'NotAllowedError') {
+                    toast.error("Playback was blocked. Please interact with the page first.");
+                  } else {
+                    toast.error("Failed to play audio. Please try again later.");
+                  }
+                });
+              }, 300);
             }
           } else {
             toast.error("Failed to play audio. Please try again later.");
             setIsPlaying(false);
           }
         });
+      } else {
+        // For older browsers where play() doesn't return a promise
+        setIsPlaying(true);
       }
-      setIsPlaying(true);
     }
   }, [isPlaying, audioRef, currentTime, createAudio]);
 
@@ -85,9 +100,21 @@ export function usePlaybackControls({
   useEffect(() => {
     if (!audioRef.current) return;
 
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
-    const handleEnded = () => setIsPlaying(false);
+    const handlePlay = () => {
+      console.log("Play event triggered");
+      setIsPlaying(true);
+    };
+    
+    const handlePause = () => {
+      console.log("Pause event triggered");
+      setIsPlaying(false);
+    };
+    
+    const handleEnded = () => {
+      console.log("Audio ended");
+      setIsPlaying(false);
+    };
+    
     const handleError = (e: Event) => {
       console.error("Audio playback error:", e);
       setIsPlaying(false);

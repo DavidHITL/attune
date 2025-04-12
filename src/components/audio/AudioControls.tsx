@@ -48,6 +48,7 @@ const AudioControls: React.FC<AudioControlsProps> = ({
         disabled={!loaded} 
         className={`rounded-full h-14 w-14 flex items-center justify-center ${isPlaying ? 'pulse-animation' : ''} hover-animation`}
         onClick={onTogglePlay}
+        aria-label={isPlaying ? "Pause" : "Play"}
       >
         {isPlaying ? (
           <Pause className="h-6 w-6" />
