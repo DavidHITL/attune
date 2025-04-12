@@ -44,7 +44,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center py-12 px-4 pb-24 text-black font-sans bg-attune-blue">
+    <div className="min-h-screen flex flex-col items-center py-12 px-4 pt-20 pb-24 text-black font-sans bg-attune-blue">
       {/* Mobile container with fixed max-width */}
       <div className="w-full max-w-[390px] mx-auto">
         {/* Add logo at the top of the page for both logged in and logged out states */}
