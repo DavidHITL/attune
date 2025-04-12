@@ -21,6 +21,9 @@ export const AnimatedCircles = ({ variant }: AnimatedCirclesProps) => {
         "from-green-500/30",
         "from-blue-500/30",
     ];
+    
+    // Special gray animation for voice call
+    const isGrayVariant = variant === "septenary";
 
     return (
         <motion.div className="absolute h-[480px] w-[480px]">
@@ -41,6 +44,11 @@ export const AnimatedCircles = ({ variant }: AnimatedCirclesProps) => {
                                   opacity: [0.8, 1, 0.8],
                                   background: rainbowColors.map(color => `linear-gradient(to bottom right, ${color.replace('from-', '').replace('/30', '')} 0%, transparent 70%)`),
                               }
+                            : isGrayVariant
+                            ? {
+                                  scale: [1, 1.05 + i * 0.02, 1],
+                                  opacity: [0.4, 0.6, 0.4],
+                              }
                             : {
                                   rotate: 360,
                                   scale: [1, 1.05 + i * 0.05, 1],
@@ -48,15 +56,15 @@ export const AnimatedCircles = ({ variant }: AnimatedCirclesProps) => {
                               }
                     }
                     transition={{
-                        duration: variant === "rainbow" ? 8 : 5,
+                        duration: variant === "rainbow" ? 8 : isGrayVariant ? 3 : 5,
                         repeat: Number.POSITIVE_INFINITY,
                         ease: "linear",
-                        background: {
+                        background: variant === "rainbow" ? {
                             duration: 10,
                             repeat: Number.POSITIVE_INFINITY,
                             ease: "linear",
                             times: rainbowColors.map((_, i) => i / rainbowColors.length),
-                        }
+                        } : undefined
                     }}
                 >
                     <div
@@ -64,6 +72,8 @@ export const AnimatedCircles = ({ variant }: AnimatedCirclesProps) => {
                             "absolute inset-0 rounded-full mix-blend-screen",
                             variant === "rainbow" 
                               ? "bg-[radial-gradient(ellipse_at_center,rgba(168,85,247,0.3)/10%,transparent_70%)]" 
+                              : isGrayVariant
+                              ? "bg-[radial-gradient(ellipse_at_center,rgba(107,114,128,0.2),transparent_70%)]"
                               : `bg-[radial-gradient(ellipse_at_center,${variantStyles.gradient.replace(
                                   "from-",
                                   ""

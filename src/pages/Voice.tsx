@@ -17,13 +17,7 @@ const Voice = () => {
   }, [setBackgroundColor]);
 
   return (
-    <div className="min-h-screen relative">
-      <BackgroundCircles 
-        title=""
-        description=""
-        variant="senary"
-        className="absolute inset-0 z-0"
-      />
+    <div className="min-h-screen relative bg-[#1B4965]">
       
       <div className="relative z-10 min-h-screen flex flex-col items-center py-12 px-4 pt-20 pb-24">
         <div className="w-full max-w-[390px] h-[500px] max-h-[60vh]">

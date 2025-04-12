@@ -5,6 +5,7 @@ import { useConversation } from '@/hooks/useConversation';
 import { useAuth } from '@/context/AuthContext';
 import VoiceAssistantDisplay from './voice/VoiceAssistantDisplay';
 import { useChatClient } from './voice/useChatClient';
+import { BackgroundCircles } from '@/components/ui/background-circles';
 
 const RealtimeChat: React.FC = () => {
   const { user } = useAuth();
@@ -33,22 +34,34 @@ const RealtimeChat: React.FC = () => {
   }, [isConnected, startConversation]);
 
   return (
-    <VoiceAssistantDisplay
-      user={user}
-      status={status}
-      isConnected={isConnected}
-      voiceActivityState={voiceActivityState}
-      messages={messages}
-      messageCount={messageCount}
-      hasContext={hasContext}
-      isMicOn={isMicOn}
-      isMuted={isMuted}
-      conversationLoading={conversationLoading}
-      onToggleMicrophone={toggleMicrophone}
-      onToggleMute={toggleMute}
-      onEndConversation={endConversation}
-      onStartConversation={handleStartConversation}
-    />
+    <>
+      {isConnected && (
+        <div className="absolute inset-0 z-0">
+          <BackgroundCircles 
+            title=""
+            description=""
+            variant="septenary" // Gray variant for the call background
+            className="absolute inset-0"
+          />
+        </div>
+      )}
+      <VoiceAssistantDisplay
+        user={user}
+        status={status}
+        isConnected={isConnected}
+        voiceActivityState={voiceActivityState}
+        messages={messages}
+        messageCount={messageCount}
+        hasContext={hasContext}
+        isMicOn={isMicOn}
+        isMuted={isMuted}
+        conversationLoading={conversationLoading}
+        onToggleMicrophone={toggleMicrophone}
+        onToggleMute={toggleMute}
+        onEndConversation={endConversation}
+        onStartConversation={handleStartConversation}
+      />
+    </>
   );
 };
 
