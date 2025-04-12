@@ -21,9 +21,7 @@ export function useAudioPlayer({
   const [loadError, setLoadError] = useState<string | null>(null);
   
   // Validate the URL thoroughly before proceeding
-  const isValidUrl = validateAudioUrl(audioUrl);
-  
-  function validateAudioUrl(url: string): boolean {
+  const isValidUrl = useCallback((url: string): boolean => {
     if (!url || typeof url !== 'string' || url.trim() === '') {
       console.error("Empty or invalid audio URL:", url);
       return false;
@@ -36,16 +34,18 @@ export function useAudioPlayer({
       console.error("Malformed URL:", url, e);
       return false;
     }
-  }
+  }, []);
+  
+  const validatedUrl = isValidUrl(audioUrl) ? audioUrl : '';
   
   useEffect(() => {
-    if (!isValidUrl) {
+    if (!isValidUrl(audioUrl)) {
       setLoadError("Invalid audio URL provided");
       toast.error("This audio file can't be played. It may be missing or unavailable.");
     } else {
       setLoadError(null);
     }
-  }, [isValidUrl, audioUrl]);
+  }, [audioUrl, isValidUrl]);
   
   const {
     audioRef,
@@ -54,7 +54,7 @@ export function useAudioPlayer({
     setCurrentTime,
     createAudio
   } = useAudioElement({
-    audioUrl: isValidUrl ? audioUrl : '', // Pass empty string if invalid to prevent errors
+    audioUrl: validatedUrl,
     initialProgress,
     onComplete,
     setLoaded,
@@ -86,20 +86,19 @@ export function useAudioPlayer({
   });
   
   // Update progress periodically and keep playback alive
-  // Only run this if URL is valid
   useEffect(() => {
-    if (!isValidUrl || !isPlaying || !onProgressUpdate || !createAudio) return;
+    if (!validatedUrl || !isPlaying || !onProgressUpdate) return;
     
     // Update progress every 5 seconds
     const updateInterval = setInterval(() => {
-      if (audioRef.current) {
+      if (audioRef.current && !audioRef.current.paused) {
         // Ensure we're sending an integer value
         onProgressUpdate(Math.floor(audioRef.current.currentTime));
       }
     }, 5000);
     
     return () => clearInterval(updateInterval);
-  }, [isPlaying, audioRef, isValidUrl, onProgressUpdate, createAudio]);
+  }, [isPlaying, audioRef, validatedUrl, onProgressUpdate]);
 
   return {
     isPlaying,

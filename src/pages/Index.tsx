@@ -24,6 +24,7 @@ const Index = () => {
     updateProgress
   } = useAudioLibrary();
   const [playingAudio, setPlayingAudio] = useState<any>(null);
+  const [isAudioValidating, setIsAudioValidating] = useState(false);
 
   useEffect(() => {
     // Use the lighter blue color for this page
@@ -58,21 +59,55 @@ const Index = () => {
       return;
     }
     
+    // Set audio validating state
+    setIsAudioValidating(true);
+    
     // Check if audio file exists before setting it
-    fetch(audioItem.audio_url, { method: 'HEAD' })
+    // Use an AbortController to ensure the request can be cancelled if component unmounts
+    const controller = new AbortController();
+    const signal = controller.signal;
+    
+    // Append a unique parameter to prevent caching issues
+    const cacheBuster = `?cb=${Date.now()}`;
+    const urlToCheck = audioItem.audio_url.includes('?') 
+      ? `${audioItem.audio_url}&cb=${Date.now()}` 
+      : `${audioItem.audio_url}${cacheBuster}`;
+    
+    fetch(urlToCheck, { 
+      method: 'HEAD',
+      signal,
+      credentials: 'same-origin',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    })
       .then(response => {
+        setIsAudioValidating(false);
         if (response.ok) {
           console.log("Audio file exists, setting playing audio");
-          setPlayingAudio(audioItem);
+          
+          // Create a new object to avoid any reference issues
+          setPlayingAudio({
+            ...audioItem,
+            // Ensure we use the original URL without cache busting for stable playback
+            audio_url: audioItem.audio_url
+          });
         } else {
           console.error("Audio file not found:", audioItem.audio_url);
           toast.error("Audio file not found. Please try another track.");
         }
       })
       .catch(error => {
-        console.error("Error checking audio file:", error);
-        toast.error("Error checking audio file. Please try again later.");
+        setIsAudioValidating(false);
+        // Only show error if not aborted
+        if (!signal.aborted) {
+          console.error("Error checking audio file:", error);
+          toast.error("Error checking audio file. Please try again later.");
+        }
       });
+    
+    // Return cleanup function to abort fetch if component unmounts
+    return () => controller.abort();
   };
 
   const handleProgressUpdate = (seconds: number) => {
@@ -122,6 +157,17 @@ const Index = () => {
                 }} 
               />
             </div>
+            
+            {/* Loading indicator */}
+            {isAudioValidating && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="absolute inset-0 bg-white/60 backdrop-blur-xl"></div>
+                <div className="relative z-10 bg-white p-6 rounded-lg shadow-xl text-center">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-black mx-auto mb-4"></div>
+                  <p>Loading audio...</p>
+                </div>
+              </div>
+            )}
             
             {/* Audio Player */}
             {playingAudio && (

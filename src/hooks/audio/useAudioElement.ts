@@ -23,11 +23,11 @@ export function useAudioElement({
   const retryCountRef = useRef(0);
   const maxRetries = 3;
   
-  // Create audio element with error handling
+  // Create audio element with proper initialization sequence
   const createAudio = useCallback(() => {
     console.log("Creating audio element with URL:", audioUrl);
     
-    // Validate URL before proceeding - stricter validation
+    // Validate URL before proceeding
     if (!audioUrl || typeof audioUrl !== 'string' || audioUrl.trim() === '') {
       console.error("Invalid audio URL provided:", audioUrl);
       if (onError) onError(new Error("Invalid audio URL provided"));
@@ -43,31 +43,26 @@ export function useAudioElement({
       return null;
     }
     
+    // Clean up existing audio element if it exists
     if (audioRef.current) {
-      // Clean up existing audio element first
       audioRef.current.pause();
-      audioRef.current.src = '';
-      audioRef.current.load(); // Force clean up
+      audioRef.current.removeAttribute('src'); // Use removeAttribute instead of setting empty string
+      audioRef.current.load();
       
       // Remove all event listeners
-      audioRef.current.removeEventListener('loadedmetadata', () => {});
-      audioRef.current.removeEventListener('timeupdate', () => {});
-      audioRef.current.removeEventListener('ended', () => {});
-      audioRef.current.removeEventListener('play', () => {});
-      audioRef.current.removeEventListener('pause', () => {});
-      audioRef.current.removeEventListener('error', () => {});
+      const element = audioRef.current;
+      element.onloadedmetadata = null;
+      element.ontimeupdate = null;
+      element.onended = null;
+      element.onplay = null;
+      element.onpause = null;
+      element.onerror = null;
       audioRef.current = null;
     }
     
     try {
-      // Create new audio element with proper error handling
+      // Create new audio element with proper initialization sequence
       const audio = new Audio();
-      
-      // Add cache-busting parameter to prevent 304 responses
-      const cacheBuster = Date.now();
-      const urlWithCache = audioUrl.includes('?') 
-        ? `${audioUrl}&_cb=${cacheBuster}` 
-        : `${audioUrl}?_cb=${cacheBuster}`;
       
       // Set up event listeners before setting src
       audio.addEventListener('loadedmetadata', () => {
@@ -76,7 +71,7 @@ export function useAudioElement({
         setLoaded(true);
         retryCountRef.current = 0; // Reset retry counter on successful load
         
-        // Set initial position if provided
+        // Set initial position if provided (only after metadata is loaded)
         if (initialProgress && initialProgress > 0) {
           audio.currentTime = initialProgress;
           setCurrentTime(initialProgress);
@@ -102,38 +97,43 @@ export function useAudioElement({
           retryCountRef.current += 1;
           console.log(`Retry attempt ${retryCountRef.current}/${maxRetries}`);
           
-          // Create a new audio element with delay for retry
+          // Key fix: Use a setTimeout to ensure a complete reset before retry
           setTimeout(() => {
-            try {
-              const retryAudio = new Audio();
-              
-              // Set up the same event listeners
-              setupRetryEventListeners(retryAudio);
-              
-              // New cache-buster for retry
-              const retryCacheBuster = Date.now();
-              const retryUrl = audioUrl.includes('?') 
-                ? `${audioUrl}&_cb=${retryCacheBuster}&retry=${retryCountRef.current}` 
-                : `${audioUrl}?_cb=${retryCacheBuster}&retry=${retryCountRef.current}`;
-              
-              // First set preload, ensure it's auto
-              retryAudio.preload = "auto";
-              
-              // Then set source explicitly and load
-              retryAudio.src = retryUrl;
-              
-              // Force loading
-              retryAudio.load();
-              
-              // Replace the ref
-              audioRef.current = retryAudio;
-            } catch (retryError) {
-              console.error("Error during retry creation:", retryError);
+            audio.pause();
+            
+            // Generate a unique URL with cache-busting
+            const retryCacheBuster = Date.now() + Math.random().toString(36).substring(2, 10);
+            const retryUrl = audioUrl.includes('?') 
+              ? `${audioUrl}&_cb=${retryCacheBuster}&retry=${retryCountRef.current}` 
+              : `${audioUrl}?_cb=${retryCacheBuster}&retry=${retryCountRef.current}`;
+            
+            // Clear any previous errors
+            audio.onerror = null;
+            
+            // Set preload to auto
+            audio.preload = "auto";
+            
+            // Set crossOrigin to anonymous to handle CORS issues
+            audio.crossOrigin = "anonymous";
+            
+            // Re-add the error handler
+            audio.onerror = (e) => {
+              console.error("Audio retry error:", e, audio.error);
               if (retryCountRef.current >= maxRetries && onError) {
                 onError(new Error(`Failed to load audio after ${maxRetries} attempts`));
               }
-            }
-          }, 1000);
+            };
+            
+            // First remove any existing source
+            audio.removeAttribute('src');
+            audio.load();
+            
+            // Then set source explicitly after a brief delay
+            setTimeout(() => {
+              audio.src = retryUrl;
+              audio.load(); // Force loading
+            }, 100);
+          }, 300);
         } else {
           console.error("Max retries reached for audio loading");
           if (onError) {
@@ -142,40 +142,23 @@ export function useAudioElement({
         }
       });
       
-      // Helper function to set up retry event listeners
-      function setupRetryEventListeners(audioElement: HTMLAudioElement) {
-        audioElement.addEventListener('loadedmetadata', () => {
-          console.log("Audio metadata loaded on retry, duration:", audioElement.duration);
-          setDuration(audioElement.duration);
-          setLoaded(true);
-          
-          // Set initial position if provided
-          if (initialProgress && initialProgress > 0) {
-            audioElement.currentTime = initialProgress;
-            setCurrentTime(initialProgress);
-          }
-        });
-        
-        audioElement.addEventListener('timeupdate', () => {
-          setCurrentTime(audioElement.currentTime);
-        });
-        
-        audioElement.addEventListener('ended', () => {
-          onComplete();
-        });
-        
-        audioElement.addEventListener('error', (e) => {
-          console.error("Audio retry error:", e, audioElement.error);
-          // Don't trigger recursive retries
-        });
-      }
-      
-      // Set preload before src
+      // First set preload, ensure it's auto
       audio.preload = "auto";
       
-      // Now set source and force load
-      audio.src = urlWithCache;
-      audio.load(); // Explicitly call load
+      // Set crossOrigin to anonymous
+      audio.crossOrigin = "anonymous";
+      
+      // Add a cache-busting parameter
+      const cacheBuster = Date.now() + Math.random().toString(36).substring(2, 10);
+      const urlWithCache = audioUrl.includes('?') 
+        ? `${audioUrl}&_cb=${cacheBuster}` 
+        : `${audioUrl}?_cb=${cacheBuster}`;
+      
+      // Critical: Set src in a setTimeout to ensure DOM is ready
+      setTimeout(() => {
+        audio.src = urlWithCache;
+        audio.load(); // Explicitly call load
+      }, 0);
       
       audioRef.current = audio;
       return audio;
@@ -186,7 +169,7 @@ export function useAudioElement({
     }
   }, [audioUrl, initialProgress, onComplete, setLoaded, onError]);
   
-  // Set up audio element
+  // Set up audio element with proper timing
   useEffect(() => {
     // Validate URL thoroughly before proceeding
     if (!audioUrl || typeof audioUrl !== 'string' || audioUrl.trim() === '') {
@@ -203,25 +186,33 @@ export function useAudioElement({
       return () => {};
     }
     
-    const audio = createAudio();
+    // Use setTimeout to ensure component is fully mounted before creating audio
+    const timeoutId = setTimeout(() => {
+      const audio = createAudio();
+      if (!audio && onError) {
+        onError(new Error("Failed to create audio element"));
+      }
+    }, 100);
     
     return () => {
+      clearTimeout(timeoutId);
       if (audioRef.current) {
         audioRef.current.pause();
-        audioRef.current.src = '';
-        audioRef.current.load(); // Force clean up
+        audioRef.current.removeAttribute('src');
+        audioRef.current.load();
         
         // Clean up event listeners
-        audioRef.current.removeEventListener('loadedmetadata', () => {});
-        audioRef.current.removeEventListener('timeupdate', () => {});
-        audioRef.current.removeEventListener('ended', () => {});
-        audioRef.current.removeEventListener('play', () => {});
-        audioRef.current.removeEventListener('pause', () => {});
-        audioRef.current.removeEventListener('error', () => {});
+        const element = audioRef.current;
+        element.onloadedmetadata = null;
+        element.ontimeupdate = null;
+        element.onended = null;
+        element.onplay = null;
+        element.onpause = null;
+        element.onerror = null;
         audioRef.current = null;
       }
     };
-  }, [audioUrl, initialProgress, createAudio, onError]);
+  }, [audioUrl, createAudio, onError]);
 
   return {
     audioRef,
