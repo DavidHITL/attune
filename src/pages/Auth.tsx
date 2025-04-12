@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -31,8 +30,8 @@ export default function Auth() {
 
       if (error) throw error;
       
-      // Instead of showing a toast, directly navigate to the voice page
-      navigate("/voice");
+      // Navigate to the profile page instead of voice page
+      navigate("/profile");
     } catch (error: any) {
       console.error(error);
     } finally {
@@ -51,7 +50,8 @@ export default function Auth() {
 
       if (error) throw error;
       
-      navigate("/voice");
+      // Navigate to the profile page instead of voice page
+      navigate("/profile");
     } catch (error: any) {
       console.error(error);
     } finally {
