@@ -70,13 +70,13 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
       {/* Voice interaction instructions */}
       {!isConnected && (
         <div className="text-center my-6 text-white font-sans">
-          <p>Feel like talking? Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.</p>
+          <p className="text-white">Feel like talking? Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.</p>
         </div>
       )}
       
       {isConnected && (
         <div className="text-center my-6 text-white font-sans">
-          <p>Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.</p>
+          <p className="text-white">Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.</p>
         </div>
       )}
       
