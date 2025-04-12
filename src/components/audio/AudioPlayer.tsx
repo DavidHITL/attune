@@ -92,7 +92,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             loaded={loaded}
             onTogglePlay={togglePlayPause}
             onSkipBackward={skipBackward}
-            onSkipForward={skipForward}
+            onComplete={onComplete}
             onRewind30={rewind30}
             onForward15={forward15}
           />

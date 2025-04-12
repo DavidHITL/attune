@@ -1,14 +1,14 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, SkipBack, SkipForward, Rewind, FastForward } from 'lucide-react';
+import { Play, Pause, SkipBack, CheckCircle, Rewind, FastForward } from 'lucide-react';
 
 interface AudioControlsProps {
   isPlaying: boolean;
   loaded: boolean;
   onTogglePlay: () => void;
   onSkipBackward: () => void;
-  onSkipForward: () => void;
+  onComplete: () => void;
   onRewind30: () => void;
   onForward15: () => void;
 }
@@ -18,7 +18,7 @@ const AudioControls: React.FC<AudioControlsProps> = ({
   loaded,
   onTogglePlay,
   onSkipBackward,
-  onSkipForward,
+  onComplete,
   onRewind30,
   onForward15
 }) => {
@@ -29,12 +29,14 @@ const AudioControls: React.FC<AudioControlsProps> = ({
       </Button>
       
       <Button 
-        variant="ghost" 
-        onClick={onRewind30} 
-        className="flex flex-col items-center justify-center h-12 w-12 rounded-full hover:bg-black/5"
+        variant="ghost"
+        onClick={onRewind30}
+        className="flex items-center justify-center h-12 w-12 rounded-full hover:bg-black/5 relative"
       >
-        <Rewind className="h-5 w-5" />
-        <span className="text-[10px] font-medium mt-1">30s</span>
+        <div className="relative">
+          <Rewind className="h-5 w-5" />
+          <span className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 text-[10px] font-medium">30</span>
+        </div>
       </Button>
       
       <Button 
@@ -50,16 +52,23 @@ const AudioControls: React.FC<AudioControlsProps> = ({
       </Button>
       
       <Button 
-        variant="ghost" 
-        onClick={onForward15} 
-        className="flex flex-col items-center justify-center h-12 w-12 rounded-full hover:bg-black/5"
+        variant="ghost"
+        onClick={onForward15}
+        className="flex items-center justify-center h-12 w-12 rounded-full hover:bg-black/5 relative"
       >
-        <FastForward className="h-5 w-5" />
-        <span className="text-[10px] font-medium mt-1">15s</span>
+        <div className="relative">
+          <FastForward className="h-5 w-5" />
+          <span className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 text-[10px] font-medium">15</span>
+        </div>
       </Button>
       
-      <Button variant="ghost" size="icon" onClick={onSkipForward}>
-        <SkipForward className="h-5 w-5" />
+      <Button 
+        variant="ghost" 
+        size="icon"
+        className="text-green-600 hover:text-green-700"
+        onClick={onComplete}
+      >
+        <CheckCircle className="h-5 w-5" />
       </Button>
     </div>
   );
