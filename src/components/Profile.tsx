@@ -16,7 +16,7 @@ const Profile = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center w-full max-w-4xl mt-16">
+    <div className="flex-1 flex flex-col items-center w-full max-w-4xl">
       <div className="w-full max-w-lg p-6">
         <h2 className="text-2xl font-sans font-semibold text-white mb-6">About You</h2>
         
@@ -41,4 +41,3 @@ const Profile = () => {
 };
 
 export default Profile;
-
