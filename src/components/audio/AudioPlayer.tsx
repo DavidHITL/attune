@@ -1,5 +1,4 @@
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
@@ -9,6 +8,7 @@ import AudioControls from './AudioControls';
 import AudioProgress from './AudioProgress';
 import AudioCover from './AudioCover';
 import { toast } from 'sonner';
+import { audioCache } from '@/hooks/audio/utils/audioCache';
 
 interface AudioPlayerProps {
   title: string;
@@ -31,6 +31,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   onProgressUpdate,
   onComplete
 }) => {
+  const [isCached, setIsCached] = useState(false);
+  
   // Validate audio URL thoroughly before proceeding
   const isValidAudioUrl = (url: string): boolean => {
     if (!url || typeof url !== 'string' || url.trim() === '') {
@@ -52,6 +54,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (!isValidAudioUrl(audioUrl)) {
       toast.error("Invalid audio file. Please try another track.");
     }
+    
+    // Check if audio is cached
+    setIsCached(audioCache.isAudioCached(audioUrl));
   }, [audioUrl]);
   
   // Use an effective audio URL based on validation
@@ -148,6 +153,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             {description && (
               <div className="text-sm text-gray-700 max-h-24 overflow-y-auto mb-2">
                 {description}
+              </div>
+            )}
+            {isCached && (
+              <div className="text-xs text-green-600 mt-1">
+                Using cached audio file
               </div>
             )}
           </div>

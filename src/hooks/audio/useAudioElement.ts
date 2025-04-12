@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { isValidAudioUrl, createCacheBustedUrl } from './utils/audioValidation';
 import { setupAudioElement, cleanupAudioElement } from './utils/audioElementSetup';
 import { handleAudioLoadError } from './utils/audioRetry';
+import { getAudioObjectUrl } from './utils/audioCache';
 
 interface UseAudioElementProps {
   audioUrl: string;
@@ -24,6 +25,7 @@ export function useAudioElement({
   const [currentTime, setCurrentTime] = useState(initialProgress || 0);
   const retryCountRef = useRef(0);
   const maxRetries = 3;
+  const objectUrlRef = useRef<string | null>(null);
   
   // Create audio element with proper initialization sequence
   const createAudio = useCallback(() => {
@@ -39,6 +41,12 @@ export function useAudioElement({
     if (audioRef.current) {
       cleanupAudioElement(audioRef.current);
       audioRef.current = null;
+    }
+    
+    // Clean up previous object URL if it exists
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
     }
     
     try {
@@ -83,17 +91,21 @@ export function useAudioElement({
         initialPosition: initialProgress
       });
       
-      // Add a cache-busting parameter
-      const urlWithCache = createCacheBustedUrl(audioUrl);
-      
-      // Critical: Set src in a setTimeout to ensure DOM is ready
-      setTimeout(() => {
-        audio.src = urlWithCache;
-        audio.load(); // Explicitly call load
-        
-        // Log that we're setting the source
-        console.log("Setting audio source to:", urlWithCache);
-      }, 0);
+      // Important: Use the cache system to improve reliability
+      getAudioObjectUrl(audioUrl)
+        .then(objectUrl => {
+          objectUrlRef.current = objectUrl;
+          audio.src = objectUrl;
+          audio.load(); // Explicitly call load
+          console.log("Setting audio source to cached/fetched object URL");
+        })
+        .catch(error => {
+          console.error("Failed to get object URL, falling back to direct URL:", error);
+          // Fall back to direct URL with cache busting as before
+          const urlWithCache = createCacheBustedUrl(audioUrl);
+          audio.src = urlWithCache;
+          audio.load();
+        });
       
       audioRef.current = audio;
       return audio;
@@ -122,6 +134,13 @@ export function useAudioElement({
     
     return () => {
       clearTimeout(timeoutId);
+      
+      // Clean up object URL if it exists
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+      
       if (audioRef.current) {
         cleanupAudioElement(audioRef.current);
         audioRef.current = null;

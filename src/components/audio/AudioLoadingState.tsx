@@ -4,11 +4,13 @@ import React from 'react';
 interface AudioLoadingStateProps {
   isLoading: boolean;
   isAudioValidating: boolean;
+  isCached?: boolean;
 }
 
 const AudioLoadingState: React.FC<AudioLoadingStateProps> = ({ 
   isLoading,
-  isAudioValidating
+  isAudioValidating,
+  isCached = false
 }) => {
   if (isLoading) {
     return (
@@ -24,7 +26,7 @@ const AudioLoadingState: React.FC<AudioLoadingStateProps> = ({
         <div className="absolute inset-0 bg-white/60 backdrop-blur-xl"></div>
         <div className="relative z-10 bg-white p-6 rounded-lg shadow-xl text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-black mx-auto mb-4"></div>
-          <p>Loading audio...</p>
+          <p>{isCached ? "Loading cached audio..." : "Loading audio..."}</p>
         </div>
       </div>
     );
