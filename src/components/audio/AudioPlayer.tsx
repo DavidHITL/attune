@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
@@ -57,6 +56,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setIsPlaying(false);
       onComplete();
     });
+
+    audio.addEventListener('play', () => {
+      setIsPlaying(true);
+    });
+
+    audio.addEventListener('pause', () => {
+      setIsPlaying(false);
+    });
     
     return () => {
       audio.pause();
@@ -64,6 +71,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       audio.removeEventListener('loadedmetadata', () => {});
       audio.removeEventListener('timeupdate', () => {});
       audio.removeEventListener('ended', () => {});
+      audio.removeEventListener('play', () => {});
+      audio.removeEventListener('pause', () => {});
     };
   }, [audioUrl, initialProgress, onComplete]);
   
@@ -88,10 +97,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       audioRef.current.pause();
       onProgressUpdate(audioRef.current.currentTime);
     } else {
-      audioRef.current.play();
+      audioRef.current.play().catch(err => {
+        console.error("Error playing audio:", err);
+      });
     }
-    
-    setIsPlaying(!isPlaying);
   };
   
   // Handle seeking
@@ -102,6 +111,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     audioRef.current.currentTime = newTime;
     setCurrentTime(newTime);
     onProgressUpdate(newTime);
+    
+    // If already playing, continue playback
+    // If paused, keep it paused
+    if (isPlaying) {
+      audioRef.current.play().catch(err => {
+        console.error("Error resuming playback after seeking:", err);
+      });
+    }
   };
   
   // Handle skip backward/forward
@@ -111,6 +128,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const newTime = Math.max(0, audioRef.current.currentTime - 10);
     audioRef.current.currentTime = newTime;
     setCurrentTime(newTime);
+    
+    // Maintain current play state
+    if (isPlaying && audioRef.current.paused) {
+      audioRef.current.play().catch(err => {
+        console.error("Error resuming after skipping backward:", err);
+      });
+    }
   };
   
   const skipForward = () => {
@@ -119,6 +143,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const newTime = Math.min(duration, audioRef.current.currentTime + 10);
     audioRef.current.currentTime = newTime;
     setCurrentTime(newTime);
+    
+    // Maintain current play state
+    if (isPlaying && audioRef.current.paused) {
+      audioRef.current.play().catch(err => {
+        console.error("Error resuming after skipping forward:", err);
+      });
+    }
   };
   
   return (
