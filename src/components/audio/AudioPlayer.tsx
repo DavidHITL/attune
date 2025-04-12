@@ -122,69 +122,87 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   };
   
   return (
-    <Card className="fixed bottom-20 left-1/2 transform -translate-x-1/2 w-full max-w-[390px] shadow-lg">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <div className="h-12 w-12 bg-slate-200 rounded overflow-hidden mr-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Frosted glass background */}
+      <div className="absolute inset-0 bg-white/60 backdrop-blur-xl" onClick={onClose}></div>
+      
+      {/* Player container */}
+      <Card className="relative w-full max-w-[390px] shadow-xl bg-white/80 backdrop-blur-md border border-white/20 z-10">
+        <CardContent className="p-6">
+          {/* Close button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onClose} 
+            className="absolute top-4 right-4 rounded-full"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+          
+          {/* Cover image */}
+          <div className="flex justify-center mb-6">
+            <div className="h-36 w-36 rounded-lg overflow-hidden shadow-md">
               {coverImage ? (
                 <img src={coverImage} alt={title} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-attune-blue/40">
-                  <span className="text-xl opacity-30">🎧</span>
+                  <span className="text-4xl opacity-30">🎧</span>
                 </div>
               )}
             </div>
-            <div className="flex-1 mr-2">
-              <h3 className="font-medium text-sm line-clamp-1">{title}</h3>
-              {description && (
-                <p className="text-xs line-clamp-1 text-gray-600">{description}</p>
-              )}
-              <div className="text-xs text-gray-500">
-                {formatTime(currentTime)} / {formatTime(duration)}
+          </div>
+          
+          {/* Title and description */}
+          <div className="mb-6 text-center">
+            <h3 className="font-semibold text-lg mb-2">{title}</h3>
+            {description && (
+              <div className="text-sm text-gray-700 max-h-24 overflow-y-auto mb-2">
+                {description}
               </div>
+            )}
+            <div className="text-sm text-gray-500 mt-2">
+              {formatTime(currentTime)} / {formatTime(duration)}
             </div>
           </div>
           
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        
-        <div className="mb-4">
-          <Slider
-            disabled={!loaded}
-            value={[currentTime]}
-            min={0}
-            max={duration || 100}
-            step={1}
-            onValueChange={handleSeek}
-          />
-        </div>
-        
-        <div className="flex justify-center items-center space-x-2">
-          <Button variant="ghost" size="icon" onClick={skipBackward}>
-            <SkipBack className="h-4 w-4" />
-          </Button>
+          {/* Progress slider */}
+          <div className="mb-6">
+            <Slider
+              disabled={!loaded}
+              value={[currentTime]}
+              min={0}
+              max={duration || 100}
+              step={1}
+              onValueChange={handleSeek}
+              className="mt-2"
+            />
+          </div>
           
-          <Button 
-            disabled={!loaded} 
-            className="rounded-full" 
-            onClick={togglePlayPause}
-          >
-            {isPlaying ? (
-              <Pause className="h-4 w-4" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
-          </Button>
-          
-          <Button variant="ghost" size="icon" onClick={skipForward}>
-            <SkipForward className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+          {/* Player controls */}
+          <div className="flex justify-center items-center space-x-6">
+            <Button variant="ghost" size="icon" onClick={skipBackward}>
+              <SkipBack className="h-5 w-5" />
+            </Button>
+            
+            <Button 
+              disabled={!loaded} 
+              className="rounded-full h-14 w-14 flex items-center justify-center"
+              onClick={togglePlayPause}
+            >
+              {isPlaying ? (
+                <Pause className="h-6 w-6" />
+              ) : (
+                <Play className="h-6 w-6 ml-1" />
+              )}
+            </Button>
+            
+            <Button variant="ghost" size="icon" onClick={skipForward}>
+              <SkipForward className="h-5 w-5" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
