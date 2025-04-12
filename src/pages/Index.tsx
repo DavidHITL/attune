@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import AttuneContent from '@/components/AttuneContent';
 import { useBackground, BACKGROUND_COLORS } from '@/context/BackgroundContext';
@@ -121,8 +122,10 @@ const Index = () => {
     <div className="min-h-screen flex flex-col items-center py-12 px-4 pt-20 pb-24 text-black font-sans bg-attune-blue">
       {/* Mobile container with fixed max-width */}
       <div className="w-full max-w-[390px] mx-auto">
-        {/* The AttuneContent component will handle rendering the logo or audio content */}
-        {user ? !loading ? (
+        {/* Always render AttuneContent for non-logged in users */}
+        {!user ? (
+          <AttuneContent />
+        ) : !loading ? (
           <>
             {/* Featured Content - Introductory Course */}
             {featuredContent && (
@@ -180,8 +183,6 @@ const Index = () => {
           <div className="flex justify-center items-center h-64">
             <p className="text-black">Loading audio library...</p>
           </div>
-        ) : (
-          <AttuneContent />
         )}
       </div>
     </div>
