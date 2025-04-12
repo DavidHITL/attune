@@ -29,7 +29,7 @@ export const useBackground = (): BackgroundContextType => {
 // Export common background colors for consistent use
 export const BACKGROUND_COLORS = {
   BLUE: 'bg-attune-blue',
-  VOICE_BLUE: 'bg-[#6DAEDB]',
-  HOME_BLUE: 'bg-attune-deep-blue', // Updated to use the tailwind class name
+  VOICE_BLUE: 'bg-attune-deep-blue', // Changed to deep blue (#1B4965)
+  HOME_BLUE: 'bg-attune-blue',       // Changed back to regular blue (#6DAEDB)
   CREAM: 'bg-[#EEE0CB]'
 };
