@@ -4,26 +4,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import FileDropzone from '../FileDropzone';
 
-interface Category {
-  id: string;
-  name: string;
-}
-
 interface AudioFormProps {
   initialData?: any;
   isEditing: boolean;
-  categories: Category[];
   onSubmitSuccess: () => void;
   onCancel?: () => void;
 }
@@ -31,7 +18,6 @@ interface AudioFormProps {
 const AudioForm: React.FC<AudioFormProps> = ({
   initialData,
   isEditing,
-  categories,
   onSubmitSuccess,
   onCancel
 }) => {
@@ -41,8 +27,8 @@ const AudioForm: React.FC<AudioFormProps> = ({
     audio_url: '',
     cover_image_url: '',
     duration: 0,
-    category_id: '',
-    is_featured: false
+    is_featured: false,
+    rank: 0
   });
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const { toast } = useToast();
@@ -55,8 +41,8 @@ const AudioForm: React.FC<AudioFormProps> = ({
         audio_url: initialData.audio_url || '',
         cover_image_url: initialData.cover_image_url || '',
         duration: initialData.duration || 0,
-        category_id: initialData.category_id || '',
-        is_featured: initialData.is_featured || false
+        is_featured: initialData.is_featured || false,
+        rank: initialData.rank || 0
       });
     }
   }, [initialData]);
@@ -73,13 +59,6 @@ const AudioForm: React.FC<AudioFormProps> = ({
     setFormData({
       ...formData,
       is_featured: checked
-    });
-  };
-
-  const handleCategoryChange = (value: string) => {
-    setFormData({
-      ...formData,
-      category_id: value
     });
   };
 
@@ -147,10 +126,20 @@ const AudioForm: React.FC<AudioFormProps> = ({
           description: "Audio content updated successfully"
         });
       } else {
-        // Create new content
+        // Get the highest rank and add 1
+        const { data: maxRankData } = await supabase
+          .from('audio_content')
+          .select('rank')
+          .order('rank', { ascending: false })
+          .limit(1)
+          .single();
+        
+        const newRank = maxRankData ? maxRankData.rank + 1 : 1;
+        
+        // Create new content with the new rank
         const { error } = await supabase
           .from('audio_content')
-          .insert([formData]);
+          .insert([{...formData, rank: newRank}]);
         
         if (error) {
           console.error("Error creating audio content:", error);
@@ -170,8 +159,8 @@ const AudioForm: React.FC<AudioFormProps> = ({
         audio_url: '',
         cover_image_url: '',
         duration: 0,
-        category_id: '',
-        is_featured: false
+        is_featured: false,
+        rank: 0
       });
       setAudioFile(null);
       onSubmitSuccess();
@@ -248,40 +237,19 @@ const AudioForm: React.FC<AudioFormProps> = ({
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Duration (seconds)</label>
-          <Input
-            type="number"
-            name="duration"
-            value={formData.duration}
-            onChange={handleInputChange}
-            min={1}
-            required
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Duration will be auto-detected when you upload a file (if supported by your browser)
-          </p>
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium mb-1">Category</label>
-          <Select
-            value={formData.category_id}
-            onValueChange={handleCategoryChange}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select category" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Duration (seconds)</label>
+        <Input
+          type="number"
+          name="duration"
+          value={formData.duration}
+          onChange={handleInputChange}
+          min={1}
+          required
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Duration will be auto-detected when you upload a file (if supported by your browser)
+        </p>
       </div>
       
       <div className="flex items-center space-x-2">

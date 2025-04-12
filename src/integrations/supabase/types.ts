@@ -34,6 +34,7 @@ export type Database = {
           duration: number
           id: string
           is_featured: boolean | null
+          rank: number
           title: string
           updated_at: string | null
         }
@@ -46,6 +47,7 @@ export type Database = {
           duration: number
           id?: string
           is_featured?: boolean | null
+          rank: number
           title: string
           updated_at?: string | null
         }
@@ -58,6 +60,7 @@ export type Database = {
           duration?: number
           id?: string
           is_featured?: boolean | null
+          rank?: number
           title?: string
           updated_at?: string | null
         }

@@ -12,7 +12,8 @@ interface AudioContent {
   duration: number;
   is_featured: boolean;
   rank: number;
-  [key: string]: any;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 export function useAudioContent() {
@@ -27,11 +28,13 @@ export function useAudioContent() {
     try {
       setLoading(true);
       
-      // Fetch audio content
-      const { data: contentData } = await supabase
+      // Fetch audio content sorted by rank
+      const { data: contentData, error } = await supabase
         .from('audio_content')
         .select('*')
         .order('rank', { ascending: true });
+      
+      if (error) throw error;
       
       setAudioContent(contentData || []);
     } catch (error) {

@@ -30,7 +30,7 @@ export function useAudioLibrary() {
     try {
       setLoading(true);
       
-      // Fetch audio content
+      // Fetch audio content ordered by rank
       let query = supabase
         .from('audio_content')
         .select('*')
