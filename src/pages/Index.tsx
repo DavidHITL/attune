@@ -7,6 +7,7 @@ import { useAudioLibrary } from '@/hooks/useAudioLibrary';
 import FeaturedAudio from '@/components/audio/FeaturedAudio';
 import AudioGrid from '@/components/audio/AudioGrid';
 import AudioPlayer from '@/components/audio/AudioPlayer';
+import AttuneLogo from '@/components/AttuneLogo';
 
 const Index = () => {
   const {
@@ -46,6 +47,11 @@ const Index = () => {
     <div className="min-h-screen flex flex-col items-center py-12 px-4 pb-24 text-black font-sans bg-attune-blue">
       {/* Mobile container with fixed max-width */}
       <div className="w-full max-w-[390px] mx-auto">
+        {/* Add logo at the top of the page for both logged in and logged out states */}
+        <div className="mb-8 flex justify-center">
+          <AttuneLogo />
+        </div>
+
         {user ? !loading ? (
           <>
             {/* Featured Content - Introductory Course */}
