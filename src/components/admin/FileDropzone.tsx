@@ -5,18 +5,26 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2, CheckCircle, XCircle, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-interface FileDropzoneProps {
+export interface FileDropzoneProps {
   onFileUploaded: (url: string, file: File) => void;
   accept?: Record<string, string[]>;
   maxSize?: number;
   bucketName?: string;
+  storagePath?: string;
+  label?: React.ReactNode;
+  description?: React.ReactNode;
+  className?: string;
 }
 
 const FileDropzone: React.FC<FileDropzoneProps> = ({
   onFileUploaded,
-  accept = { 'audio/mpeg': ['.mp3'] },
+  accept,
   maxSize = 10485760, // 10MB default
-  bucketName = 'audio_files'
+  bucketName = 'audio_files',
+  storagePath = '',
+  label = 'Drop file here, or click to select',
+  description,
+  className = '',
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -35,7 +43,7 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
       // Generate a unique file name
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const filePath = `${storagePath}${fileName}`;
 
       // Upload the file
       const { data, error } = await supabase.storage
@@ -58,7 +66,7 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
       
       toast({
         title: "Upload successful",
-        description: "Audio file has been uploaded successfully",
+        description: "File has been uploaded successfully",
       });
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -71,7 +79,7 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
     } finally {
       setIsUploading(false);
     }
-  }, [bucketName, onFileUploaded, toast]);
+  }, [bucketName, onFileUploaded, toast, storagePath]);
 
   const { getRootProps, getInputProps, isDragActive, fileRejections } = useDropzone({
     onDrop,
@@ -92,8 +100,36 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
     </li>
   ));
 
+  // Get file format description based on accept prop
+  const getFileTypeDescription = () => {
+    if (!accept) return "All files";
+    
+    const types = Object.keys(accept).map(type => {
+      // Get the general type (image, audio, video, etc.)
+      const generalType = type.split('/')[0];
+      return generalType.charAt(0).toUpperCase() + generalType.slice(1);
+    });
+    
+    // Remove duplicates
+    const uniqueTypes = [...new Set(types)];
+    return uniqueTypes.join('/') + " files";
+  };
+
+  // Get size description
+  const getSizeDescription = () => {
+    if (!maxSize) return "";
+    return `up to ${Math.round(maxSize / 1048576)}MB`;
+  };
+
+  // Default description if none provided
+  const defaultDescription = description || (
+    <>
+      {getFileTypeDescription()} {getSizeDescription() && `, ${getSizeDescription()}`}
+    </>
+  );
+
   return (
-    <div className="mb-4">
+    <div className={`mb-4 ${className}`}>
       <div
         {...getRootProps()}
         className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors ${
@@ -122,8 +158,8 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
         ) : (
           <div className="flex flex-col items-center justify-center space-y-2">
             <Upload className="h-8 w-8 text-gray-500" />
-            <p>Drop MP3 file here, or click to select</p>
-            <p className="text-sm text-gray-500">MP3 files only, up to {Math.round(maxSize / 1048576)}MB</p>
+            <p>{label}</p>
+            <p className="text-sm text-gray-500">{defaultDescription}</p>
           </div>
         )}
       </div>

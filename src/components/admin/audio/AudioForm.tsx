@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -182,7 +181,12 @@ const AudioForm: React.FC<AudioFormProps> = ({
       
       <div>
         <label className="block text-sm font-medium mb-1">Upload MP3 File</label>
-        <FileDropzone onFileUploaded={handleAudioUploaded} />
+        <FileDropzone 
+          onFileUploaded={handleAudioUploaded} 
+          accept={{ 'audio/mpeg': ['.mp3'] }}
+          bucketName="audio_files"
+          label="Drop MP3 file here, or click to select"
+        />
         {audioFile && (
           <div className="mt-2 text-sm text-gray-500">
             Selected file: {audioFile.name} ({Math.round(audioFile.size / 1024)} KB)
