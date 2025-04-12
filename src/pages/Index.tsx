@@ -1,6 +1,5 @@
+
 import React, { useEffect, useState } from 'react';
-import { Toaster } from '@/components/ui/toaster';
-import { toast } from '@/hooks/use-toast';
 import AttuneContent from '@/components/AttuneContent';
 import { useBackground, BACKGROUND_COLORS } from '@/context/BackgroundContext';
 import { useAuth } from '@/context/AuthContext';
@@ -31,10 +30,6 @@ const Index = () => {
 
   const handlePlayAudio = (audioItem: any) => {
     setPlayingAudio(audioItem);
-    toast({
-      title: 'Now playing',
-      description: audioItem.title
-    });
   };
 
   const handleProgressUpdate = (seconds: number) => {
@@ -45,15 +40,10 @@ const Index = () => {
   const handleComplete = () => {
     if (!playingAudio) return;
     updateProgress(playingAudio.id, playingAudio.duration, true);
-    toast({
-      title: 'Completed',
-      description: `You've completed ${playingAudio.title}`
-    });
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center py-12 px-4 pb-24 text-black font-sans bg-[#EEE0CB]">
-      <Toaster />
       {/* Mobile container with fixed max-width */}
       <div className="w-full max-w-[390px] mx-auto">
         {user ? !loading ? (

@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { useBackground } from "@/context/BackgroundContext";
 import AttuneLogo from "@/components/AttuneLogo";
 
@@ -14,7 +13,6 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { toast } = useToast();
   const navigate = useNavigate();
   const { setBackgroundColor } = useBackground();
 
@@ -37,11 +35,6 @@ export default function Auth() {
       navigate("/voice");
     } catch (error: any) {
       console.error(error);
-      toast({
-        title: "Error",
-        description: error.message || "An error occurred during sign up",
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
@@ -58,17 +51,9 @@ export default function Auth() {
 
       if (error) throw error;
       
-      toast({
-        title: "Logged in successfully",
-      });
       navigate("/voice");
     } catch (error: any) {
       console.error(error);
-      toast({
-        title: "Error",
-        description: error.message || "An error occurred during login",
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }

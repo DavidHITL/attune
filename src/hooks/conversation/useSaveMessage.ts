@@ -1,5 +1,4 @@
 
-import { useToast } from '@/hooks/use-toast';
 import { supabase } from "@/integrations/supabase/client";
 import { Message } from '@/utils/types';
 
@@ -11,7 +10,6 @@ export const useSaveMessage = (
   conversationId: string | null,
   validateRole: (role: string) => 'user' | 'assistant'
 ) => {
-  const { toast } = useToast();
 
   /**
    * Saves a new message to the database with error handling
@@ -19,11 +17,6 @@ export const useSaveMessage = (
   const saveMessage = async (message: Message): Promise<Message | null> => {
     if (!user || !conversationId) {
       console.error('Cannot save message: User not authenticated or conversation not initialized');
-      toast({
-        variant: "destructive",
-        title: "Authentication error",
-        description: "Please make sure you are signed in",
-      });
       return null;
     }
     
@@ -126,13 +119,6 @@ export const useSaveMessage = (
         };
         
         console.log('Adding temporary message to state despite save failure');
-        
-        // Show toast to user about potential sync issue
-        toast({
-          title: 'Warning',
-          description: 'Message may not be saved. There could be sync issues with conversation history.',
-          variant: 'destructive',
-        });
         
         throw retryError;
       }

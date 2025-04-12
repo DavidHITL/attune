@@ -1,6 +1,5 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { AudioFormData } from './useAudioFormState';
 
 interface UseAudioFormSubmitProps {
@@ -14,7 +13,6 @@ export function useAudioFormSubmit({
   initialData,
   onSubmitSuccess
 }: UseAudioFormSubmitProps) {
-  const { toast } = useToast();
   
   const handleSubmit = async (formData: AudioFormData, resetForm: () => void) => {
     try {
@@ -32,10 +30,7 @@ export function useAudioFormSubmit({
           throw error;
         }
         
-        toast({
-          title: "Success",
-          description: "Audio content updated successfully"
-        });
+        console.log("Audio content updated successfully");
       } else {
         // Get the highest rank and add 1
         const { data: maxRankData } = await supabase
@@ -57,10 +52,7 @@ export function useAudioFormSubmit({
           throw error;
         }
         
-        toast({
-          title: "Success",
-          description: "New audio content added"
-        });
+        console.log("New audio content added");
       }
       
       // Reset form and notify parent
@@ -69,11 +61,6 @@ export function useAudioFormSubmit({
       
     } catch (error) {
       console.error("Error saving data:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to save data: " + (error instanceof Error ? error.message : "Unknown error")
-      });
     }
   };
   

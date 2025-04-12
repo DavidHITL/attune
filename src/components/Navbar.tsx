@@ -2,17 +2,12 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/hooks/use-toast";
 
 export default function Navbar() {
   const { user, signOut } = useAuth();
-  const { toast } = useToast();
 
   const handleSignOut = async () => {
     await signOut();
-    toast({
-      title: "Logged out successfully",
-    });
   };
 
   return (

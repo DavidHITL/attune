@@ -1,7 +1,6 @@
 
 import { useEffect, useRef } from 'react';
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from '@/hooks/use-toast';
 import { Message } from '@/utils/types';
 
 /**
@@ -17,7 +16,6 @@ export const useConversationLoading = (
   conversationId: string | null,
   initializedRef: React.MutableRefObject<boolean>
 ) => {
-  const { toast } = useToast();
   const loadingRef = useRef(false);
   
   useEffect(() => {
@@ -54,11 +52,6 @@ export const useConversationLoading = (
         initializedRef.current = true;
       } catch (error) {
         console.error('Error getting conversation:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load conversation history',
-          variant: 'destructive',
-        });
       } finally {
         setLoading(false);
         loadingRef.current = false;
@@ -71,5 +64,5 @@ export const useConversationLoading = (
     return () => {
       loadingRef.current = false;
     };
-  }, [user, conversationId, setConversationId, loadMessages, setLoading, setMessages, toast, validateRole, initializedRef]);
+  }, [user, conversationId, setConversationId, loadMessages, setLoading, setMessages, validateRole, initializedRef]);
 };

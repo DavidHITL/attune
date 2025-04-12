@@ -1,6 +1,5 @@
 
 import { useState } from 'react';
-import { useToast } from '@/hooks/use-toast';
 import { getAudioDuration } from '@/utils/formatters';
 
 interface UseAudioUploadReturn {
@@ -16,7 +15,6 @@ export function useAudioUpload(
   }>) => void
 ): UseAudioUploadReturn {
   const [audioFile, setAudioFile] = useState<File | null>(null);
-  const { toast } = useToast();
 
   const handleAudioUploaded = (url: string, file: File) => {
     console.log("Audio file uploaded successfully:", url);
