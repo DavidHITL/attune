@@ -8,6 +8,7 @@ import FeaturedAudio from '@/components/audio/FeaturedAudio';
 import AudioGrid from '@/components/audio/AudioGrid';
 import AudioPlayer from '@/components/audio/AudioPlayer';
 import AttuneLogo from '@/components/AttuneLogo';
+import { toast } from 'sonner';
 
 const Index = () => {
   const {
@@ -30,6 +31,11 @@ const Index = () => {
   }, [setBackgroundColor]);
 
   const handlePlayAudio = (audioItem: any) => {
+    if (!audioItem || !audioItem.audio_url) {
+      toast.error("This audio file can't be played. It may be missing or unavailable.");
+      return;
+    }
+    
     setPlayingAudio(audioItem);
   };
 

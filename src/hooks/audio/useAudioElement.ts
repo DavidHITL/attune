@@ -7,7 +7,7 @@ interface UseAudioElementProps {
   initialProgress: number;
   onComplete: () => void;
   setLoaded: (loaded: boolean) => void;
-  onError?: (error: Error) => void; // Added the missing onError property
+  onError?: (error: Error) => void;
 }
 
 export function useAudioElement({
@@ -25,6 +25,13 @@ export function useAudioElement({
   
   // Create audio element with error handling
   const createAudio = useCallback(() => {
+    // Validate URL before proceeding
+    if (!audioUrl || typeof audioUrl !== 'string' || audioUrl.trim() === '') {
+      console.error("Invalid audio URL provided:", audioUrl);
+      if (onError) onError(new Error("Invalid audio URL provided"));
+      return null;
+    }
+    
     if (audioRef.current) {
       // Clean up existing audio element first
       audioRef.current.pause();
@@ -39,19 +46,18 @@ export function useAudioElement({
       audioRef.current.removeEventListener('error', () => {});
     }
     
-    // Verify we have a valid URL before proceeding
-    if (!audioUrl || typeof audioUrl !== 'string' || audioUrl.trim() === '') {
-      console.error("Invalid audio URL provided:", audioUrl);
-      toast.error("Invalid audio URL. Please try a different audio track.");
-      if (onError) onError(new Error("Invalid audio URL provided"));
-      return null;
-    }
-    
     console.log("Creating new audio element with URL:", audioUrl);
     
     // Create fresh audio element
     const audio = new Audio();
     audioRef.current = audio;
+    
+    // Add cache-busting parameter to prevent 304 responses
+    const validUrl = audioUrl.trim();
+    const cacheBuster = Date.now();
+    const urlWithCache = validUrl.includes('?') 
+      ? `${validUrl}&_cb=${cacheBuster}` 
+      : `${validUrl}?_cb=${cacheBuster}`;
     
     // Set up event listeners
     audio.addEventListener('loadedmetadata', () => {
@@ -89,18 +95,26 @@ export function useAudioElement({
         
         // Small delay before retrying
         setTimeout(() => {
+          // Make sure we still have a valid URL
+          if (!validUrl || validUrl === '') {
+            if (onError) onError(new Error("Invalid audio URL for retry"));
+            return;
+          }
+          
           const newAudio = new Audio();
           audioRef.current = newAudio;
           
           // Set up the same event listeners on the new audio element
           setupEventListeners(newAudio);
           
-          // Add cache-busting parameter
-          const cacheBuster = Date.now();
-          newAudio.src = audioUrl.includes('?') 
-            ? `${audioUrl}&_cb=${cacheBuster}` 
-            : `${audioUrl}?_cb=${cacheBuster}`;
+          // New cache-buster for retry
+          const retryCacheBuster = Date.now();
+          const retryUrl = validUrl.includes('?') 
+            ? `${validUrl}&_cb=${retryCacheBuster}` 
+            : `${validUrl}?_cb=${retryCacheBuster}`;
           
+          newAudio.preload = "auto";
+          newAudio.src = retryUrl;
           newAudio.load(); // Explicitly call load
         }, 1000);
       } else {
@@ -130,19 +144,25 @@ export function useAudioElement({
       audioElement.addEventListener('ended', () => {
         onComplete();
       });
+      
+      audioElement.addEventListener('error', (e) => {
+        console.error("Audio retry error:", e);
+      });
     }
     
-    // First set preload, then set src to prevent empty src errors
+    // First set preload, then set src
     audio.preload = "auto";
     
-    // Add cache-busting parameter to prevent 304 responses
-    const cacheBuster = Date.now();
-    audio.src = audioUrl.includes('?') 
-      ? `${audioUrl}&_cb=${cacheBuster}` 
-      : `${audioUrl}?_cb=${cacheBuster}`;
-    
-    // Explicitly call load to start fetching the audio
-    audio.load();
+    // Only set src if we have a valid URL
+    if (validUrl && validUrl !== '') {
+      audio.src = urlWithCache;
+      // Explicitly call load to start fetching the audio
+      audio.load();
+    } else {
+      console.error("Empty URL provided for audio element");
+      if (onError) onError(new Error("Empty URL provided for audio element"));
+      return null;
+    }
     
     // Return the audio element
     return audio;
@@ -150,9 +170,9 @@ export function useAudioElement({
   
   // Set up audio element
   useEffect(() => {
-    // Only create the audio if we have a valid URL
     if (!audioUrl || typeof audioUrl !== 'string' || audioUrl.trim() === '') {
       console.error("Invalid audio URL provided:", audioUrl);
+      if (onError) onError(new Error("Invalid audio URL provided"));
       return () => {};
     }
     
@@ -162,6 +182,7 @@ export function useAudioElement({
       if (audio) {
         audio.pause();
         audio.src = '';
+        // Clean up event listeners
         audio.removeEventListener('loadedmetadata', () => {});
         audio.removeEventListener('timeupdate', () => {});
         audio.removeEventListener('ended', () => {});
@@ -170,7 +191,7 @@ export function useAudioElement({
         audio.removeEventListener('error', () => {});
       }
     };
-  }, [audioUrl, initialProgress, createAudio]);
+  }, [audioUrl, initialProgress, createAudio, onError]);
 
   return {
     audioRef,
