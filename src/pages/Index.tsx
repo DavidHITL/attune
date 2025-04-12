@@ -122,10 +122,13 @@ const Index = () => {
     <div className="min-h-screen flex flex-col items-center py-12 px-4 pt-20 pb-24 text-black font-sans bg-attune-blue">
       {/* Mobile container with fixed max-width */}
       <div className="w-full max-w-[390px] mx-auto">
-        {/* Always render AttuneContent for non-logged in users */}
-        {!user ? (
+        {/* Always show AttuneContent for non-logged in users */}
+        {!user && (
           <AttuneContent />
-        ) : !loading ? (
+        )}
+        
+        {/* Show audio content for logged in users */}
+        {user && !loading && (
           <>
             {/* Featured Content - Introductory Course */}
             {featuredContent && (
@@ -153,36 +156,39 @@ const Index = () => {
                 }} 
               />
             </div>
-            
-            {/* Loading indicator */}
-            {isAudioValidating && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center">
-                <div className="absolute inset-0 bg-white/60 backdrop-blur-xl"></div>
-                <div className="relative z-10 bg-white p-6 rounded-lg shadow-xl text-center">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-black mx-auto mb-4"></div>
-                  <p>Loading audio...</p>
-                </div>
-              </div>
-            )}
-            
-            {/* Audio Player */}
-            {playingAudio && (
-              <AudioPlayer 
-                title={playingAudio.title}
-                description={playingAudio.description}
-                audioUrl={playingAudio.audio_url} 
-                coverImage={playingAudio.cover_image_url} 
-                initialProgress={playingAudio.progress?.progress_seconds || 0} 
-                onClose={() => setPlayingAudio(null)} 
-                onProgressUpdate={handleProgressUpdate} 
-                onComplete={handleComplete}
-              />
-            )}
           </>
-        ) : (
+        )}
+        
+        {/* Show loading indicator for logged in users when content is loading */}
+        {user && loading && (
           <div className="flex justify-center items-center h-64">
             <p className="text-black">Loading audio library...</p>
           </div>
+        )}
+        
+        {/* Loading indicator for audio validation */}
+        {isAudioValidating && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-white/60 backdrop-blur-xl"></div>
+            <div className="relative z-10 bg-white p-6 rounded-lg shadow-xl text-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-black mx-auto mb-4"></div>
+              <p>Loading audio...</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Audio Player */}
+        {playingAudio && (
+          <AudioPlayer 
+            title={playingAudio.title}
+            description={playingAudio.description}
+            audioUrl={playingAudio.audio_url} 
+            coverImage={playingAudio.cover_image_url} 
+            initialProgress={playingAudio.progress?.progress_seconds || 0} 
+            onClose={() => setPlayingAudio(null)} 
+            onProgressUpdate={handleProgressUpdate} 
+            onComplete={handleComplete}
+          />
         )}
       </div>
     </div>

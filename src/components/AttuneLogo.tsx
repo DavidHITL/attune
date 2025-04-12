@@ -19,7 +19,7 @@ const AttuneLogo: React.FC = () => {
         height="100"
         className={`mb-2 ${useDarkStyling ? 'filter invert' : ''}`}
       />
-      <h1 className={`text-5xl font-sans ${useDarkStyling ? 'text-white font-normal' : 'text-black font-normal'}`}>Attune</h1>
+      <h1 className={`text-5xl font-sans ${useDarkStyling ? 'text-white font-bold' : 'text-black font-bold'}`}>Attune</h1>
     </div>
   );
 };
