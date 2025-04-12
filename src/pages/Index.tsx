@@ -55,7 +55,8 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col items-center py-12 px-4 pb-24 text-black font-sans bg-[#EEE0CB]">
       <Toaster />
-      <div className="w-full max-w-[800px]">
+      {/* Mobile container with fixed max-width */}
+      <div className="w-full max-w-[390px] mx-auto">
         {user ? !loading ? (
           <>
             {/* Featured Content - Introductory Course */}

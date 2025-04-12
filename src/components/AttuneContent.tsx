@@ -10,7 +10,7 @@ const AttuneContent = () => {
 
   return (
     <div className="flex flex-col items-center justify-center h-full w-full bg-[#EEE0CB]">
-      <div className="w-full max-w-[800px] h-[500px] max-h-[60vh] flex flex-col items-center justify-center text-center px-4">
+      <div className="w-full max-w-[390px] h-[500px] max-h-[60vh] flex flex-col items-center justify-center text-center px-4">
         <div className="mb-8">
           <AttuneLogo />
         </div>
