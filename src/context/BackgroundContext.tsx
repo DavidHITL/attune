@@ -34,4 +34,3 @@ export const BACKGROUND_COLORS = {
   CREAM: 'bg-[#EEE0CB]',
   DARK_PURPLE: 'bg-attune-dark-purple'
 };
-

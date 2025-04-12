@@ -3,10 +3,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { useBackground } from "@/context/BackgroundContext";
+import { useBackground, BACKGROUND_COLORS } from "@/context/BackgroundContext";
 import AttuneLogo from "@/components/AttuneLogo";
 
 export default function Auth() {
@@ -17,7 +17,7 @@ export default function Auth() {
   const { setBackgroundColor } = useBackground();
 
   useEffect(() => {
-    setBackgroundColor('bg-attune-blue');
+    setBackgroundColor(BACKGROUND_COLORS.DARK_PURPLE);
   }, [setBackgroundColor]);
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -60,21 +60,21 @@ export default function Auth() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-attune-blue p-4">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-attune-dark-purple p-4">
       <div className="w-full max-w-md flex flex-col items-center">
         <AttuneLogo />
         
-        <Card className="w-full max-w-md mt-8 bg-attune-blue border-none shadow-none">
+        <Card className="w-full max-w-md mt-8 bg-attune-dark-purple border-none shadow-none">
           <CardHeader className="space-y-1 border-none">
-            <CardDescription className="text-center">
+            <CardDescription className="text-center text-white">
               Enter your email to sign in to your account
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 shadow-none">
-                <TabsTrigger value="login" className="shadow-none">Login</TabsTrigger>
-                <TabsTrigger value="signup" className="shadow-none">Sign Up</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 shadow-none bg-white/10">
+                <TabsTrigger value="login" className="shadow-none text-white">Login</TabsTrigger>
+                <TabsTrigger value="signup" className="shadow-none text-white">Sign Up</TabsTrigger>
               </TabsList>
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4 mt-4">
@@ -86,6 +86,7 @@ export default function Auth() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
+                      className="bg-white"
                     />
                   </div>
                   <div className="space-y-2">
@@ -96,11 +97,12 @@ export default function Auth() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
+                      className="bg-white"
                     />
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full bg-black hover:bg-gray-800 text-white transition-colors" 
+                    className="w-full bg-white hover:bg-gray-200 text-attune-dark-purple transition-colors" 
                     disabled={loading}
                   >
                     {loading ? "Logging in..." : "Login"}
@@ -117,6 +119,7 @@ export default function Auth() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
+                      className="bg-white"
                     />
                   </div>
                   <div className="space-y-2">
@@ -127,11 +130,12 @@ export default function Auth() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
+                      className="bg-white"
                     />
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full bg-black hover:bg-gray-800 text-white transition-colors" 
+                    className="w-full bg-white hover:bg-gray-200 text-attune-dark-purple transition-colors" 
                     disabled={loading}
                   >
                     {loading ? "Creating account..." : "Sign Up"}
