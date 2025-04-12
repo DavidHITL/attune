@@ -75,7 +75,20 @@ export function useAudioControl({
       }
     }, 5000); // Update every 5 seconds while playing
     
-    return () => clearInterval(interval);
+    // Add a separate progress tracking that doesn't affect playback
+    const continuousPlayInterval = setInterval(() => {
+      if (audioRef.current && isPlaying && audioRef.current.paused) {
+        // If we're supposed to be playing but the audio is paused, resume
+        audioRef.current.play().catch(err => {
+          console.error("Error resuming playback:", err);
+        });
+      }
+    }, 1000); // Check every second
+    
+    return () => {
+      clearInterval(interval);
+      clearInterval(continuousPlayInterval);
+    };
   }, [isPlaying, onProgressUpdate]);
   
   // Handle play/pause

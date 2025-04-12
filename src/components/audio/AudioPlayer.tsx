@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
@@ -46,6 +46,20 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     onProgressUpdate,
     onComplete
   });
+  
+  // Prevent the audio player from being closed accidentally while playing
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isPlaying) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isPlaying]);
   
   const handleComplete = () => {
     onComplete();
