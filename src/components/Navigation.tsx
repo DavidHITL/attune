@@ -11,6 +11,9 @@ const Navigation = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const { backgroundColor } = useBackground();
+  
+  // Check if we're on the voice page
+  const isVoicePage = location.pathname === '/voice';
 
   return (
     <nav className={`w-full ${backgroundColor} py-3 px-4 flex justify-center fixed bottom-0 z-10`}>
@@ -23,8 +26,8 @@ const Navigation = () => {
               : 'bg-white/10 hover:bg-white/15'} 
               w-16 h-16 rounded-md transition-all duration-300 shadow-md nav-item-animation click-animation card-hover`}
           >
-            <BookOpen className="w-5 h-5 text-black" />
-            <span className="text-xs text-black mt-1">Learn</span>
+            <BookOpen className={`w-5 h-5 ${isVoicePage ? 'text-white' : 'text-black'}`} />
+            <span className={`text-xs ${isVoicePage ? 'text-white' : 'text-black'} mt-1`}>Learn</span>
           </Link>
           
           <Link 
@@ -34,8 +37,8 @@ const Navigation = () => {
               : 'bg-white/10 hover:bg-white/15'} 
               w-16 h-16 rounded-md transition-all duration-300 shadow-md nav-item-animation click-animation card-hover`}
           >
-            <MessageCircle className="w-5 h-5 text-black" />
-            <span className="text-xs text-black mt-1">Talk</span>
+            <MessageCircle className={`w-5 h-5 ${isVoicePage ? 'text-white' : 'text-black'}`} />
+            <span className={`text-xs ${isVoicePage ? 'text-white' : 'text-black'} mt-1`}>Talk</span>
           </Link>
           
           <Link 
@@ -45,8 +48,8 @@ const Navigation = () => {
               : 'bg-white/10 hover:bg-white/15'} 
               w-16 h-16 rounded-md transition-all duration-300 shadow-md nav-item-animation click-animation card-hover`}
           >
-            <User className="w-5 h-5 text-black" />
-            <span className="text-xs text-black mt-1">Grow</span>
+            <User className={`w-5 h-5 ${isVoicePage ? 'text-white' : 'text-black'}`} />
+            <span className={`text-xs ${isVoicePage ? 'text-white' : 'text-black'} mt-1`}>Grow</span>
           </Link>
         </div>
       </div>

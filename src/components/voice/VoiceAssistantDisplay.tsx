@@ -92,7 +92,7 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
             onClick={onStartConversation}
             className="w-24 h-24 rounded-full bg-slate-300/80 border-none shadow-lg hover:bg-slate-300/90 transition-all cursor-pointer flex items-center justify-center"
           >
-            <PhoneCall className="h-6 w-6 text-black" strokeWidth={1.5} />
+            <PhoneCall className="h-6 w-6 text-attune-deep-blue" strokeWidth={1.5} />
           </div>
         ) : (
           <CallControls
