@@ -64,6 +64,14 @@ export const COLOR_VARIANTS = {
         ],
         gradient: "from-red-500/30",
     },
+    rainbow: {
+        border: [
+            "border-purple-500/60",
+            "border-pink-400/50",
+            "border-orange-500/40",
+        ],
+        gradient: "from-purple-500/30",
+    },
 } as const;
 
 export type ColorVariant = keyof typeof COLOR_VARIANTS;
