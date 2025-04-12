@@ -26,9 +26,17 @@ export function useAudioElement({
   // Create audio element with error handling
   const createAudio = useCallback(() => {
     // Validate URL before proceeding
-    if (!audioUrl || typeof audioUrl !== 'string' || audioUrl.trim() === '') {
+    if (!audioUrl || typeof audioUrl !== 'string') {
       console.error("Invalid audio URL provided:", audioUrl);
       if (onError) onError(new Error("Invalid audio URL provided"));
+      return null;
+    }
+    
+    // Trim the URL and check if it's empty
+    const trimmedUrl = audioUrl.trim();
+    if (trimmedUrl === '') {
+      console.error("Empty audio URL provided");
+      if (onError) onError(new Error("Empty audio URL provided"));
       return null;
     }
     
@@ -46,18 +54,17 @@ export function useAudioElement({
       audioRef.current.removeEventListener('error', () => {});
     }
     
-    console.log("Creating new audio element with URL:", audioUrl);
+    console.log("Creating new audio element with URL:", trimmedUrl);
     
     // Create fresh audio element
     const audio = new Audio();
     audioRef.current = audio;
     
     // Add cache-busting parameter to prevent 304 responses
-    const validUrl = audioUrl.trim();
     const cacheBuster = Date.now();
-    const urlWithCache = validUrl.includes('?') 
-      ? `${validUrl}&_cb=${cacheBuster}` 
-      : `${validUrl}?_cb=${cacheBuster}`;
+    const urlWithCache = trimmedUrl.includes('?') 
+      ? `${trimmedUrl}&_cb=${cacheBuster}` 
+      : `${trimmedUrl}?_cb=${cacheBuster}`;
     
     // Set up event listeners
     audio.addEventListener('loadedmetadata', () => {
@@ -95,12 +102,7 @@ export function useAudioElement({
         
         // Small delay before retrying
         setTimeout(() => {
-          // Make sure we still have a valid URL
-          if (!validUrl || validUrl === '') {
-            if (onError) onError(new Error("Invalid audio URL for retry"));
-            return;
-          }
-          
+          // Create a new audio element for retry
           const newAudio = new Audio();
           audioRef.current = newAudio;
           
@@ -109,9 +111,9 @@ export function useAudioElement({
           
           // New cache-buster for retry
           const retryCacheBuster = Date.now();
-          const retryUrl = validUrl.includes('?') 
-            ? `${validUrl}&_cb=${retryCacheBuster}` 
-            : `${validUrl}?_cb=${retryCacheBuster}`;
+          const retryUrl = trimmedUrl.includes('?') 
+            ? `${trimmedUrl}&_cb=${retryCacheBuster}` 
+            : `${trimmedUrl}?_cb=${retryCacheBuster}`;
           
           newAudio.preload = "auto";
           newAudio.src = retryUrl;
@@ -154,15 +156,9 @@ export function useAudioElement({
     audio.preload = "auto";
     
     // Only set src if we have a valid URL
-    if (validUrl && validUrl !== '') {
-      audio.src = urlWithCache;
-      // Explicitly call load to start fetching the audio
-      audio.load();
-    } else {
-      console.error("Empty URL provided for audio element");
-      if (onError) onError(new Error("Empty URL provided for audio element"));
-      return null;
-    }
+    audio.src = urlWithCache;
+    // Explicitly call load to start fetching the audio
+    audio.load();
     
     // Return the audio element
     return audio;
@@ -179,16 +175,16 @@ export function useAudioElement({
     const audio = createAudio();
     
     return () => {
-      if (audio) {
-        audio.pause();
-        audio.src = '';
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
         // Clean up event listeners
-        audio.removeEventListener('loadedmetadata', () => {});
-        audio.removeEventListener('timeupdate', () => {});
-        audio.removeEventListener('ended', () => {});
-        audio.removeEventListener('play', () => {});
-        audio.removeEventListener('pause', () => {});
-        audio.removeEventListener('error', () => {});
+        audioRef.current.removeEventListener('loadedmetadata', () => {});
+        audioRef.current.removeEventListener('timeupdate', () => {});
+        audioRef.current.removeEventListener('ended', () => {});
+        audioRef.current.removeEventListener('play', () => {});
+        audioRef.current.removeEventListener('pause', () => {});
+        audioRef.current.removeEventListener('error', () => {});
       }
     };
   }, [audioUrl, initialProgress, createAudio, onError]);

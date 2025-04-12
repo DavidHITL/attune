@@ -31,12 +31,27 @@ const Index = () => {
   }, [setBackgroundColor]);
 
   const handlePlayAudio = (audioItem: any) => {
-    if (!audioItem || !audioItem.audio_url) {
-      toast.error("This audio file can't be played. It may be missing or unavailable.");
+    // Validate the audio item and URL before attempting to play
+    if (!audioItem) {
+      toast.error("Cannot play audio: Missing audio data");
       return;
     }
     
-    setPlayingAudio(audioItem);
+    if (!audioItem.audio_url || typeof audioItem.audio_url !== 'string' || audioItem.audio_url.trim() === '') {
+      toast.error("This audio file can't be played. It may be missing or unavailable.");
+      console.error("Invalid audio URL:", audioItem.audio_url);
+      return;
+    }
+    
+    // Check if URL is valid before setting the playing audio
+    try {
+      // Basic validation - ensure it's a well-formed URL
+      new URL(audioItem.audio_url);
+      setPlayingAudio(audioItem);
+    } catch (error) {
+      console.error("Invalid audio URL format:", audioItem.audio_url, error);
+      toast.error("Invalid audio file URL. Please try another track.");
+    }
   };
 
   const handleProgressUpdate = (seconds: number) => {

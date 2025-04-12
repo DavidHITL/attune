@@ -32,11 +32,15 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   onComplete
 }) => {
   // Validate audio URL before proceeding
-  if (!audioUrl || typeof audioUrl !== 'string' || audioUrl.trim() === '') {
-    useEffect(() => {
+  const isValidAudioUrl = audioUrl && typeof audioUrl === 'string' && audioUrl.trim() !== '';
+  
+  useEffect(() => {
+    if (!isValidAudioUrl) {
       toast.error("Invalid audio file. Please try another track.");
-    }, []);
-    
+    }
+  }, [isValidAudioUrl]);
+  
+  if (!isValidAudioUrl) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center">
         <div className="absolute inset-0 bg-white/60 backdrop-blur-xl" onClick={onClose}></div>

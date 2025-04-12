@@ -27,7 +27,7 @@ export function useAudioPlayer({
   if (!isValidUrl) {
     console.error("Invalid audio URL provided:", audioUrl);
     // Don't show toast here as it could trigger multiple times during rendering
-    // We'll handle the error in the useEffect below
+    // We'll handle the error display in the component
   }
   
   const {
