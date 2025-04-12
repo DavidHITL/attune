@@ -35,7 +35,7 @@ const Navigation = () => {
               w-16 h-16 rounded-md transition-all duration-300 shadow-md`}
           >
             <MessageCircle className="w-5 h-5 text-black" />
-            <span className="text-xs text-black mt-1">Voice</span>
+            <span className="text-xs text-black mt-1">Talk</span>
           </Link>
           
           <Link 
