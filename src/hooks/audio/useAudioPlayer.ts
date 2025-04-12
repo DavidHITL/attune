@@ -1,7 +1,9 @@
+
 import { useState, useCallback } from 'react';
 import { useAudioElement } from './useAudioElement';
 import { useAudioProgress } from './useAudioProgress';
 import { usePlaybackControls } from './usePlaybackControls';
+import { toast } from 'sonner';
 
 interface UseAudioPlayerProps {
   audioUrl: string;
@@ -17,6 +19,12 @@ export function useAudioPlayer({
   onComplete
 }: UseAudioPlayerProps) {
   const [loaded, setLoaded] = useState(false);
+  
+  // Validate the URL before proceeding
+  if (!audioUrl || typeof audioUrl !== 'string' || audioUrl.trim() === '') {
+    console.error("Invalid audio URL provided:", audioUrl);
+    toast.error("Invalid audio URL. Please select a different audio track.");
+  }
   
   const {
     audioRef,

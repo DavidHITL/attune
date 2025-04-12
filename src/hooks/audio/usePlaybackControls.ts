@@ -1,11 +1,11 @@
 
-import { useState, useCallback, RefObject } from 'react';
+import { useState, useCallback, RefObject, useEffect } from 'react';
 import { toast } from 'sonner';
 
 interface UsePlaybackControlsProps {
   audioRef: RefObject<HTMLAudioElement | null>;
   currentTime: number;
-  createAudio: () => HTMLAudioElement;
+  createAudio: () => HTMLAudioElement | null;
 }
 
 export function usePlaybackControls({
@@ -19,10 +19,14 @@ export function usePlaybackControls({
   
   // Handle play/pause
   const togglePlayPause = useCallback(() => {
-    if (!audioRef.current) return;
+    if (!audioRef.current) {
+      console.warn("No audio element available for playback");
+      return;
+    }
     
     if (isPlaying) {
       audioRef.current.pause();
+      setIsPlaying(false);
     } else {
       audioRef.current.play().catch(err => {
         console.error("Error playing audio:", err);
@@ -33,29 +37,36 @@ export function usePlaybackControls({
           console.log(`Recreating audio element, attempt ${retryCountRef.current}/${maxRetries}`);
           
           const audio = createAudio();
-          audio.currentTime = currentTime;
-          audio.play().catch(e => console.error("Error playing after recreation:", e));
+          if (audio) {
+            audio.currentTime = currentTime;
+            audio.play().catch(e => {
+              console.error("Error playing after recreation:", e);
+              setIsPlaying(false);
+            });
+          }
         } else {
           toast.error("Failed to play audio. Please try again later.");
+          setIsPlaying(false);
         }
       });
+      setIsPlaying(true);
     }
-    
-    // Let the event listeners handle the state update
-    // This ensures the UI state matches the actual audio state
   }, [isPlaying, audioRef, currentTime, createAudio]);
 
   // Event listeners for play/pause state sync
-  const setupPlaybackStateListeners = useCallback(() => {
+  useEffect(() => {
     if (!audioRef.current) return;
 
-    audioRef.current.addEventListener('play', () => setIsPlaying(true));
-    audioRef.current.addEventListener('pause', () => setIsPlaying(false));
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    
+    audioRef.current.addEventListener('play', handlePlay);
+    audioRef.current.addEventListener('pause', handlePause);
     
     return () => {
       if (audioRef.current) {
-        audioRef.current.removeEventListener('play', () => {});
-        audioRef.current.removeEventListener('pause', () => {});
+        audioRef.current.removeEventListener('play', handlePlay);
+        audioRef.current.removeEventListener('pause', handlePause);
       }
     };
   }, [audioRef]);
@@ -64,6 +75,6 @@ export function usePlaybackControls({
     isPlaying,
     setIsPlaying,
     togglePlayPause,
-    setupPlaybackStateListeners
+    setupPlaybackStateListeners: () => {} // Kept for API compatibility
   };
 }

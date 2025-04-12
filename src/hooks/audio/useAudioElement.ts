@@ -37,10 +37,17 @@ export function useAudioElement({
       audioRef.current.removeEventListener('error', () => {});
     }
     
+    // Verify we have a valid URL before proceeding
+    if (!audioUrl || typeof audioUrl !== 'string' || audioUrl.trim() === '') {
+      console.error("Invalid audio URL provided:", audioUrl);
+      toast.error("Invalid audio URL. Please try a different audio track.");
+      return null;
+    }
+    
     console.log("Creating new audio element with URL:", audioUrl);
     
     // Create fresh audio element
-    const audio = new Audio(audioUrl);
+    const audio = new Audio();
     audioRef.current = audio;
     
     // Set up event listeners
@@ -76,7 +83,19 @@ export function useAudioElement({
         
         // Small delay before retrying
         setTimeout(() => {
-          createAudio();
+          const newAudio = new Audio();
+          audioRef.current = newAudio;
+          
+          // Set up the same event listeners on the new audio element
+          setupEventListeners(newAudio);
+          
+          // Add cache-busting parameter
+          const cacheBuster = Date.now();
+          newAudio.src = audioUrl.includes('?') 
+            ? `${audioUrl}&_cb=${cacheBuster}` 
+            : `${audioUrl}?_cb=${cacheBuster}`;
+          
+          newAudio.load(); // Explicitly call load
         }, 1000);
       } else {
         toast.error("Failed to load audio. Please try again later.");
@@ -84,13 +103,40 @@ export function useAudioElement({
       }
     });
     
-    // Add cache-busting parameter to prevent 304 responses
-    audio.src = audioUrl.includes('?') 
-      ? `${audioUrl}&_cb=${Date.now()}` 
-      : `${audioUrl}?_cb=${Date.now()}`;
+    // Helper function to set up event listeners
+    function setupEventListeners(audioElement: HTMLAudioElement) {
+      audioElement.addEventListener('loadedmetadata', () => {
+        console.log("Audio metadata loaded, duration:", audioElement.duration);
+        setDuration(audioElement.duration);
+        setLoaded(true);
+        
+        // Set initial position if provided
+        if (initialProgress && initialProgress > 0) {
+          audioElement.currentTime = initialProgress;
+          setCurrentTime(initialProgress);
+        }
+      });
+      
+      audioElement.addEventListener('timeupdate', () => {
+        setCurrentTime(audioElement.currentTime);
+      });
+      
+      audioElement.addEventListener('ended', () => {
+        onComplete();
+      });
+    }
     
-    // Preload audio
+    // First set preload, then set src to prevent empty src errors
     audio.preload = "auto";
+    
+    // Add cache-busting parameter to prevent 304 responses
+    const cacheBuster = Date.now();
+    audio.src = audioUrl.includes('?') 
+      ? `${audioUrl}&_cb=${cacheBuster}` 
+      : `${audioUrl}?_cb=${cacheBuster}`;
+    
+    // Explicitly call load to start fetching the audio
+    audio.load();
     
     // Return the audio element
     return audio;
@@ -98,17 +144,25 @@ export function useAudioElement({
   
   // Set up audio element
   useEffect(() => {
+    // Only create the audio if we have a valid URL
+    if (!audioUrl || typeof audioUrl !== 'string' || audioUrl.trim() === '') {
+      console.error("Invalid audio URL provided:", audioUrl);
+      return () => {};
+    }
+    
     const audio = createAudio();
     
     return () => {
-      audio.pause();
-      audio.src = '';
-      audio.removeEventListener('loadedmetadata', () => {});
-      audio.removeEventListener('timeupdate', () => {});
-      audio.removeEventListener('ended', () => {});
-      audio.removeEventListener('play', () => {});
-      audio.removeEventListener('pause', () => {});
-      audio.removeEventListener('error', () => {});
+      if (audio) {
+        audio.pause();
+        audio.src = '';
+        audio.removeEventListener('loadedmetadata', () => {});
+        audio.removeEventListener('timeupdate', () => {});
+        audio.removeEventListener('ended', () => {});
+        audio.removeEventListener('play', () => {});
+        audio.removeEventListener('pause', () => {});
+        audio.removeEventListener('error', () => {});
+      }
     };
   }, [audioUrl, initialProgress, createAudio]);
 
