@@ -2,6 +2,7 @@
 import React from 'react';
 import { Play } from 'lucide-react';
 import { formatTime } from '@/utils/formatters';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
 
 interface FeaturedAudioProps {
   id: string;
@@ -18,6 +19,7 @@ interface FeaturedAudioProps {
 const FeaturedAudio: React.FC<FeaturedAudioProps> = ({
   title,
   duration,
+  imageUrl,
   day = 1,
   totalDays = 28,
   onPlay
@@ -25,13 +27,30 @@ const FeaturedAudio: React.FC<FeaturedAudioProps> = ({
   return (
     <div className="w-full rounded-xl overflow-hidden bg-gray-100 mb-8">
       <div className="p-6">
-        <div className="text-sm text-black mb-1">
-          Day {day} of {totalDays}
+        <div className="flex flex-col md:flex-row items-start gap-6 mb-10">
+          {/* Cover image */}
+          {imageUrl && (
+            <div className="w-full md:w-1/3 rounded-lg overflow-hidden">
+              <AspectRatio ratio={1/1} className="bg-muted">
+                <img 
+                  src={imageUrl} 
+                  alt={title} 
+                  className="object-cover w-full h-full" 
+                />
+              </AspectRatio>
+            </div>
+          )}
+          
+          <div className="flex-1">
+            <div className="text-sm text-black mb-1">
+              Day {day} of {totalDays}
+            </div>
+            
+            <h2 className="text-4xl font-bold uppercase tracking-tight text-black">
+              {title}
+            </h2>
+          </div>
         </div>
-        
-        <h2 className="text-4xl font-bold uppercase tracking-tight mb-10 text-black">
-          {title}
-        </h2>
         
         <div className="border-t border-b border-gray-300 py-4 mb-4">
           <div className="flex justify-between items-center">

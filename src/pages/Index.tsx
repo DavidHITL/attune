@@ -63,7 +63,8 @@ const Index = () => {
               <FeaturedAudio 
                 id={featuredContent.id} 
                 title="INTRODUCTORY COURSE" 
-                duration={featuredContent.duration} 
+                duration={featuredContent.duration}
+                imageUrl={featuredContent.cover_image_url}
                 onPlay={() => handlePlayAudio(featuredContent)} 
               />
             )}
