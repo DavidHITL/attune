@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import AttuneContent from '@/components/AttuneContent';
 import { useBackground, BACKGROUND_COLORS } from '@/context/BackgroundContext';
@@ -46,7 +45,6 @@ const Index = () => {
   };
 
   const handlePlayAudio = (audioItem: any) => {
-    // Validate the audio item before attempting to play
     if (!audioItem) {
       toast.error("Cannot play audio: Missing audio data");
       return;
