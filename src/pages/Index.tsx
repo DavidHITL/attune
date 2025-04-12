@@ -89,7 +89,8 @@ const Index = () => {
             {/* Audio Player */}
             {playingAudio && (
               <AudioPlayer 
-                title={playingAudio.title} 
+                title={playingAudio.title}
+                description={playingAudio.description}
                 audioUrl={playingAudio.audio_url} 
                 coverImage={playingAudio.cover_image_url} 
                 initialProgress={playingAudio.progress?.progress_seconds || 0} 

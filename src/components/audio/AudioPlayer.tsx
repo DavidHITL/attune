@@ -8,6 +8,7 @@ import { formatTime } from '@/utils/formatters';
 
 interface AudioPlayerProps {
   title: string;
+  description?: string | null;
   audioUrl: string;
   coverImage?: string | null;
   initialProgress?: number;
@@ -18,6 +19,7 @@ interface AudioPlayerProps {
 
 const AudioPlayer: React.FC<AudioPlayerProps> = ({
   title,
+  description,
   audioUrl,
   coverImage,
   initialProgress = 0,
@@ -120,7 +122,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   };
   
   return (
-    <Card className="fixed bottom-20 left-4 right-4 mx-auto max-w-[500px] shadow-lg">
+    <Card className="fixed bottom-20 left-1/2 transform -translate-x-1/2 w-full max-w-[390px] shadow-lg">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
@@ -133,8 +135,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 </div>
               )}
             </div>
-            <div>
+            <div className="flex-1 mr-2">
               <h3 className="font-medium text-sm line-clamp-1">{title}</h3>
+              {description && (
+                <p className="text-xs line-clamp-1 text-gray-600">{description}</p>
+              )}
               <div className="text-xs text-gray-500">
                 {formatTime(currentTime)} / {formatTime(duration)}
               </div>
