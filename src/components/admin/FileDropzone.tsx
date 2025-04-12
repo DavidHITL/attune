@@ -47,23 +47,15 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
 
       console.log(`Uploading to bucket: ${bucketName}, path: ${filePath}`);
 
-      // Check if bucket exists, if not we'll get an error during upload
-      const { data: bucketData, error: bucketError } = await supabase.storage
-        .getBucket(bucketName);
-
-      if (bucketError) {
-        console.error('Error checking bucket existence:', bucketError);
-        throw new Error(`Bucket "${bucketName}" not found. Please create it in Supabase.`);
-      }
-
-      console.log('Bucket exists, proceeding with upload');
+      // Skip the bucket check since we know it exists
+      console.log('Proceeding with upload to existing bucket');
 
       // Upload the file
       const { data, error } = await supabase.storage
         .from(bucketName)
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: false
+          upsert: true // Changed to true to overwrite existing files with the same name
         });
 
       if (error) throw error;
@@ -176,14 +168,23 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
           <div className="flex flex-col items-center justify-center space-y-2">
             <Upload className="h-8 w-8 text-gray-500" />
             <p>{label}</p>
-            <p className="text-sm text-gray-500">{defaultDescription}</p>
+            <p className="text-sm text-gray-500">{description}</p>
           </div>
         )}
       </div>
       
-      {fileRejectionItems.length > 0 && (
+      {fileRejections.length > 0 && (
         <ul className="mt-2 text-sm text-red-500">
-          {fileRejectionItems}
+          {fileRejections.map(({ file, errors }) => (
+            <li key={file.name}>
+              <p>{file.name} - {file.size} bytes</p>
+              <ul>
+                {errors.map(e => (
+                  <li key={e.code}>{e.message}</li>
+                ))}
+              </ul>
+            </li>
+          ))}
         </ul>
       )}
     </div>
