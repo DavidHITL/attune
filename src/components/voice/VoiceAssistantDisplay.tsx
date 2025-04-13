@@ -6,6 +6,8 @@ import AttuneLogo from '@/components/AttuneLogo';
 import { Phone, PhoneOff, MicOff, Mic, Timer } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
+import { createRipple } from '@/lib/animation-utils';
+import { toast } from 'sonner';
 
 interface VoiceAssistantDisplayProps {
   user: any;
@@ -28,7 +30,6 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   user,
   isConnected,
   isMuted,
-  conversationLoading,
   onToggleMute,
   onEndConversation,
   onStartConversation
@@ -57,6 +58,24 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   // Convert milliseconds to minutes (rounded down)
   const minutesLeft = Math.floor(timeLeft / (60 * 1000));
   
+  // Handle button clicks with improved feedback
+  const handleCallControlClick = (action: 'start' | 'end' | 'mute') => (event: React.MouseEvent<HTMLButtonElement>) => {
+    // Add ripple effect
+    createRipple(event);
+    
+    // Perform the action with feedback
+    if (action === 'start') {
+      onStartConversation();
+      toast.success("Starting conversation...");
+    } else if (action === 'end') {
+      onEndConversation();
+      toast.info("Call ended");
+    } else if (action === 'mute') {
+      onToggleMute();
+      toast.info(isMuted ? "Unmuted" : "Muted");
+    }
+  };
+  
   return (
     <div className="flex flex-col h-full relative">
       {/* Logo shown in both connected and disconnected states */}
@@ -68,7 +87,7 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
       {isConnected ? (
         <div className="flex flex-col items-center justify-center h-full">
           {/* Connected state content */}
-          <div className="text-center z-20 mt-16">
+          <div className="text-center z-20 mt-8">
             <h1 className="text-4xl font-semibold text-white mb-4">
               Call in progress
             </h1>
@@ -98,12 +117,12 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
         </div>
       )}
 
-      {/* Call controls - positioned at bottom of screen but above nav */}
+      {/* Call controls with improved accessibility and visual feedback */}
       <div className="absolute bottom-24 left-0 right-0 flex justify-center space-x-6">
         {/* Call/End Call Button */}
         <button
-          onClick={isConnected ? onEndConversation : onStartConversation}
-          className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all transform hover:scale-105 ${
+          onClick={handleCallControlClick(isConnected ? 'end' : 'start')}
+          className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95 overflow-hidden ${
             isConnected 
               ? 'bg-red-500 hover:bg-red-600' 
               : 'bg-white hover:bg-gray-100'
@@ -120,8 +139,8 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
         {/* Mute Button - only show when connected */}
         {isConnected && (
           <button
-            onClick={onToggleMute}
-            className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all transform hover:scale-105 ${
+            onClick={handleCallControlClick('mute')}
+            className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95 overflow-hidden ${
               isMuted 
                 ? 'bg-gray-700 hover:bg-gray-800' 
                 : 'bg-white/90 hover:bg-white'

@@ -54,10 +54,10 @@ const RealtimeChat: React.FC = () => {
 
   return (
     <>
-      {/* Background animation - only show when connected */}
+      {/* Background animation with improved visibility - only show when connected */}
       {isConnected && (
-        <div className="absolute inset-0 z-0 opacity-70 flex items-center justify-center">
-          <div className="relative" style={{ marginTop: '180px' }}>
+        <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none">
+          <div className="relative" style={{ marginTop: '140px' }}>
             <BackgroundCircles 
               title=""
               description=""
