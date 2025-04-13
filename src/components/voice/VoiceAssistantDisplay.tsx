@@ -180,8 +180,8 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
         )}
       </div>
       
-      {/* Add global styles for ripple effect */}
-      <style jsx global>{`
+      {/* Add styles directly to head instead of using jsx style tag */}
+      <style dangerouslySetInnerHTML={{ __html: `
         .ripple {
           position: absolute;
           background-color: rgba(255, 255, 255, 0.5);
@@ -197,7 +197,7 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
             opacity: 0;
           }
         }
-      `}</style>
+      `}} />
     </div>
   );
 };
