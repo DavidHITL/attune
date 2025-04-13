@@ -17,11 +17,17 @@ const ConversationHistory: React.FC<ConversationHistoryProps> = ({ messages }) =
 
   if (messages.length === 0) return null;
   
+  // Count user and assistant messages
+  const userMessages = messages.filter(msg => msg.role === 'user');
+  const assistantMessages = messages.filter(msg => msg.role === 'assistant');
+  
   return (
     <div className="mb-8 mt-4 max-h-60 overflow-y-auto border border-attune-blue/30 rounded-lg p-4 bg-attune-blue/10">
       <h3 className="text-sm font-sans font-medium mb-2 text-black">
         Recent Conversation History
-        {messages.length > 10 && ` (showing all ${messages.length} messages)`}
+        <span className="text-xs ml-2 text-gray-600">
+          ({userMessages.length} user, {assistantMessages.length} assistant)
+        </span>
       </h3>
       {messages.map((msg, index) => (
         <div key={msg.id || index} className={`mb-3 ${msg.role === 'user' ? 'text-right' : ''}`}>

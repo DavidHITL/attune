@@ -33,10 +33,40 @@ export class MessageQueue {
     
     this.lastMessageSentTime = now;
     
-    this.messageQueue.push({ role, content });
     console.log(`Queued ${role} message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
-    console.log(`Queue length: ${this.messageQueue.length}`);
-    this.processMessageQueue();
+    
+    // For user messages, try to save immediately with high priority
+    if (role === 'user') {
+      console.log(`Processing user message with high priority`);
+      // Create a copy of the message to prevent modifications
+      const userMessage = { role, content };
+      
+      // Save user message immediately
+      this.saveMessageAsync(userMessage);
+    } else {
+      // For assistant messages, add to queue for processing
+      this.messageQueue.push({ role, content });
+      console.log(`Queue length: ${this.messageQueue.length}`);
+      this.processMessageQueue();
+    }
+  }
+
+  // Save message asynchronously with error handling
+  private async saveMessageAsync(message: { role: 'user' | 'assistant', content: string }) {
+    try {
+      console.log(`Saving ${message.role} message: "${message.content.substring(0, 30)}${message.content.length > 30 ? '...' : ''}"`);
+      await this.saveMessageCallback({
+        role: message.role,
+        content: message.content
+      });
+      console.log(`Successfully saved ${message.role} message to database`);
+    } catch (error) {
+      console.error(`Error saving ${message.role} message:`, error);
+      
+      // Add to queue for retry
+      this.messageQueue.push(message);
+      this.processMessageQueue();
+    }
   }
 
   // Process message queue to ensure sequential saving

@@ -54,26 +54,36 @@ export const useConversation = (): UseConversationReturn => {
   );
 
   // Save a new message
-  const saveMessage = useCallback(async (message: Message): Promise<Message | null> => {
+  const saveMessage = useCallback(async (message: Partial<Message>): Promise<Message | null> => {
     try {
-      const savedMessage = await saveMessageToDb(message);
-      if (savedMessage) {
-        console.log(`Successfully saved ${message.role} message to database`);
-        setMessages(prev => [...prev, savedMessage]);
+      if (!message.role || !message.content) {
+        console.error('Cannot save message: Missing role or content');
+        return null;
       }
-      return savedMessage;
+      
+      console.log(`Saving ${message.role} message to database: "${message.content.substring(0, 30)}${message.content.length > 30 ? '...' : ''}"`);
+      const savedMessage = await saveMessageToDb(message);
+      
+      if (savedMessage) {
+        console.log(`Successfully saved ${message.role} message to database with ID: ${savedMessage.id}`);
+        // Add the new message to the local state
+        setMessages(prev => [...prev, savedMessage]);
+        return savedMessage;
+      }
+      return null;
     } catch (error) {
+      console.error('Error in saveMessage:', error);
+      
       // Create a temporary message so UI remains consistent
       const tempMessage: Message = {
         id: `temp-${new Date().getTime()}`,
-        role: message.role,
-        content: message.content,
+        role: message.role as 'user' | 'assistant',
+        content: message.content || '',
         created_at: new Date().toISOString()
       };
       
       console.log(`Created temporary message for ${message.role} due to save error`);
       setMessages(prev => [...prev, tempMessage]);
-      console.error('Error in saveMessage:', error);
       throw error;
     }
   }, [saveMessageToDb, setMessages]);

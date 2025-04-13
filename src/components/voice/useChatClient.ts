@@ -28,6 +28,14 @@ export const useChatClient = () => {
     
     // Process session creation events
     handleSessionCreated(event);
+    
+    // Handle transcript events for user messages
+    if (event.type === 'transcript' && event.transcript && chatClientRef.current) {
+      console.log("Received transcript event, saving user message:", event.transcript);
+      
+      // Save user message when we get a transcript
+      chatClientRef.current.saveUserMessage(event.transcript);
+    }
   }, [handleMessageEvent, handleSessionCreated]);
   
   // Initialize connection manager

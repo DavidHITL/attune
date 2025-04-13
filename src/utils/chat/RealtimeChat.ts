@@ -29,14 +29,15 @@ export class RealtimeChat {
       messageCallback
     );
     
-    // Create connection manager with event handler
+    // Create connection manager with event handler and message saving capability
     this.connectionManager = new ConnectionManager(
       this.eventHandler.handleMessage,
       (state) => {
         this.messageCallback({
           type: state === 'start' ? 'input_audio_activity_started' : 'input_audio_activity_stopped'
         });
-      }
+      },
+      saveMessageCallback
     );
   }
 
@@ -132,5 +133,13 @@ export class RealtimeChat {
     this.connectionManager.disconnect();
     
     this.statusCallback("Disconnected");
+  }
+
+  // Add a method to manually save a user message
+  saveUserMessage(content: string) {
+    if (content && content.trim() !== '') {
+      console.log("[RealtimeChat] Manually saving user message:", content.substring(0, 30));
+      this.messageQueue.queueMessage('user', content);
+    }
   }
 }

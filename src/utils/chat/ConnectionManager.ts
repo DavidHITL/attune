@@ -1,7 +1,7 @@
 
 import { WebRTCConnection } from '../audio/WebRTCConnection';
 import { AudioProcessor } from '../audio/AudioProcessor';
-import { MessageCallback } from '../types';
+import { MessageCallback, SaveMessageCallback } from '../types';
 
 export class ConnectionManager {
   private webRTCConnection: WebRTCConnection;
@@ -9,7 +9,8 @@ export class ConnectionManager {
   
   constructor(
     private messageHandler: (event: any) => void,
-    audioActivityCallback: (state: 'start' | 'stop') => void
+    private audioActivityCallback: (state: 'start' | 'stop') => void,
+    private saveMessageCallback?: SaveMessageCallback
   ) {
     this.webRTCConnection = new WebRTCConnection();
     this.audioProcessor = new AudioProcessor(audioActivityCallback);
@@ -58,6 +59,18 @@ export class ConnectionManager {
   
   setMuted(muted: boolean): void {
     this.webRTCConnection.setMuted(muted);
+  }
+  
+  saveMessage(role: 'user' | 'assistant', content: string): void {
+    if (this.saveMessageCallback && content.trim() !== '') {
+      console.log(`[ConnectionManager] Saving ${role} message: ${content.substring(0, 30)}...`);
+      this.saveMessageCallback({
+        role,
+        content
+      }).catch(error => {
+        console.error(`[ConnectionManager] Error saving ${role} message:`, error);
+      });
+    }
   }
   
   disconnect(): void {
