@@ -1,9 +1,9 @@
 
 import { MessageCallback, StatusCallback, SaveMessageCallback } from '../types';
 import { ConnectionManager } from './ConnectionManager';
-import { MessageQueue } from './messageQueue'; // Updated import path
+import { MessageQueue } from './messageQueue'; // This import path stays the same
 import { ResponseParser } from './ResponseParser';
-import { EventHandler } from './EventHandler';
+import { EventHandler } from './EventHandler'; // This import path stays the same
 import { toast } from 'sonner';
 
 export class RealtimeChat {
