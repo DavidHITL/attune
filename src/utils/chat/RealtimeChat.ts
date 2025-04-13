@@ -81,8 +81,15 @@ export class RealtimeChat {
   forceStopMicrophone() {
     console.log("[RealtimeChat] Force stopping microphone");
     this.microphonePaused = true;
-    // Make sure we're using the aggressive microphone stopping method
-    this.connectionManager.forcePauseMicrophone();
+    
+    if (this.isMuted) {
+      // When muted, completely stop the microphone at device level
+      console.log("[RealtimeChat] Completely stopping microphone (device level)");
+      this.connectionManager.completelyStopMicrophone();
+    } else {
+      // When not muted, just force pause
+      this.connectionManager.forcePauseMicrophone();
+    }
   }
   
   forceResumeMicrophone() {
@@ -103,9 +110,10 @@ export class RealtimeChat {
     console.log("[RealtimeChat] Setting muted state to", muted);
     this.isMuted = muted;
     
-    // When muting, always force stop microphone to ensure it's completely disabled
+    // When muting, completely stop microphone to ensure it's completely disabled at device level
     if (muted) {
-      this.forceStopMicrophone();
+      console.log("[RealtimeChat] Mute ON: Completely stopping microphone at device level");
+      this.connectionManager.completelyStopMicrophone();
     }
     // When unmuting, the microphone state will be managed by the calling code
   }

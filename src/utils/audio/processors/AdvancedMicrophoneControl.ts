@@ -1,3 +1,4 @@
+
 /**
  * Provides enhanced microphone control capabilities beyond basic enable/disable
  */
@@ -35,11 +36,29 @@ export class AdvancedMicrophoneControl {
   }
   
   /**
+   * Completely stop all microphone tracks - releases device entirely
+   */
+  completelyStopMicrophone() {
+    if (this.audioStream) {
+      this.audioStream.getTracks().forEach(track => {
+        // Fully stop the track to release the hardware device
+        track.stop();
+      });
+      this.audioStream = null;
+      console.log("[AdvancedMicrophoneControl] Microphone COMPLETELY stopped - all tracks released");
+      return true;
+    }
+    console.log("[AdvancedMicrophoneControl] No audio stream to stop completely");
+    return false;
+  }
+  
+  /**
    * Force resume microphone, reinitializing if necessary
    */
   async forceResumeMicrophone() {
     // Try to re-initialize the microphone if needed
-    if (!this.audioStream || this.audioStream.getTracks().length === 0) {
+    if (!this.audioStream || this.audioStream.getTracks().length === 0 || 
+        this.audioStream.getTracks().every(track => track.readyState === "ended")) {
       console.log("[AdvancedMicrophoneControl] No active audio stream, attempting to reinitialize");
       try {
         this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });

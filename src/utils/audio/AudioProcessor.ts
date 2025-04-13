@@ -72,6 +72,18 @@ export class AudioProcessor extends BaseAudioProcessor {
   }
   
   /**
+   * Completely stop the microphone at device level (releases hardware)
+   */
+  completelyStopMicrophone() {
+    const stopped = this.advancedMicControl.completelyStopMicrophone();
+    if (stopped) {
+      this.audioStream = null;
+      this.microphoneActive = false;
+    }
+    return stopped;
+  }
+  
+  /**
    * Force resume microphone, reinitializing if necessary
    */
   forceResumeMicrophone() {

@@ -34,7 +34,7 @@ const CallControls: React.FC<CallControlsProps> = ({
   const handleMuteButton = (e: React.MouseEvent<HTMLButtonElement>) => {
     createRipple(e);
     onToggleMute();
-    toast.info(isMuted ? "Microphone unmuted" : "Microphone muted");
+    // No need for toast here as the hook already shows one
   };
 
   return (
@@ -65,7 +65,8 @@ const CallControls: React.FC<CallControlsProps> = ({
               ? 'bg-red-500 hover:bg-red-600' 
               : 'bg-white/90 hover:bg-white'
           }`}
-          aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
+          aria-label={isMuted ? "Enable microphone" : "Disable microphone completely"}
+          title={isMuted ? "Enable microphone" : "Disable microphone completely"}
         >
           {isMuted ? (
             <MicOff className="h-6 w-6 text-white" strokeWidth={2} />

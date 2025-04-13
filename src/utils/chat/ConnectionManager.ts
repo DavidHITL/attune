@@ -48,6 +48,10 @@ export class ConnectionManager {
     this.audioProcessor.forcePauseMicrophone();
   }
   
+  completelyStopMicrophone(): void {
+    this.audioProcessor.completelyStopMicrophone();
+  }
+  
   forceResumeMicrophone(): void {
     this.audioProcessor.forceResumeMicrophone();
   }

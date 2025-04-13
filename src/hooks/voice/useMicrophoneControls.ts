@@ -46,20 +46,31 @@ export const useMicrophoneControls = (
     setIsMuted(newMuteState);
     
     if (chatClientRef.current) {
-      // Apply the mute state specifically to the microphone input
-      console.log(`[useMicrophoneControls] Mute toggled to: ${newMuteState}`);
+      // Directly set mute state on the chat client
+      chatClientRef.current.setMuted(newMuteState);
       
       if (newMuteState) {
-        toast.info("Microphone muted");
-        // Force stop microphone when muting - this ensures the mic is actually turned off
+        // When muting, completely stop the microphone at device level
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(stream => {
+            // Completely stop all tracks to properly release the microphone
+            stream.getTracks().forEach(track => {
+              track.stop();
+              console.log("[useMicrophoneControls] Track stopped:", track.label);
+            });
+          })
+          .catch(err => console.error("[useMicrophoneControls] Error accessing mic during muting:", err));
+        
+        // Force the chat client to stop the microphone as well
         chatClientRef.current.forceStopMicrophone();
-        console.log("[useMicrophoneControls] Force stopping microphone due to mute");
+        toast.info("Microphone completely deactivated");
+        console.log("[useMicrophoneControls] Microphone completely deactivated at device level");
       } else {
-        toast.info("Microphone unmuted");
-        // Only resume microphone when unmuting if mic was previously on
+        // When unmuting, we need to reinitialize the microphone if the mic was previously on
+        toast.info("Microphone activated");
         if (isMicOn) {
           chatClientRef.current.forceResumeMicrophone();
-          console.log("[useMicrophoneControls] Force resuming microphone after unmute");
+          console.log("[useMicrophoneControls] Microphone reactivated at device level");
         }
       }
     }
