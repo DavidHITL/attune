@@ -2,6 +2,8 @@
 import { SaveMessageCallback } from '../../types';
 import { MessageSaver } from './MessageSaver';
 import { QueuedMessage } from './types';
+import { QueueMonitor } from './QueueMonitor';
+import { QueueStrategy } from './QueueStrategy';
 import { toast } from 'sonner';
 
 /**
@@ -9,11 +11,18 @@ import { toast } from 'sonner';
  */
 export class QueueProcessor {
   private messageQueue: QueuedMessage[] = [];
-  private isProcessingQueue: boolean = false;
   private messageSaver: MessageSaver;
+  private queueMonitor: QueueMonitor;
+  private queueStrategy: QueueStrategy;
   
   constructor(private saveMessageCallback: SaveMessageCallback) {
     this.messageSaver = new MessageSaver(saveMessageCallback);
+    this.queueMonitor = new QueueMonitor(
+      () => this.messageQueue.length,
+      () => this.messageSaver.getPendingUserMessages(),
+      () => this.messageSaver.getActiveMessageSaves()
+    );
+    this.queueStrategy = new QueueStrategy(this.messageSaver);
   }
   
   /**
@@ -73,12 +82,21 @@ export class QueueProcessor {
    * Save message directly with better error handling
    */
   private async saveMessageDirectly(role: 'user' | 'assistant', content: string, messageId?: string): Promise<void> {
+    const message = { role, content, priority: true };
+    
     try {
-      await this.messageSaver.saveMessageDirectly(role, content, messageId);
+      const result = await this.queueStrategy.processMessageDirectly(message, messageId);
+      
+      if (!result.success) {
+        // Add to queue for retry through normal queue processing if direct save fails
+        console.log(`Adding ${role} message to retry queue after direct save failures`);
+        this.messageQueue.push(message);
+        this.processMessageQueue();
+      }
     } catch (error) {
-      // Add to queue for retry through normal queue processing if direct save fails
-      console.log(`Adding ${role} message to retry queue after direct save failures`);
-      this.messageQueue.push({ role, content, priority: true });
+      // Add to queue for retry
+      console.log(`Error in direct save, adding to queue: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      this.messageQueue.push(message);
       this.processMessageQueue();
     }
   }
@@ -87,20 +105,33 @@ export class QueueProcessor {
    * Process message queue to ensure sequential saving
    */
   async processMessageQueue(): Promise<void> {
-    if (this.isProcessingQueue || this.messageQueue.length === 0) return;
+    if (this.queueMonitor.isProcessing() || this.messageQueue.length === 0) return;
     
-    this.isProcessingQueue = true;
+    this.queueMonitor.setProcessingState(true);
     
     try {
       const message = this.messageQueue.shift();
       if (message) {
+        this.queueMonitor.trackProcessedMessage(message);
+        
         try {
-          await this.messageSaver.saveMessageWithRetry(message.role, message.content);
+          const strategy = this.queueStrategy.selectStrategy(message);
+          const result = strategy === 'direct' 
+            ? await this.queueStrategy.processMessageDirectly(message)
+            : await this.queueStrategy.processMessageWithRetry(message);
+            
+          if (!result.success) {
+            // Put back in queue for retry (at the beginning)
+            console.log(`Re-queuing ${message.role} message after save failure`);
+            this.messageQueue.unshift(message);
+            
+            // Wait a bit before retrying
+            setTimeout(() => this.processMessageQueue(), 2000);
+          }
         } catch (error) {
           console.error(`Failed to save ${message.role} message from queue:`, error);
           
           // Put back in queue for retry (at the beginning)
-          console.log(`Re-queuing ${message.role} message after save failure`);
           this.messageQueue.unshift(message);
           
           // Wait a bit before retrying
@@ -110,7 +141,7 @@ export class QueueProcessor {
     } catch (error) {
       console.error("Error in message queue processing:", error);
     } finally {
-      this.isProcessingQueue = false;
+      this.queueMonitor.setProcessingState(false);
       
       // Process next message if any
       if (this.messageQueue.length > 0) {
@@ -124,6 +155,9 @@ export class QueueProcessor {
    */
   async flushQueue(): Promise<void> {
     console.log(`Flushing message queue with ${this.messageQueue.length} messages and ${this.messageSaver.getActiveMessageSaves()} active saves`);
+    
+    // Show queue statistics
+    this.queueMonitor.reportQueueStats();
     
     // Wait for any in-progress saves to complete first
     if (this.messageSaver.getActiveMessageSaves() > 0) {

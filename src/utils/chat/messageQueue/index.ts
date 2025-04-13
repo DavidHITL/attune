@@ -34,3 +34,7 @@ export class MessageQueue {
     return this.queueProcessor.getQueueStatus();
   }
 }
+
+// Export all the types and classes needed externally
+export * from './types';
+export * from './QueueTypes';
