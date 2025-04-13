@@ -59,12 +59,10 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   
   return (
     <div className="flex flex-col h-full relative">
-      {/* Logo only shown when not connected */}
-      {!isConnected && (
-        <div className="mb-6 flex justify-center">
-          <AttuneLogo />
-        </div>
-      )}
+      {/* Logo shown in both connected and disconnected states */}
+      <div className={`${isConnected ? 'my-4' : 'mb-6'} flex justify-center`}>
+        <AttuneLogo />
+      </div>
       
       {/* Content container with different layout based on connection status */}
       {isConnected ? (
