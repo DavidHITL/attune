@@ -2,10 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { Message } from '@/utils/types';
 import { VoiceActivityState } from '../VoiceActivityIndicator';
-import CallControls from '@/components/CallControls';
 import AttuneLogo from '@/components/AttuneLogo';
-import { PhoneCall } from 'lucide-react';
+import { Phone, PhoneOff, Volume2, VolumeX } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Button } from '@/components/ui/button';
 
 interface VoiceAssistantDisplayProps {
   user: any;
@@ -27,11 +27,8 @@ interface VoiceAssistantDisplayProps {
 const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   user,
   isConnected,
-  voiceActivityState,
-  isMicOn,
   isMuted,
   conversationLoading,
-  onToggleMicrophone,
   onToggleMute,
   onEndConversation,
   onStartConversation
@@ -68,40 +65,52 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
       </div>
       
       {/* Voice interaction instructions */}
-      {!isConnected && (
-        <div className="text-center my-6 text-white font-sans">
-          <p className="text-white">Feel like talking? Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.</p>
-        </div>
-      )}
-      
-      {isConnected && (
-        <div className="text-center my-6 text-white font-sans">
-          <p className="text-white">Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.</p>
-        </div>
-      )}
+      <div className="text-center my-6 text-white font-sans">
+        <p className="text-white">
+          Feel like talking? Attune remembers past conversations and keeps them secret, 
+          so you can always pick up where you left off — or not.
+        </p>
+      </div>
       
       {/* Countdown timer */}
       <div className="text-center mt-4 mb-8">
         <p className="text-sm text-white font-sans">{minutesLeft} min remaining</p>
       </div>
 
-      {/* Call controls - Added increased padding for mobile */}
-      <div className={`flex justify-center mt-auto mb-16 ${isMobile ? 'px-12' : 'px-8'}`}>
-        {!isConnected ? (
-          <div
-            onClick={onStartConversation}
-            className="w-24 h-24 rounded-full bg-slate-300/80 border-none shadow-lg hover:bg-slate-300/90 transition-all cursor-pointer flex items-center justify-center"
+      {/* Call controls */}
+      <div className="mt-auto mb-16 flex flex-col items-center">
+        {/* Main Call Button */}
+        <div 
+          onClick={isConnected ? onEndConversation : onStartConversation}
+          className="w-24 h-24 rounded-full bg-slate-300/80 border-none shadow-lg hover:bg-slate-300/90 transition-all cursor-pointer flex items-center justify-center mb-6"
+        >
+          {isConnected ? (
+            <PhoneOff className="h-6 w-6 text-black" strokeWidth={1.5} />
+          ) : (
+            <Phone className="h-6 w-6 text-attune-deep-blue" strokeWidth={1.5} />
+          )}
+        </div>
+
+        {/* Mute Button - Only show when connected */}
+        {isConnected && (
+          <Button 
+            onClick={onToggleMute}
+            variant="outline"
+            size="sm"
+            className="bg-white/20 border-none text-white hover:bg-white/30 transition-all"
           >
-            <PhoneCall className="h-6 w-6 text-attune-deep-blue" strokeWidth={1.5} />
-          </div>
-        ) : (
-          <CallControls
-            isMicOn={isMicOn}
-            isMuted={isMuted}
-            onToggleMic={onToggleMicrophone}
-            onToggleMute={onToggleMute}
-            onEndCall={onEndConversation}
-          />
+            {isMuted ? (
+              <>
+                <VolumeX className="mr-2 h-4 w-4" />
+                <span>Unmute</span>
+              </>
+            ) : (
+              <>
+                <Volume2 className="mr-2 h-4 w-4" />
+                <span>Mute</span>
+              </>
+            )}
+          </Button>
         )}
       </div>
     </div>

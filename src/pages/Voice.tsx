@@ -3,7 +3,6 @@ import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import RealtimeChat from '@/components/RealtimeChat';
 import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/button';
 import { useBackground, BACKGROUND_COLORS } from '@/context/BackgroundContext';
 import AttuneLogo from '@/components/AttuneLogo';
 import { Skeleton } from '@/components/ui/skeleton';

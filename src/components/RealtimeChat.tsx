@@ -53,16 +53,15 @@ const RealtimeChat: React.FC = () => {
 
   return (
     <>
-      {isConnected && (
-        <div className="absolute inset-0 z-0">
-          <BackgroundCircles 
-            title=""
-            description=""
-            variant="septenary" // Gray variant for the call background
-            className="absolute inset-0"
-          />
-        </div>
-      )}
+      {/* Always show the background circles */}
+      <div className="absolute inset-0 z-0">
+        <BackgroundCircles 
+          title=""
+          description=""
+          variant="septenary"
+          className="absolute inset-0"
+        />
+      </div>
       <VoiceAssistantDisplay
         user={user}
         status={status}

@@ -1,7 +1,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 
 /**
  * Hook for managing microphone and audio output controls
@@ -50,15 +50,18 @@ export const useMicrophoneControls = (
       chatClientRef.current.setMuted(newMuteState);
       console.log(`[useMicrophoneControls] Mute toggled to: ${newMuteState}`);
       
-      // Force microphone state to match our expectations
       if (newMuteState) {
+        toast.info("Audio muted");
         // Always ensure microphone is paused when muting
         chatClientRef.current.forceStopMicrophone();
         console.log("[useMicrophoneControls] Force stopping microphone due to mute");
-      } else if (isMicOn) {
+      } else {
+        toast.info("Audio unmuted");
         // Only resume microphone when unmuting if mic was previously on
-        chatClientRef.current.forceResumeMicrophone();
-        console.log("[useMicrophoneControls] Force resuming microphone after unmute");
+        if (isMicOn) {
+          chatClientRef.current.forceResumeMicrophone();
+          console.log("[useMicrophoneControls] Force resuming microphone after unmute");
+        }
       }
     }
   }, [isMuted, chatClientRef, isMicOn]);
