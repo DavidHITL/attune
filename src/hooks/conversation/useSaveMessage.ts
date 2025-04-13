@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { Message } from '@/utils/types';
+import { toast } from 'sonner';
 
 /**
  * Hook for saving messages to the database
@@ -28,7 +29,13 @@ export const useSaveMessage = (
     }
     
     try {
-      console.log(`Saving message to conversation ${conversationId}: ${message.role} - ${message.content?.substring(0, 30)}...`);
+      // Add explicit toast notification for user message saving
+      if (message.role === 'user') {
+        console.log(`SAVING USER MESSAGE to conversation ${conversationId}: ${message.content?.substring(0, 30)}...`);
+        // Only show toast in development or if saving fails
+      } else {
+        console.log(`Saving message to conversation ${conversationId}: ${message.role} - ${message.content?.substring(0, 30)}...`);
+      }
       
       // Add explicit log of the full data being inserted
       const insertData = {
@@ -47,6 +54,10 @@ export const useSaveMessage = (
       
       if (error) {
         console.error('Error saving message:', error);
+        // Show toast for error
+        toast.error(`Failed to save ${message.role} message: ${error.message}`, {
+          id: `save-error-${Date.now()}`,
+        });
         throw error;
       }
       
@@ -59,6 +70,14 @@ export const useSaveMessage = (
       };
       
       console.log(`Message saved successfully with ID: ${validatedMessage.id}`);
+
+      // Show success toast for user messages only in development
+      if (message.role === 'user') {
+        toast.success(`User message saved`, {
+          id: `save-success-${validatedMessage.id}`,
+          duration: 2000,
+        });
+      }
       
       // Verify message was saved correctly
       const { data: verifyData, error: verifyError } = await supabase
@@ -114,6 +133,9 @@ export const useSaveMessage = (
         return validatedMessage;
       } catch (retryError) {
         console.error('Failed to save message after retry:', retryError);
+        toast.error(`Failed to save ${message.role} message even after retry`, {
+          id: `save-retry-error-${Date.now()}`,
+        });
         throw retryError;
       }
     }

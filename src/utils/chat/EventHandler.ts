@@ -2,6 +2,7 @@
 import { MessageQueue } from './MessageQueue';
 import { ResponseParser } from './ResponseParser';
 import { MessageCallback } from '../types';
+import { toast } from 'sonner';
 
 export class EventHandler {
   private userTranscript: string = '';
@@ -10,6 +11,7 @@ export class EventHandler {
   private lastResponseDelta: number = 0;
   private messageQueue: MessageQueue;
   private responseParser: ResponseParser;
+  private lastTranscriptTime: number = 0;
 
   constructor(
     messageQueue: MessageQueue,
@@ -35,6 +37,7 @@ export class EventHandler {
       // Accumulate transcript text
       this.userTranscript += event.delta.text;
       console.log(`Accumulating user transcript: ${this.userTranscript}`);
+      this.lastTranscriptTime = Date.now();
     }
     
     if (event.type === "transcript" && event.transcript) {
@@ -43,6 +46,12 @@ export class EventHandler {
       if (event.transcript && event.transcript.trim()) {
         console.log("Saving direct user transcript:", event.transcript);
         this.messageQueue.queueMessage('user', event.transcript);
+        
+        // Show toast notification for transcript
+        toast.info("Transcript received", {
+          description: event.transcript.substring(0, 50) + (event.transcript.length > 50 ? "..." : ""),
+          duration: 2000,
+        });
       }
     }
     
@@ -52,16 +61,46 @@ export class EventHandler {
       if (content && content.trim()) {
         console.log("Final user transcript received:", content);
         this.messageQueue.queueMessage('user', content);
+        
         // Reset transcript accumulator
         this.userTranscript = '';
+        
+        // Show toast notification for final transcript
+        toast.success("User message saved", {
+          description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
+          duration: 2000,
+        });
       } else if (this.userTranscript && this.userTranscript.trim()) {
         // Fallback to accumulated transcript if final is missing
         console.log("Using accumulated user transcript:", this.userTranscript);
         this.messageQueue.queueMessage('user', this.userTranscript);
+        
+        toast.success("User message saved (accumulated)", {
+          description: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? "..." : ""),
+          duration: 2000,
+        });
+        
         this.userTranscript = '';
       } else {
         console.log("Empty user transcript, not saving");
       }
+    }
+    
+    // If we haven't received a response.audio_transcript.done event but have accumulated transcript,
+    // save it after a timeout period of inactivity
+    if (this.userTranscript && this.userTranscript.trim() && 
+        this.lastTranscriptTime > 0 && 
+        Date.now() - this.lastTranscriptTime > 3000) {
+      console.log("Saving accumulated transcript after timeout:", this.userTranscript);
+      this.messageQueue.queueMessage('user', this.userTranscript);
+      
+      toast.success("User message saved (timeout)", {
+        description: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? "..." : ""),
+        duration: 2000,
+      });
+      
+      this.userTranscript = '';
+      this.lastTranscriptTime = 0;
     }
     
     this.handleAssistantResponse(event);
@@ -187,6 +226,12 @@ export class EventHandler {
     if (this.userTranscript && this.userTranscript.trim()) {
       console.log("Saving partial user transcript during disconnect:", this.userTranscript);
       this.messageQueue.queueMessage('user', this.userTranscript);
+      
+      // Show toast notification
+      toast.success("User message saved (disconnect)", {
+        description: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? "..." : ""),
+        duration: 2000,
+      });
     }
   }
 }

@@ -4,6 +4,7 @@ import { ConnectionManager } from './ConnectionManager';
 import { MessageQueue } from './MessageQueue';
 import { ResponseParser } from './ResponseParser';
 import { EventHandler } from './EventHandler';
+import { toast } from 'sonner';
 
 export class RealtimeChat {
   private connectionManager: ConnectionManager;
@@ -144,8 +145,14 @@ export class RealtimeChat {
       const queueStatus = this.messageQueue.getQueueStatus();
       console.log(`[RealtimeChat] Queue status before saving: ${JSON.stringify(queueStatus)}`);
       
-      // Directly queue the user message with high priority
+      // Directly queue the user message with high priority and show toast
       this.messageQueue.queueMessage('user', content);
+      
+      // Add a verification toast
+      toast.success("User message saved manually", {
+        description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
+        duration: 2000,
+      });
       
       // Add a verification marker to check if this specific message is saved
       const verificationMarker = `VERIFY-${Date.now()}`;

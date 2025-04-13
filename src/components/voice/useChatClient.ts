@@ -34,8 +34,8 @@ export const useChatClient = () => {
     if (event.type === 'transcript' && event.transcript && chatClientRef.current) {
       console.log("Received transcript event, saving user message:", event.transcript);
       
-      // Show toast confirmation for debugging
-      toast.info("User message received", {
+      // Show toast confirmation for transcript received
+      toast.info("User speech detected", {
         description: event.transcript.substring(0, 50) + (event.transcript.length > 50 ? "..." : ""),
         duration: 2000,
       });
@@ -45,6 +45,17 @@ export const useChatClient = () => {
       
       // Log key information about conversation state
       console.log("Current conversation ID:", conversationId);
+    }
+    
+    // Also handle response.audio_transcript.done events
+    if (event.type === 'response.audio_transcript.done' && event.transcript?.text && chatClientRef.current) {
+      console.log("Final transcript received:", event.transcript.text);
+      
+      // Show toast with transcript
+      toast.info("Final transcript received", {
+        description: event.transcript.text.substring(0, 50) + (event.transcript.text.length > 50 ? "..." : ""),
+        duration: 2000,
+      });
     }
   }, [handleMessageEvent, handleSessionCreated, conversationId]);
   
@@ -57,6 +68,15 @@ export const useChatClient = () => {
       // Enhanced debug logging for message saving
       console.log(`Connection manager saving message: ${message.role} - ${message.content?.substring(0, 30)}...`);
       console.log(`Using conversation ID: ${conversationId}`);
+      
+      // Show toast for user messages being saved
+      if (message.role === 'user') {
+        toast.success("Saving user message", {
+          description: message.content?.substring(0, 50) + (message.content && message.content.length > 50 ? "..." : ""),
+          duration: 2000,
+        });
+      }
+      
       return saveMessage(message);
     },
     setIsConnected,
