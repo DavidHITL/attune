@@ -1,26 +1,16 @@
 
 import React from 'react';
 
-export const RippleStyles: React.FC = () => {
+// Renamed to match the import
+export const RippleCirclesCompact: React.FC = () => {
   return (
-    <style dangerouslySetInnerHTML={{ __html: `
-      .ripple {
-        position: absolute;
-        background-color: rgba(255, 255, 255, 0.5);
-        border-radius: 50%;
-        transform: scale(0);
-        animation: ripple 600ms linear;
-        pointer-events: none;
-      }
-      
-      @keyframes ripple {
-        to {
-          transform: scale(4);
-          opacity: 0;
-        }
-      }
-    `}} />
+    <div className="absolute inset-0 overflow-hidden opacity-20">
+      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+        w-64 h-64 bg-white/10 rounded-full animate-pulse"></div>
+      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+        w-48 h-48 bg-white/5 rounded-full animate-pulse delay-300"></div>
+    </div>
   );
 };
 
-export default RippleStyles;
+export default RippleCirclesCompact;

@@ -119,6 +119,67 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_summaries: {
+        Row: {
+          batch_number: number
+          conversation_id: string
+          created_at: string
+          end_date: string
+          end_message_id: string
+          id: string
+          key_points: Json
+          start_date: string
+          start_message_id: string
+          summary_content: string
+        }
+        Insert: {
+          batch_number: number
+          conversation_id: string
+          created_at?: string
+          end_date: string
+          end_message_id: string
+          id?: string
+          key_points?: Json
+          start_date: string
+          start_message_id: string
+          summary_content: string
+        }
+        Update: {
+          batch_number?: number
+          conversation_id?: string
+          created_at?: string
+          end_date?: string
+          end_message_id?: string
+          id?: string
+          key_points?: Json
+          start_date?: string
+          start_message_id?: string
+          summary_content?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_summaries_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_summaries_end_message_id_fkey"
+            columns: ["end_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_summaries_start_message_id_fkey"
+            columns: ["start_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           created_at: string
@@ -171,6 +232,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_insights: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          id: string
+          losing_strategies: Json
+          suggestions: Json
+          triggers: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          losing_strategies?: Json
+          suggestions?: Json
+          triggers?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          losing_strategies?: Json
+          suggestions?: Json
+          triggers?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_insights_conversation_id_fkey"
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"

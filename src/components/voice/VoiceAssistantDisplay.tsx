@@ -1,19 +1,21 @@
 
 import React from 'react';
 import { useConversation } from '@/hooks/useConversation';
-import VoiceActivityIndicator from '../VoiceActivityIndicator';
+import VoiceActivityIndicator, { VoiceActivityState } from '../VoiceActivityIndicator';
 import ConversationHistory from './ConversationHistory';
 import { RippleCirclesCompact } from './RippleStyles';
 import SmartContext from './SmartContext';
 
 type VoiceAssistantDisplayProps = {
-  voiceActivityState: string;
+  status: string;
   isConnected: boolean;
+  voiceActivityState: VoiceActivityState;
 }
 
 const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({ 
   voiceActivityState, 
-  isConnected
+  isConnected,
+  status
 }) => {
   const { messages } = useConversation();
   
@@ -34,7 +36,7 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
       {/* Conversation UI */}
       <div className="relative z-10 flex flex-col w-full max-w-xl h-full overflow-hidden">
         {messages.length > 50 && <SmartContext />}
-        <ConversationHistory />
+        <ConversationHistory messages={messages} />
       </div>
     </div>
   );
