@@ -1,27 +1,8 @@
 
 project_id = "pixnanztazgzrtwzdpfi"
 
-[api]
-enabled = true
-
-[db]
-shadow_database_port = 54320
-
-[db.pooler]
-enabled = false
-port = 54322
-
-[realtime]
-enabled = true
-
-[studio]
-enabled = true
-port = 54323
-
-[[edge_functions]]
-name = "realtime-token"
+[functions.analyze-messages]
 verify_jwt = true
 
-[[edge_functions]]
-name = "seed-audio-content"
-verify_jwt = true
+[functions.analyze-scheduler]
+verify_jwt = false
