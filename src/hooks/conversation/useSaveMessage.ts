@@ -17,6 +17,7 @@ export const useSaveMessage = (
   const saveMessage = async (message: Partial<Message>): Promise<Message | null> => {
     if (!user || !conversationId) {
       console.error('Cannot save message: User not authenticated or conversation not initialized');
+      console.error(`User: ${user ? 'authenticated' : 'missing'}, ConversationId: ${conversationId || 'missing'}`);
       return null;
     }
     
@@ -29,14 +30,18 @@ export const useSaveMessage = (
     try {
       console.log(`Saving message to conversation ${conversationId}: ${message.role} - ${message.content?.substring(0, 30)}...`);
       
+      // Add explicit log of the full data being inserted
+      const insertData = {
+        conversation_id: conversationId,
+        user_id: user.id,
+        role: message.role,
+        content: message.content
+      };
+      console.log('Insert data:', JSON.stringify(insertData));
+      
       const { data, error } = await supabase
         .from('messages')
-        .insert([{
-          conversation_id: conversationId,
-          user_id: user.id,
-          role: message.role,
-          content: message.content
-        }])
+        .insert([insertData])
         .select('id, role, content, created_at')
         .single();
       

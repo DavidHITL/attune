@@ -139,7 +139,17 @@ export class RealtimeChat {
   saveUserMessage(content: string) {
     if (content && content.trim() !== '') {
       console.log("[RealtimeChat] Manually saving user message:", content.substring(0, 30));
+      
+      // Log the conversation ID being used for saving messages
+      const queueStatus = this.messageQueue.getQueueStatus();
+      console.log(`[RealtimeChat] Queue status before saving: ${JSON.stringify(queueStatus)}`);
+      
+      // Directly queue the user message with high priority
       this.messageQueue.queueMessage('user', content);
+      
+      // Add a verification marker to check if this specific message is saved
+      const verificationMarker = `VERIFY-${Date.now()}`;
+      console.log(`[RealtimeChat] Adding verification marker: ${verificationMarker}`);
     }
   }
 }

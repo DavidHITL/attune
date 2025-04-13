@@ -1,4 +1,3 @@
-
 import { Message, SaveMessageCallback } from '../types';
 
 export class MessageQueue {
@@ -6,6 +5,7 @@ export class MessageQueue {
   private isProcessingQueue: boolean = false;
   private lastMessageSentTime: number = 0;
   private minTimeBetweenMessages: number = 500; // ms
+  private userMessagesPending: Set<string> = new Set(); // Track pending user messages
   
   constructor(private saveMessageCallback: SaveMessageCallback) {}
   
@@ -38,11 +38,13 @@ export class MessageQueue {
     // For user messages, try to save immediately with high priority
     if (role === 'user') {
       console.log(`Processing user message with high priority`);
-      // Create a copy of the message to prevent modifications
-      const userMessage = { role, content };
       
-      // Save user message immediately
-      this.saveMessageAsync(userMessage);
+      // Create a message ID to track this message
+      const messageId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      this.userMessagesPending.add(messageId);
+      
+      // Save user message immediately with direct error handling
+      this.saveMessageDirectly(role, content, messageId);
     } else {
       // For assistant messages, add to queue for processing
       this.messageQueue.push({ role, content });
@@ -50,22 +52,59 @@ export class MessageQueue {
       this.processMessageQueue();
     }
   }
+  
+  // New method for direct message saving with better error handling
+  private async saveMessageDirectly(role: 'user' | 'assistant', content: string, messageId?: string) {
+    try {
+      console.log(`Directly saving ${role} message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
+      
+      // Save to database
+      const savedMessage = await this.saveMessageCallback({
+        role: role,
+        content: content
+      });
+      
+      console.log(`Successfully saved ${role} message to database`, 
+        savedMessage ? `with ID: ${savedMessage.id}` : "(no ID returned)");
+        
+      if (messageId) {
+        this.userMessagesPending.delete(messageId);
+        console.log(`Remaining pending user messages: ${this.userMessagesPending.size}`);
+      }
+    } catch (error) {
+      console.error(`Error directly saving ${role} message:`, error);
+      
+      // Add to queue for retry
+      console.log(`Adding ${role} message to retry queue after direct save failure`);
+      this.messageQueue.push({ role, content });
+      this.processMessageQueue();
+      
+      if (messageId) {
+        // Keep track that we still have a pending message
+        console.log(`User message ${messageId} failed to save directly, moved to retry queue`);
+      }
+    }
+  }
 
   // Save message asynchronously with error handling
   private async saveMessageAsync(message: { role: 'user' | 'assistant', content: string }) {
     try {
-      console.log(`Saving ${message.role} message: "${message.content.substring(0, 30)}${message.content.length > 30 ? '...' : ''}"`);
-      await this.saveMessageCallback({
+      console.log(`Saving ${message.role} message from queue: "${message.content.substring(0, 30)}${message.content.length > 30 ? '...' : ''}"`);
+      const savedMessage = await this.saveMessageCallback({
         role: message.role,
         content: message.content
       });
-      console.log(`Successfully saved ${message.role} message to database`);
+      console.log(`Successfully saved ${message.role} message to database`, 
+        savedMessage ? `with ID: ${savedMessage.id}` : "(no ID returned)");
     } catch (error) {
-      console.error(`Error saving ${message.role} message:`, error);
+      console.error(`Error saving ${message.role} message from queue:`, error);
       
-      // Add to queue for retry
-      this.messageQueue.push(message);
-      this.processMessageQueue();
+      // Put back in queue for retry (at the beginning)
+      console.log(`Re-queuing ${message.role} message after save failure`);
+      this.messageQueue.unshift(message);
+      
+      // Wait a bit before retrying
+      setTimeout(() => this.processMessageQueue(), 2000);
     }
   }
 
@@ -87,11 +126,12 @@ export class MessageQueue {
         
         while (!saved && attempts < maxAttempts) {
           try {
-            await this.saveMessageCallback({
+            const savedMessage = await this.saveMessageCallback({
               role: message.role,
               content: message.content
             });
-            console.log(`Successfully saved ${message.role} message to database (attempt ${attempts + 1})`);
+            console.log(`Successfully saved ${message.role} message to database (attempt ${attempts + 1})`, 
+              savedMessage ? `with ID: ${savedMessage.id}` : "(no ID returned)");
             saved = true;
           } catch (error) {
             attempts++;
@@ -135,5 +175,18 @@ export class MessageQueue {
         console.error("Error saving message during flush:", error);
       }
     }
+    
+    // Report on any pending user messages that never completed
+    if (this.userMessagesPending.size > 0) {
+      console.warn(`WARNING: ${this.userMessagesPending.size} user messages may not have been saved properly`);
+    }
+  }
+  
+  // Get queue status for debugging
+  getQueueStatus(): { queueLength: number, pendingUserMessages: number } {
+    return {
+      queueLength: this.messageQueue.length,
+      pendingUserMessages: this.userMessagesPending.size
+    };
   }
 }

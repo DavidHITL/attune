@@ -37,6 +37,15 @@ export class EventHandler {
       console.log(`Accumulating user transcript: ${this.userTranscript}`);
     }
     
+    if (event.type === "transcript" && event.transcript) {
+      // Handle direct transcript events (high priority user messages)
+      console.log("Direct transcript event received:", event.transcript);
+      if (event.transcript && event.transcript.trim()) {
+        console.log("Saving direct user transcript:", event.transcript);
+        this.messageQueue.queueMessage('user', event.transcript);
+      }
+    }
+    
     if (event.type === "response.audio_transcript.done" && event.transcript?.text) {
       // Get the final transcript and save it
       const content = event.transcript.text;

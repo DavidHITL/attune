@@ -7,10 +7,11 @@ import { useVoiceActivityState } from '@/hooks/voice/useVoiceActivityState';
 import { useContextStatus } from '@/hooks/voice/useContextStatus';
 import { useMicrophoneControls } from '@/hooks/voice/useMicrophoneControls';
 import { useConnectionManager } from '@/hooks/voice/useConnectionManager';
+import { toast } from 'sonner';
 
 export const useChatClient = () => {
   const chatClientRef = useRef<RealtimeChatClient | null>(null);
-  const { saveMessage, messages } = useConversation();
+  const { saveMessage, messages, conversationId } = useConversation();
   
   // Use our new custom hooks
   const { voiceActivityState, handleMessageEvent } = useVoiceActivityState();
@@ -33,17 +34,31 @@ export const useChatClient = () => {
     if (event.type === 'transcript' && event.transcript && chatClientRef.current) {
       console.log("Received transcript event, saving user message:", event.transcript);
       
+      // Show toast confirmation for debugging
+      toast.info("User message received", {
+        description: event.transcript.substring(0, 50) + (event.transcript.length > 50 ? "..." : ""),
+        duration: 2000,
+      });
+      
       // Save user message when we get a transcript
       chatClientRef.current.saveUserMessage(event.transcript);
+      
+      // Log key information about conversation state
+      console.log("Current conversation ID:", conversationId);
     }
-  }, [handleMessageEvent, handleSessionCreated]);
+  }, [handleMessageEvent, handleSessionCreated, conversationId]);
   
-  // Initialize connection manager
+  // Initialize connection manager with enhanced message tracking
   const { startConversation, endConversation } = useConnectionManager(
     chatClientRef,
     combinedMessageHandler,
     setStatus,
-    saveMessage,
+    (message) => {
+      // Enhanced debug logging for message saving
+      console.log(`Connection manager saving message: ${message.role} - ${message.content?.substring(0, 30)}...`);
+      console.log(`Using conversation ID: ${conversationId}`);
+      return saveMessage(message);
+    },
     setIsConnected,
     (isMicOn: boolean) => setIsMicOn(isMicOn),
     (state: VoiceActivityState) => void state
@@ -63,6 +78,12 @@ export const useChatClient = () => {
   // Update context info when messages change
   useEffect(() => {
     updateMessagesContext(messages.length);
+    
+    // Log message count changes for debugging
+    console.log(`Messages updated, now ${messages.length} messages in state`);
+    const userMessages = messages.filter(msg => msg.role === 'user').length;
+    const assistantMessages = messages.filter(msg => msg.role === 'assistant').length;
+    console.log(`Message breakdown: ${userMessages} user, ${assistantMessages} assistant`);
   }, [messages, updateMessagesContext]);
   
   // Cleanup effect on unmount
