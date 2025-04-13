@@ -46,17 +46,16 @@ export const useMicrophoneControls = (
     setIsMuted(newMuteState);
     
     if (chatClientRef.current) {
-      // Apply the mute state to the chat client
-      chatClientRef.current.setMuted(newMuteState);
+      // Apply the mute state specifically to the microphone input
       console.log(`[useMicrophoneControls] Mute toggled to: ${newMuteState}`);
       
       if (newMuteState) {
-        toast.info("Audio muted");
-        // Always ensure microphone is paused when muting
+        toast.info("Microphone muted");
+        // Force stop microphone when muting - this ensures the mic is actually turned off
         chatClientRef.current.forceStopMicrophone();
         console.log("[useMicrophoneControls] Force stopping microphone due to mute");
       } else {
-        toast.info("Audio unmuted");
+        toast.info("Microphone unmuted");
         // Only resume microphone when unmuting if mic was previously on
         if (isMicOn) {
           chatClientRef.current.forceResumeMicrophone();

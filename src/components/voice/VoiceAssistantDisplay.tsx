@@ -97,7 +97,7 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   const handleMuteButton = (e: React.MouseEvent<HTMLButtonElement>) => {
     createRipple(e);
     onToggleMute();
-    toast.info(isMuted ? "Unmuted" : "Muted");
+    toast.info(isMuted ? "Microphone unmuted" : "Microphone muted");
   };
   
   return (
@@ -166,10 +166,10 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
             onClick={handleMuteButton}
             className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95 overflow-hidden ${
               isMuted 
-                ? 'bg-gray-700 hover:bg-gray-800' 
+                ? 'bg-red-500 hover:bg-red-600' 
                 : 'bg-white/90 hover:bg-white'
             }`}
-            aria-label={isMuted ? "Unmute" : "Mute"}
+            aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
           >
             {isMuted ? (
               <MicOff className="h-6 w-6 text-white" strokeWidth={2} />

@@ -73,7 +73,7 @@ export class RealtimeChat {
       this.microphonePaused = false;
       this.connectionManager.resumeMicrophone();
     } else {
-      console.log("[RealtimeChat] Not resuming microphone because audio is muted");
+      console.log("[RealtimeChat] Not resuming microphone because it is muted");
     }
   }
 
@@ -81,6 +81,7 @@ export class RealtimeChat {
   forceStopMicrophone() {
     console.log("[RealtimeChat] Force stopping microphone");
     this.microphonePaused = true;
+    // Make sure we're using the aggressive microphone stopping method
     this.connectionManager.forcePauseMicrophone();
   }
   
@@ -89,19 +90,20 @@ export class RealtimeChat {
       console.log("[RealtimeChat] Force resuming microphone");
       this.microphonePaused = false;
       this.connectionManager.forceResumeMicrophone();
+    } else {
+      console.log("[RealtimeChat] Cannot force resume microphone while muted");
     }
   }
   
   isMicrophonePaused() {
-    return this.microphonePaused;
+    return this.microphonePaused || this.isMuted;
   }
   
   setMuted(muted: boolean) {
     console.log("[RealtimeChat] Setting muted state to", muted);
     this.isMuted = muted;
-    this.connectionManager.setMuted(muted);
     
-    // When muting, always pause microphone
+    // When muting, always force stop microphone to ensure it's completely disabled
     if (muted) {
       this.forceStopMicrophone();
     }
