@@ -145,14 +145,35 @@ export class RealtimeChat {
       const queueStatus = this.messageQueue.getQueueStatus();
       console.log(`[RealtimeChat] Queue status before saving: ${JSON.stringify(queueStatus)}`);
       
-      // Directly queue the user message with high priority and show toast
-      this.messageQueue.queueMessage('user', content);
-      
-      // Add a verification toast
-      toast.success("User message saved manually", {
-        description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
-        duration: 2000,
-      });
+      try {
+        // Directly save the message via the callback first for highest priority
+        this.saveMessageCallback({
+          role: 'user',
+          content: content
+        })
+        .then(savedMsg => {
+          console.log("[RealtimeChat] Direct save successful for message with ID:", savedMsg?.id);
+          toast.success("User message saved to database", {
+            description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
+            duration: 3000,
+          });
+        })
+        .catch(err => {
+          console.error("[RealtimeChat] Direct save failed:", err);
+          // Fall back to queue on direct save failure
+          console.log("[RealtimeChat] Falling back to message queue");
+          this.messageQueue.queueMessage('user', content);
+          
+          toast.error("Failed direct save, using backup method", {
+            description: err?.message || "Database error", 
+            duration: 3000
+          });
+        });
+      } catch (error) {
+        console.error("[RealtimeChat] Error in direct save:", error);
+        // Ensure the message is queued even if direct save throws
+        this.messageQueue.queueMessage('user', content);
+      }
       
       // Add a verification marker to check if this specific message is saved
       const verificationMarker = `VERIFY-${Date.now()}`;

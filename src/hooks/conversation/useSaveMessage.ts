@@ -16,9 +16,21 @@ export const useSaveMessage = (
    * Saves a new message to the database with error handling
    */
   const saveMessage = async (message: Partial<Message>): Promise<Message | null> => {
+    console.log('useSaveMessage called with:', {
+      userExists: !!user,
+      userId: user?.id,
+      conversationId,
+      messageRole: message.role,
+      messageContentLength: message.content?.length,
+      userAuthenticated: !!supabase.auth.getSession()
+    });
+    
     if (!user || !conversationId) {
       console.error('Cannot save message: User not authenticated or conversation not initialized');
       console.error(`User: ${user ? 'authenticated' : 'missing'}, ConversationId: ${conversationId || 'missing'}`);
+      
+      // Show explicit error toast for diagnostic purposes
+      toast.error(`Failed to save message: ${!user ? 'Not logged in' : 'No active conversation'}`);
       return null;
     }
     
@@ -32,7 +44,6 @@ export const useSaveMessage = (
       // Add explicit toast notification for user message saving
       if (message.role === 'user') {
         console.log(`SAVING USER MESSAGE to conversation ${conversationId}: ${message.content?.substring(0, 30)}...`);
-        // Only show toast in development or if saving fails
       } else {
         console.log(`Saving message to conversation ${conversationId}: ${message.role} - ${message.content?.substring(0, 30)}...`);
       }
@@ -45,6 +56,10 @@ export const useSaveMessage = (
         content: message.content
       };
       console.log('Insert data:', JSON.stringify(insertData));
+      
+      // Try to get current session for debugging
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log('Current session status:', sessionData.session ? 'Active' : 'No session');
       
       const { data, error } = await supabase
         .from('messages')
@@ -71,9 +86,9 @@ export const useSaveMessage = (
       
       console.log(`Message saved successfully with ID: ${validatedMessage.id}`);
 
-      // Show success toast for user messages only in development
+      // Show success toast for user messages
       if (message.role === 'user') {
-        toast.success(`User message saved`, {
+        toast.success(`User message saved with ID: ${validatedMessage.id}`, {
           id: `save-success-${validatedMessage.id}`,
           duration: 2000,
         });

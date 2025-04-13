@@ -8,10 +8,35 @@ import { useContextStatus } from '@/hooks/voice/useContextStatus';
 import { useMicrophoneControls } from '@/hooks/voice/useMicrophoneControls';
 import { useConnectionManager } from '@/hooks/voice/useConnectionManager';
 import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
 
 export const useChatClient = () => {
   const chatClientRef = useRef<RealtimeChatClient | null>(null);
+  const { user } = useAuth();
   const { saveMessage, messages, conversationId } = useConversation();
+  
+  // Create a debug logging flag for message saving
+  useEffect(() => {
+    console.log("Voice page loaded. Auth status:", { 
+      userLoggedIn: !!user, 
+      userId: user?.id,
+      conversationId: conversationId || 'none',
+      messageCount: messages.length
+    });
+    
+    if (!user) {
+      console.warn("User not authenticated! Messages won't be saved to database.");
+      toast.warning("Please log in to save your conversation", { duration: 5000 });
+    } else if (!conversationId) {
+      console.warn("No active conversation ID! Messages won't be saved to database.");
+    } else {
+      console.log("Voice chat ready with conversation ID:", conversationId);
+      toast.info("Voice chat initialized", { 
+        description: `Using conversation: ${conversationId}`,
+        duration: 2000
+      });
+    }
+  }, [user, conversationId, messages.length]);
   
   // Use our new custom hooks
   const { voiceActivityState, handleMessageEvent } = useVoiceActivityState();
@@ -40,6 +65,18 @@ export const useChatClient = () => {
         duration: 2000,
       });
       
+      if (!user) {
+        console.warn("Can't save message: No authenticated user");
+        toast.error("Sign in to save your messages");
+        return;
+      }
+      
+      if (!conversationId) {
+        console.warn("Can't save message: No conversation ID");
+        toast.error("No active conversation");
+        return;
+      }
+      
       // Save user message when we get a transcript
       chatClientRef.current.saveUserMessage(event.transcript);
       
@@ -56,8 +93,13 @@ export const useChatClient = () => {
         description: event.transcript.text.substring(0, 50) + (event.transcript.text.length > 50 ? "..." : ""),
         duration: 2000,
       });
+      
+      if (user && conversationId) {
+        // Make sure the final transcript is also saved
+        chatClientRef.current.saveUserMessage(event.transcript.text);
+      }
     }
-  }, [handleMessageEvent, handleSessionCreated, conversationId]);
+  }, [handleMessageEvent, handleSessionCreated, conversationId, user]);
   
   // Initialize connection manager with enhanced message tracking
   const { startConversation, endConversation } = useConnectionManager(
@@ -75,6 +117,18 @@ export const useChatClient = () => {
           description: message.content?.substring(0, 50) + (message.content && message.content.length > 50 ? "..." : ""),
           duration: 2000,
         });
+      }
+      
+      if (!user) {
+        console.error("Cannot save message: No authenticated user");
+        toast.error("Cannot save message: Not logged in");
+        return Promise.reject(new Error("User not authenticated"));
+      }
+      
+      if (!conversationId) {
+        console.error("Cannot save message: No conversation ID");
+        toast.error("Cannot save message: No conversation");
+        return Promise.reject(new Error("No conversation ID"));
       }
       
       return saveMessage(message);
