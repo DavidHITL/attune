@@ -15,6 +15,7 @@ export const AnimatedGrid = () => (
             ease: "linear",
         }}
     >
-        <div className="h-full w-full [background-image:repeating-linear-gradient(100deg,#64748B_0%,#64748B_1px,transparent_1px,transparent_4%)] opacity-20" />
+        {/* Removed the diagonal grid lines */}
+        <div className="h-full w-full opacity-20" />
     </motion.div>
 );
