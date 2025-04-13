@@ -14,7 +14,7 @@ export const useSaveMessage = (
   /**
    * Saves a new message to the database with error handling
    */
-  const saveMessage = async (message: Message): Promise<Message | null> => {
+  const saveMessage = async (message: Partial<Message>): Promise<Message | null> => {
     if (!user || !conversationId) {
       console.error('Cannot save message: User not authenticated or conversation not initialized');
       return null;
@@ -27,7 +27,7 @@ export const useSaveMessage = (
     }
     
     try {
-      console.log(`Saving message to conversation ${conversationId}: ${message.role} - ${message.content.substring(0, 30)}...`);
+      console.log(`Saving message to conversation ${conversationId}: ${message.role} - ${message.content?.substring(0, 30)}...`);
       
       const { data, error } = await supabase
         .from('messages')
@@ -68,7 +68,7 @@ export const useSaveMessage = (
         console.log('Verified message in database:', verifyData);
         if (verifyData.content !== message.content) {
           console.warn('Message content verification mismatch!');
-          console.warn('Original:', message.content.substring(0, 50));
+          console.warn('Original:', message.content?.substring(0, 50));
           console.warn('Saved:', verifyData.content.substring(0, 50));
         }
       }
@@ -109,17 +109,6 @@ export const useSaveMessage = (
         return validatedMessage;
       } catch (retryError) {
         console.error('Failed to save message after retry:', retryError);
-        
-        // Add message to state even if DB save failed, so UI remains consistent
-        const tempMessage: Message = {
-          id: `temp-${new Date().getTime()}`,
-          role: message.role,
-          content: message.content,
-          created_at: new Date().toISOString()
-        };
-        
-        console.log('Adding temporary message to state despite save failure');
-        
         throw retryError;
       }
     }

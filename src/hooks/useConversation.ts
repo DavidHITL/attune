@@ -62,7 +62,7 @@ export const useConversation = (): UseConversationReturn => {
       }
       
       console.log(`Saving ${message.role} message to database: "${message.content.substring(0, 30)}${message.content.length > 30 ? '...' : ''}"`);
-      const savedMessage = await saveMessageToDb(message);
+      const savedMessage = await saveMessageToDb(message as Message);
       
       if (savedMessage) {
         console.log(`Successfully saved ${message.role} message to database with ID: ${savedMessage.id}`);
@@ -74,7 +74,7 @@ export const useConversation = (): UseConversationReturn => {
     } catch (error) {
       console.error('Error in saveMessage:', error);
       
-      // Create a temporary message so UI remains consistent
+      // Create a temporary message with a generated ID so UI remains consistent
       const tempMessage: Message = {
         id: `temp-${new Date().getTime()}`,
         role: message.role as 'user' | 'assistant',
