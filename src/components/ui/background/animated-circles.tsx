@@ -26,7 +26,7 @@ export const AnimatedCircles = ({ variant }: AnimatedCirclesProps) => {
     const isGrayVariant = variant === "septenary";
 
     return (
-        <motion.div className="absolute h-[480px] w-[480px]">
+        <motion.div className="absolute h-[240px] w-[240px]">
             {[0, 1, 2].map((i) => (
                 <motion.div
                     key={i}
@@ -47,7 +47,7 @@ export const AnimatedCircles = ({ variant }: AnimatedCirclesProps) => {
                             : isGrayVariant
                             ? {
                                   scale: [1, 1.05 + i * 0.02, 1],
-                                  opacity: [0.4, 0.6, 0.4],
+                                  opacity: [0.3, 0.5, 0.3],
                               }
                             : {
                                   rotate: 360,
@@ -73,7 +73,7 @@ export const AnimatedCircles = ({ variant }: AnimatedCirclesProps) => {
                             variant === "rainbow" 
                               ? "bg-[radial-gradient(ellipse_at_center,rgba(168,85,247,0.3)/10%,transparent_70%)]" 
                               : isGrayVariant
-                              ? "bg-[radial-gradient(ellipse_at_center,rgba(107,114,128,0.2),transparent_70%)]"
+                              ? "bg-[radial-gradient(ellipse_at_center,rgba(107,114,128,0.15),transparent_70%)]"
                               : `bg-[radial-gradient(ellipse_at_center,${variantStyles.gradient.replace(
                                   "from-",
                                   ""

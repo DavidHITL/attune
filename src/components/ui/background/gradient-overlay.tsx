@@ -10,8 +10,8 @@ export const GradientOverlay = ({ variant }: GradientOverlayProps) => {
     if (variant === "septenary") {
         return (
             <div className="absolute inset-0 [mask-image:radial-gradient(90%_60%_at_50%_50%,#000_40%,transparent)]">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(75,85,99,0.3),transparent_70%)] blur-[120px] animate-pulse-slow" />
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(156,163,175,0.15),transparent)] blur-[80px] animate-pulse-slower" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(75,85,99,0.2),transparent_70%)] blur-[120px] animate-pulse-slow" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(156,163,175,0.1),transparent)] blur-[80px] animate-pulse-slower" />
             </div>
         );
     }
