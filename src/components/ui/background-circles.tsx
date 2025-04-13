@@ -27,14 +27,14 @@ export function BackgroundCircles({
         <div
             className={cn(
                 "relative flex h-screen w-full items-center justify-center overflow-hidden",
-                "bg-white dark:bg-black/5",
+                "bg-[#1B4965]",
                 className
             )}
         >
             <AnimatedGrid />
             <AnimatedCircles variant={variant} />
             <ContentText title={title} description={description} />
-            <GradientOverlay />
+            <GradientOverlay variant={variant} />
         </div>
     );
 }

@@ -20,7 +20,7 @@ const Navigation = () => {
   const useWhiteText = isVoicePage || isProfilePage;
 
   return (
-    <nav className={`w-full ${backgroundColor} py-3 px-4 flex justify-center fixed bottom-0 z-10`}>
+    <nav className={`w-full ${backgroundColor} py-3 px-4 flex justify-center fixed bottom-0 z-50`}>
       <div className="max-w-[390px] w-full flex justify-center items-center">
         <div className="w-full flex justify-between items-center">
           <Link 
