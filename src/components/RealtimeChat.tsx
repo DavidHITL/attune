@@ -53,18 +53,17 @@ const RealtimeChat: React.FC = () => {
   }
 
   return (
-    <>
-      {/* Background animation with improved visibility - only show when connected */}
+    <div className="relative h-full">
+      {/* Background animation - only show when connected and enhanced visibility */}
       {isConnected && (
-        <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none">
-          <div className="relative" style={{ marginTop: '140px' }}>
-            <BackgroundCircles 
-              title=""
-              description=""
-              variant="septenary"
-              className="absolute inset-0"
-            />
-          </div>
+        <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden">
+          <BackgroundCircles 
+            title=""
+            description=""
+            variant="septenary"
+            className="absolute inset-0"
+            style={{ marginTop: '50px' }}
+          />
         </div>
       )}
       
@@ -87,7 +86,7 @@ const RealtimeChat: React.FC = () => {
           onStartConversation={handleStartConversation}
         />
       </div>
-    </>
+    </div>
   );
 };
 

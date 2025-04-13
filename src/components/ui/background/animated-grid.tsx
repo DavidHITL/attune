@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 
 export const AnimatedGrid = () => (
     <motion.div
-        className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,transparent_30%,black)]"
+        className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,transparent_40%,black)]"
         animate={{
             backgroundPosition: ["0% 0%", "100% 100%"],
         }}
@@ -15,7 +15,6 @@ export const AnimatedGrid = () => (
             ease: "linear",
         }}
     >
-        {/* Removed the diagonal grid lines */}
-        <div className="h-full w-full opacity-20" />
+        <div className="h-full w-full opacity-20 bg-gradient-to-br from-white/5 to-transparent" />
     </motion.div>
 );

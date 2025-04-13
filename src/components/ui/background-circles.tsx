@@ -15,6 +15,7 @@ interface BackgroundCirclesProps {
     description?: string;
     className?: string;
     variant?: ColorVariant;
+    style?: React.CSSProperties;
 }
 
 export function BackgroundCircles({
@@ -22,6 +23,7 @@ export function BackgroundCircles({
     description = "Optional Description",
     className,
     variant = "octonary",
+    style,
 }: BackgroundCirclesProps) {
     return (
         <div
@@ -30,6 +32,7 @@ export function BackgroundCircles({
                 "bg-[#1B4965]",
                 className
             )}
+            style={style}
         >
             <AnimatedGrid />
             <AnimatedCircles variant={variant} />

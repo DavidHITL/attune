@@ -6,118 +6,69 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
+    --foreground: 224 71.4% 4.1%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 224 71.4% 4.1%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
+    --popover-foreground: 224 71.4% 4.1%;
+    --primary: 262.1 83.3% 57.8%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 220.9 39.3% 11%;
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
+    --accent: 220 14.3% 95.9%;
+    --accent-foreground: 220.9 39.3% 11%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
+    --destructive-foreground: 210 20% 98%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 262.1 83.3% 57.8%;
     --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
+    --background: 224 71.4% 4.1%;
+    --foreground: 210 20% 98%;
+    --card: 224 71.4% 4.1%;
+    --card-foreground: 210 20% 98%;
+    --popover: 224 71.4% 4.1%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 263.4 70% 50.4%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 215 27.9% 16.9%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 27.9% 16.9%;
+    --muted-foreground: 217.9 10.6% 64.9%;
+    --accent: 215 27.9% 16.9%;
+    --accent-foreground: 210 20% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 263.4 70% 50.4%;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
-    font-family: Inter, system-ui, Helvetica, Arial, sans-serif !important;
   }
-
-  html, body {
-    font-family: Inter, system-ui, Helvetica, Arial, sans-serif !important;
-  }
-
   body {
-    @apply bg-background text-black;
-    font-family: Inter, system-ui, Helvetica, Arial, sans-serif !important;
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    font-family: Inter, system-ui, Helvetica, Arial, sans-serif !important;
-    @apply text-black;
-  }
-  
-  p, span, div, a, button, input, textarea, select, option, label, li {
-    font-family: Inter, system-ui, Helvetica, Arial, sans-serif !important;
-    @apply text-black;
+    @apply bg-background text-foreground;
   }
 }
 
-/* Button animation styles */
+/* Custom ripple effect styles */
+.ripple {
+  position: absolute;
+  background-color: rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  transform: scale(0);
+  animation: ripple 600ms linear;
+  pointer-events: none;
+}
+
 @keyframes ripple {
   to {
     transform: scale(4);
@@ -125,159 +76,25 @@
   }
 }
 
-.ripple {
-  position: absolute;
-  border-radius: 50%;
-  transform: scale(0);
-  background-color: rgba(255, 255, 255, 0.4);
-  animation: ripple 0.6s linear;
-  pointer-events: none;
-}
-
-/* Universal button hover effect */
-button, a, [role="button"], .button-like {
-  transition: all 0.2s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-button:hover, a:hover, [role="button"]:hover, .button-like:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-button:active, a:active, [role="button"]:active, .button-like:active {
-  transform: translateY(1px);
-}
-
-/* General micro-animations */
+/* Animation utilities */
 .hover-animation {
-  transition: all 0.3s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .hover-animation:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.click-animation {
-  animation: click-effect 0.3s ease-out;
-}
-
-@keyframes click-effect {
-  0% {
-    transform: scale(0.95);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-/* Special animations for controls */
-.control-button-hover {
-  transition: all 0.2s ease;
-}
-
-.control-button-hover:hover {
-  transform: translateY(-2px);
-}
-
-/* Adding subtle hover effects to navigation items */
-.nav-item-animation {
-  transition: all 0.3s ease;
-}
-
-.nav-item-animation:hover {
-  transform: translateY(-1px);
-}
-
-/* For audio control buttons */
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
-  }
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 .pulse-animation {
-  animation: pulse 2s infinite;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Call control animations */
-.call-control-hover {
-  transition: all 0.3s ease;
-}
-
-.call-control-hover:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* For toggle buttons */
-.toggle-animation {
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.toggle-animation:active {
-  transform: rotate(5deg);
-}
-
-/* Card hover animations */
-.card-hover {
-  transition: all 0.3s ease;
-}
-
-.card-hover:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-}
-
-/* Input focus animations */
-input, textarea, select {
-  transition: all 0.3s ease;
-}
-
-input:focus, textarea:focus, select:focus {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-/* List item animations */
-li {
-  transition: all 0.2s ease;
-}
-
-li:hover {
-  transform: translateX(2px);
-}
-
-/* Link underline animation */
-.link-underline {
-  position: relative;
-}
-
-.link-underline:after {
-  content: '';
-  position: absolute;
-  width: 100%;
-  transform: scaleX(0);
-  height: 1px;
-  bottom: 0;
-  left: 0;
-  background-color: currentColor;
-  transform-origin: bottom right;
-  transition: transform 0.3s ease-out;
-}
-
-.link-underline:hover:after {
-  transform: scaleX(1);
-  transform-origin: bottom left;
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
