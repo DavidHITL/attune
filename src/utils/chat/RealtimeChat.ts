@@ -1,6 +1,7 @@
+
 import { MessageCallback, StatusCallback, SaveMessageCallback } from '../types';
 import { ConnectionManager } from './ConnectionManager';
-import { MessageQueue } from './MessageQueue';
+import { MessageQueue } from './messageQueue'; // Updated import path
 import { ResponseParser } from './ResponseParser';
 import { EventHandler } from './EventHandler';
 import { toast } from 'sonner';

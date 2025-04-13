@@ -1,4 +1,5 @@
-import { MessageQueue } from './MessageQueue';
+
+import { MessageQueue } from './messageQueue'; // Updated import path
 import { ResponseParser } from './ResponseParser';
 import { MessageCallback } from '../types';
 import { toast } from 'sonner';
