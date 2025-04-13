@@ -13,7 +13,7 @@ export const useSaveMessage = (
 ) => {
 
   /**
-   * Saves a new message to the database with error handling
+   * Saves a new message to the database with enhanced error handling
    */
   const saveMessage = async (message: Partial<Message>): Promise<Message | null> => {
     console.log('useSaveMessage called with:', {
@@ -93,7 +93,7 @@ export const useSaveMessage = (
           
           // Show success toast for user messages with ID
           if (message.role === 'user') {
-            toast.success(`User message saved with ID: ${validatedMessage.id}`, {
+            toast.success(`User message saved with ID: ${validatedMessage.id.substring(0, 8)}...`, {
               id: `save-success-${validatedMessage.id}`,
               duration: 2000,
             });
@@ -173,7 +173,7 @@ export const useSaveMessage = (
           console.log(`User message saved successfully on retry with ID: ${validatedMessage.id}`);
           
           // Show success toast for retry
-          toast.success(`User message saved on retry with ID: ${validatedMessage.id}`, {
+          toast.success(`User message saved on retry with ID: ${validatedMessage.id.substring(0, 8)}...`, {
             id: `save-retry-success-${validatedMessage.id}`,
             duration: 2000,
           });

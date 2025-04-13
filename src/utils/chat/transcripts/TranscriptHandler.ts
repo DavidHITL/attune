@@ -9,6 +9,7 @@ export class TranscriptHandler {
   private userTranscript: string = '';
   private lastTranscriptTime: number = 0;
   private userSpeechDetected: boolean = false;
+  private processedTranscripts: Set<string> = new Set();
   
   constructor(private messageQueue: MessageQueue) {}
 
@@ -18,7 +19,7 @@ export class TranscriptHandler {
   handleTranscriptDelta(deltaText: string): void {
     if (deltaText) {
       this.userTranscript += deltaText;
-      console.log(`Accumulating user transcript: "${this.userTranscript}"`);
+      console.log(`Accumulating user transcript (${this.userTranscript.length} chars): "${this.userTranscript}"`);
       this.lastTranscriptTime = Date.now();
     }
   }
@@ -28,8 +29,15 @@ export class TranscriptHandler {
    */
   handleDirectTranscript(transcript: string): void {
     if (transcript && transcript.trim()) {
+      // Check for duplicates
+      if (this.processedTranscripts.has(transcript)) {
+        console.log("Duplicate transcript detected, skipping:", transcript);
+        return;
+      }
+      
       console.log("Saving direct user transcript:", transcript);
-      this.messageQueue.queueMessage('user', transcript);
+      this.messageQueue.queueMessage('user', transcript, true); // High priority save
+      this.processedTranscripts.add(transcript);
       
       toast.info("User message captured", {
         description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
@@ -46,8 +54,15 @@ export class TranscriptHandler {
     const content = text;
     
     if (content && content.trim()) {
+      // Check for duplicates
+      if (this.processedTranscripts.has(content)) {
+        console.log("Duplicate final transcript detected, skipping:", content);
+        return;
+      }
+      
       console.log("Final user transcript received:", content);
       this.messageQueue.queueMessage('user', content, true); // High priority save
+      this.processedTranscripts.add(content);
       
       // Reset transcript accumulator
       this.userTranscript = '';
@@ -60,12 +75,17 @@ export class TranscriptHandler {
     } else if (this.userTranscript && this.userTranscript.trim()) {
       // Fallback to accumulated transcript if final is missing
       console.log("Using accumulated user transcript:", this.userTranscript);
-      this.messageQueue.queueMessage('user', this.userTranscript, true); // High priority save
       
-      toast.success("User message saved (accumulated)", {
-        description: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? "..." : ""),
-        duration: 2000,
-      });
+      // Check for duplicates
+      if (!this.processedTranscripts.has(this.userTranscript)) {
+        this.messageQueue.queueMessage('user', this.userTranscript, true); // High priority save
+        this.processedTranscripts.add(this.userTranscript);
+        
+        toast.success("User message saved (accumulated)", {
+          description: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? "..." : ""),
+          duration: 2000,
+        });
+      }
       
       this.userTranscript = '';
       this.userSpeechDetected = false;
@@ -96,8 +116,20 @@ export class TranscriptHandler {
         setTimeout(() => {
           if (this.userTranscript && this.userTranscript.trim()) {
             console.log("Saving speech-stopped transcript:", this.userTranscript);
-            this.messageQueue.queueMessage('user', this.userTranscript);
-            this.userTranscript = '';
+            
+            // Check for duplicates
+            if (!this.processedTranscripts.has(this.userTranscript)) {
+              this.messageQueue.queueMessage('user', this.userTranscript, true); // High priority
+              this.processedTranscripts.add(this.userTranscript);
+              
+              toast.success("User message saved", {
+                description: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? "..." : ""),
+                duration: 2000,
+              });
+              
+              this.userTranscript = '';
+            }
+            
             this.userSpeechDetected = false;
           }
         }, 300);
@@ -117,8 +149,19 @@ export class TranscriptHandler {
         this.userTranscript.trim() &&
         Date.now() - this.lastTranscriptTime > 1500) {
       console.log("Saving transcript from committed buffer:", this.userTranscript);
-      this.messageQueue.queueMessage('user', this.userTranscript, false);
-      this.userTranscript = '';
+      
+      // Check for duplicates
+      if (!this.processedTranscripts.has(this.userTranscript)) {
+        this.messageQueue.queueMessage('user', this.userTranscript, true);
+        this.processedTranscripts.add(this.userTranscript);
+        
+        toast.info("User message saved (buffer)", {
+          description: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? "..." : ""),
+          duration: 2000,
+        });
+        
+        this.userTranscript = '';
+      }
     }
   }
   
@@ -128,12 +171,17 @@ export class TranscriptHandler {
   flushPendingTranscript(): void {
     if (this.userTranscript && this.userTranscript.trim()) {
       console.log("Saving partial user transcript during disconnect:", this.userTranscript);
-      this.messageQueue.queueMessage('user', this.userTranscript, true); // High priority
       
-      toast.success("Final user message saved during disconnect", {
-        description: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? "..." : ""),
-        duration: 2000,
-      });
+      // Check for duplicates
+      if (!this.processedTranscripts.has(this.userTranscript)) {
+        this.messageQueue.queueMessage('user', this.userTranscript, true); // High priority
+        this.processedTranscripts.add(this.userTranscript);
+        
+        toast.success("Final user message saved during disconnect", {
+          description: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? "..." : ""),
+          duration: 2000,
+        });
+      }
     }
   }
   

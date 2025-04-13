@@ -5,11 +5,13 @@ import { MessageCallback } from '../types';
 import { TranscriptHandler } from './transcripts/TranscriptHandler';
 import { AssistantResponseHandler } from './responses/AssistantResponseHandler';
 import { EventType, isEventType, extractTranscriptText } from './events/EventTypes';
+import { toast } from 'sonner';
 
 export class EventHandler {
   private transcriptHandler: TranscriptHandler;
   private responseHandler: AssistantResponseHandler;
   private audioEvents: Set<string> = new Set();
+  private speechDetected: boolean = false;
 
   constructor(
     messageQueue: MessageQueue,
@@ -29,6 +31,13 @@ export class EventHandler {
     if (event.type?.includes('speech') || event.type?.includes('audio') || event.type?.includes('transcript')) {
       console.log(`SPEECH EVENT [${event.type}]:`, JSON.stringify(event).substring(0, 200));
       this.audioEvents.add(event.type);
+      
+      // Track if speech was detected for diagnostics
+      if (event.type === 'input_audio_buffer.speech_started') {
+        this.speechDetected = true;
+        console.log("SPEECH DETECTED - expecting transcript soon");
+        toast.info("Speech detected", { duration: 1500 });
+      }
     }
     
     // Handle speech and transcript events
@@ -54,6 +63,7 @@ export class EventHandler {
     
     // Direct transcript handling (high priority)
     if (isEventType(event, EventType.DirectTranscript)) {
+      console.log("DIRECT TRANSCRIPT EVENT RECEIVED:", event.transcript);
       this.transcriptHandler.handleDirectTranscript(event.transcript);
     }
     
@@ -64,6 +74,7 @@ export class EventHandler {
     
     // Handle final transcript completions
     if (isEventType(event, EventType.AudioTranscriptDone)) {
+      console.log("FINAL TRANSCRIPT EVENT RECEIVED:", event.transcript?.text);
       this.transcriptHandler.handleFinalTranscript(event.transcript?.text);
     }
     
@@ -103,6 +114,7 @@ export class EventHandler {
   // For cleanup - save any pending messages
   flushPendingMessages(): void {
     console.log("Flushing pending messages, audio events detected:", Array.from(this.audioEvents).join(", "));
+    console.log("Speech was detected during this session:", this.speechDetected);
     
     // Flush any pending assistant response
     this.responseHandler.flushPendingResponse();

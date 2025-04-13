@@ -1,3 +1,4 @@
+
 import { Message, SaveMessageCallback } from '../../types';
 import { toast } from 'sonner';
 
@@ -9,6 +10,7 @@ export class MessageSaver {
   private userMessagesPending: Set<string> = new Set();
   private minTimeBetweenMessages: number = 500; // ms
   private lastMessageSentTime: number = 0;
+  private processedMessages: Set<string> = new Set();
   
   constructor(private saveMessageCallback: SaveMessageCallback) {}
 
@@ -16,6 +18,19 @@ export class MessageSaver {
    * Directly save a message with retry logic
    */
   async saveMessageDirectly(role: 'user' | 'assistant', content: string, messageId?: string): Promise<Message | null> {
+    // Skip empty messages
+    if (!content || content.trim() === '') {
+      console.log(`Skipping empty ${role} message`);
+      return null;
+    }
+    
+    // Generate content fingerprint to avoid duplicates
+    const contentFingerprint = `${role}:${content.substring(0, 50)}`;
+    if (this.processedMessages.has(contentFingerprint)) {
+      console.log(`Skipping duplicate ${role} message:`, content.substring(0, 50));
+      return null;
+    }
+    
     this.activeMessageSaves++;
     
     // For user messages, try multiple times with increasing delays
@@ -24,10 +39,23 @@ export class MessageSaver {
     let saved = false;
     let savedMessage: Message | null = null;
     
+    // Mark this message as being processed
+    this.processedMessages.add(contentFingerprint);
+    
     while (!saved && attempt < maxRetries) {
       attempt++;
       try {
         console.log(`Directly saving ${role} message (attempt ${attempt}): "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
+        
+        // For user messages, add to pending set and show toast
+        if (role === 'user' && messageId) {
+          this.userMessagesPending.add(messageId);
+          
+          toast.loading(`Saving user message...`, {
+            id: messageId,
+            duration: 5000
+          });
+        }
         
         // Save to database
         savedMessage = await this.saveMessageCallback({
@@ -45,9 +73,9 @@ export class MessageSaver {
           console.log(`Remaining pending user messages: ${this.userMessagesPending.size}`);
           
           // Show success toast for user message
-          toast.success("User message saved to database", {
+          toast.success("User message saved", {
             description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
-            id: `save-${messageId}`,
+            id: messageId,
             duration: 2000,
           });
         }
@@ -59,6 +87,15 @@ export class MessageSaver {
         if (attempt < maxRetries) {
           const delay = attempt * 1000; // Increase delay with each retry
           console.log(`Will retry in ${delay}ms...`);
+          
+          // Update toast for user messages
+          if (role === 'user' && messageId) {
+            toast.loading(`Retrying save (${attempt}/${maxRetries})...`, {
+              id: messageId,
+              duration: delay + 2000
+            });
+          }
+          
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
           if (messageId && role === 'user') {
@@ -68,7 +105,7 @@ export class MessageSaver {
             // Show error toast for failed user message
             toast.error(`Failed to save user message after ${maxRetries} attempts`, {
               description: error instanceof Error ? error.message : "Database error",
-              id: `error-${messageId}`,
+              id: messageId,
               duration: 3000,
             });
           }
@@ -85,12 +122,37 @@ export class MessageSaver {
    * Save message with exponential backoff retry logic
    */
   async saveMessageWithRetry(role: 'user' | 'assistant', content: string): Promise<Message | null> {
+    // Skip empty messages
+    if (!content || content.trim() === '') {
+      console.log(`Skipping empty ${role} message`);
+      return null;
+    }
+    
+    // Generate content fingerprint to avoid duplicates
+    const contentFingerprint = `${role}:${content.substring(0, 50)}`;
+    if (this.processedMessages.has(contentFingerprint)) {
+      console.log(`Skipping duplicate ${role} message in retry:`, content.substring(0, 50));
+      return null;
+    }
+    
+    // Mark this message as being processed
+    this.processedMessages.add(contentFingerprint);
+    
     try {
       console.log(`Saving ${role} message with retry: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
       
       // Try multiple attempts with increasing delays
       let attempts = 0;
-      const maxAttempts = 3;
+      const maxAttempts = role === 'user' ? 3 : 1;
+      const messageId = `${role}-retry-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      
+      // For user messages, show toast
+      if (role === 'user') {
+        toast.loading(`Saving user message...`, {
+          id: messageId,
+          duration: 5000
+        });
+      }
       
       while (attempts < maxAttempts) {
         try {
@@ -102,6 +164,15 @@ export class MessageSaver {
           console.log(`Successfully saved ${role} message to database (attempt ${attempts + 1})`, 
             savedMessage ? `with ID: ${savedMessage.id}` : "(no ID returned)");
           
+          // Show success toast for user messages
+          if (role === 'user') {
+            toast.success("User message saved", {
+              id: messageId,
+              description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
+              duration: 2000
+            });
+          }
+          
           return savedMessage;
         } catch (error) {
           attempts++;
@@ -110,8 +181,26 @@ export class MessageSaver {
           if (attempts < maxAttempts) {
             const delay = attempts * 1000;
             console.log(`Retrying in ${delay}ms...`);
+            
+            // Update toast for user messages
+            if (role === 'user') {
+              toast.loading(`Retrying save (${attempts}/${maxAttempts})...`, {
+                id: messageId,
+                duration: delay + 2000
+              });
+            }
+            
             await new Promise(resolve => setTimeout(resolve, delay));
           } else {
+            // Show error toast for user messages
+            if (role === 'user') {
+              toast.error(`Failed to save message after ${maxAttempts} attempts`, {
+                id: messageId,
+                description: error instanceof Error ? error.message : "Database error",
+                duration: 3000
+              });
+            }
+            
             throw error;
           }
         }
@@ -143,7 +232,17 @@ export class MessageSaver {
     }
     
     this.lastMessageSentTime = now;
-    return false;
+    
+    // Check fingerprint
+    const contentFingerprint = `${role}:${content.substring(0, 50)}`;
+    return this.processedMessages.has(contentFingerprint);
+  }
+  
+  /**
+   * Reset processed messages tracking
+   */
+  resetProcessedMessages(): void {
+    this.processedMessages.clear();
   }
   
   /**

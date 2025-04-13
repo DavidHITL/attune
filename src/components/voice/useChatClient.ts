@@ -47,7 +47,7 @@ export const useChatClient = () => {
     handleSessionCreated, updateMessagesContext
   } = useContextStatus();
   
-  // Create a combined message handler
+  // Create a combined message handler with enhanced transcript handling
   const combinedMessageHandler = useCallback((event: any) => {
     // Process voice activity state changes
     handleMessageEvent(event);
@@ -55,9 +55,21 @@ export const useChatClient = () => {
     // Process session creation events
     handleSessionCreated(event);
     
-    // Handle transcript events for user messages
+    // Debug logging for speech and transcript events
+    if (event.type?.includes('speech') || event.type?.includes('transcript')) {
+      if (event.type === 'input_audio_buffer.speech_started') {
+        console.log("🎤 USER SPEECH STARTED - Preparing to capture transcript");
+        
+        // Show a toast when speech is detected
+        toast.info("Speech detected", { duration: 2000 });
+      } else if (event.type === 'input_audio_buffer.speech_stopped') {
+        console.log("🔇 USER SPEECH STOPPED - Finalizing transcript");
+      }
+    }
+    
+    // Handle transcript events for user messages - more reliable handling
     if (event.type === 'transcript' && event.transcript && chatClientRef.current) {
-      console.log("Received transcript event, saving user message:", event.transcript);
+      console.log("📝 Received direct transcript event, saving user message:", event.transcript);
       
       // Show toast confirmation for transcript received
       toast.info("User speech detected", {
@@ -66,18 +78,18 @@ export const useChatClient = () => {
       });
       
       if (!user) {
-        console.warn("Can't save message: No authenticated user");
+        console.warn("⚠️ Can't save message: No authenticated user");
         toast.error("Sign in to save your messages");
         return;
       }
       
       if (!conversationId) {
-        console.warn("Can't save message: No conversation ID");
+        console.warn("⚠️ Can't save message: No conversation ID");
         toast.error("No active conversation");
         return;
       }
       
-      // Save user message when we get a transcript
+      // Save user message when we get a transcript with high priority
       chatClientRef.current.saveUserMessage(event.transcript);
       
       // Log key information about conversation state
@@ -86,7 +98,7 @@ export const useChatClient = () => {
     
     // Also handle response.audio_transcript.done events
     if (event.type === 'response.audio_transcript.done' && event.transcript?.text && chatClientRef.current) {
-      console.log("Final transcript received:", event.transcript.text);
+      console.log("📝 Final transcript received:", event.transcript.text);
       
       // Show toast with transcript
       toast.info("Final transcript received", {
@@ -113,7 +125,7 @@ export const useChatClient = () => {
       
       // Show toast for user messages being saved
       if (message.role === 'user') {
-        toast.success("Saving user message", {
+        toast.info("Saving user message to database", {
           description: message.content?.substring(0, 50) + (message.content && message.content.length > 50 ? "..." : ""),
           duration: 2000,
         });
