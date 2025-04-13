@@ -24,9 +24,12 @@ export const AnimatedCircles = ({ variant }: AnimatedCirclesProps) => {
     
     // Special gray animation for voice call
     const isGrayVariant = variant === "septenary";
+    
+    // Use a larger size for voice call circles
+    const circleSize = isGrayVariant ? "h-[340px] w-[340px]" : "h-[240px] w-[240px]";
 
     return (
-        <motion.div className="absolute h-[240px] w-[240px]">
+        <motion.div className={`absolute ${circleSize}`}>
             {[0, 1, 2].map((i) => (
                 <motion.div
                     key={i}
@@ -46,8 +49,8 @@ export const AnimatedCircles = ({ variant }: AnimatedCirclesProps) => {
                               }
                             : isGrayVariant
                             ? {
-                                  scale: [1, 1.05 + i * 0.02, 1],
-                                  opacity: [0.3, 0.5, 0.3],
+                                  scale: [1, 1.02 + i * 0.01, 1],
+                                  opacity: [0.4, 0.6, 0.4],
                               }
                             : {
                                   rotate: 360,
@@ -56,7 +59,7 @@ export const AnimatedCircles = ({ variant }: AnimatedCirclesProps) => {
                               }
                     }
                     transition={{
-                        duration: variant === "rainbow" ? 8 : isGrayVariant ? 3 : 5,
+                        duration: variant === "rainbow" ? 8 : isGrayVariant ? 4 : 5,
                         repeat: Number.POSITIVE_INFINITY,
                         ease: "linear",
                         background: variant === "rainbow" ? {
@@ -73,7 +76,7 @@ export const AnimatedCircles = ({ variant }: AnimatedCirclesProps) => {
                             variant === "rainbow" 
                               ? "bg-[radial-gradient(ellipse_at_center,rgba(168,85,247,0.3)/10%,transparent_70%)]" 
                               : isGrayVariant
-                              ? "bg-[radial-gradient(ellipse_at_center,rgba(107,114,128,0.15),transparent_70%)]"
+                              ? "bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.15),transparent_70%)]"
                               : `bg-[radial-gradient(ellipse_at_center,${variantStyles.gradient.replace(
                                   "from-",
                                   ""

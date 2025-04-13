@@ -59,29 +59,40 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   
   return (
     <div className="flex flex-col h-full relative">
-      {/* Logo and Header */}
-      <div className="mb-6 flex justify-center">
-        <AttuneLogo />
-      </div>
+      {/* Logo only shown when not connected */}
+      {!isConnected && (
+        <div className="mb-6 flex justify-center">
+          <AttuneLogo />
+        </div>
+      )}
       
-      {/* Title and description with better contrast */}
-      <div className="text-center mb-6">
-        <h1 className="text-2xl font-semibold text-white mb-2">
-          {isConnected ? "Call in progress" : "Feel like talking?"}
-        </h1>
-        <p className="text-white/90 px-4">
-          {isConnected 
-            ? "Your conversation is private and will be remembered for future sessions."
-            : "Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not."
-          }
-        </p>
-      </div>
-      
-      {/* Countdown timer with better visibility - only show when connected */}
-      {isConnected && (
-        <div className="text-center mb-6 flex items-center justify-center">
-          <Timer className="w-4 h-4 text-white mr-2" />
-          <p className="text-white font-medium">{minutesLeft} minutes remaining</p>
+      {/* Content container with different layout based on connection status */}
+      {isConnected ? (
+        <div className="flex flex-col items-center justify-center h-full max-w-[300px] mx-auto">
+          {/* Connected state - centered within the circle */}
+          <div className="text-center mb-6 z-20">
+            <h1 className="text-4xl font-semibold text-white mb-4">
+              Call in progress
+            </h1>
+            <p className="text-white/90 px-2 text-lg">
+              Your conversation is private and will be remembered for future sessions.
+            </p>
+          </div>
+          
+          {/* Countdown timer with better visibility - centered within circle */}
+          <div className="text-center mb-8 flex items-center justify-center">
+            <Timer className="w-5 h-5 text-white mr-2" />
+            <p className="text-white text-xl font-medium">{minutesLeft} minutes remaining</p>
+          </div>
+        </div>
+      ) : (
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-semibold text-white mb-2">
+            Feel like talking?
+          </h1>
+          <p className="text-white/90 px-4">
+            Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.
+          </p>
         </div>
       )}
 

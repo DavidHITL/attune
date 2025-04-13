@@ -56,13 +56,15 @@ const RealtimeChat: React.FC = () => {
     <>
       {/* Background with reduced opacity - only show when connected */}
       {isConnected && (
-        <div className="absolute inset-0 z-0 opacity-60">
-          <BackgroundCircles 
-            title=""
-            description=""
-            variant="septenary"
-            className="absolute inset-0"
-          />
+        <div className="absolute inset-0 z-0 opacity-70 flex items-center justify-center">
+          <div className="relative w-[340px] h-[340px]">
+            <BackgroundCircles 
+              title=""
+              description=""
+              variant="septenary"
+              className="absolute inset-0"
+            />
+          </div>
         </div>
       )}
       
