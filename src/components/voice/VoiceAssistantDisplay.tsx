@@ -66,18 +66,24 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
       
       {/* Title and description with better contrast */}
       <div className="text-center mb-6">
-        <h1 className="text-2xl font-semibold text-white mb-2">Feel like talking?</h1>
+        <h1 className="text-2xl font-semibold text-white mb-2">
+          {isConnected ? "Call in progress" : "Feel like talking?"}
+        </h1>
         <p className="text-white/90 px-4">
-          Attune remembers past conversations and keeps them secret, 
-          so you can always pick up where you left off — or not.
+          {isConnected 
+            ? "Your conversation is private and will be remembered for future sessions."
+            : "Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not."
+          }
         </p>
       </div>
       
-      {/* Countdown timer with better visibility */}
-      <div className="text-center mb-6 flex items-center justify-center">
-        <Timer className="w-4 h-4 text-white mr-2" />
-        <p className="text-white font-medium">{minutesLeft} minutes remaining</p>
-      </div>
+      {/* Countdown timer with better visibility - only show when connected */}
+      {isConnected && (
+        <div className="text-center mb-6 flex items-center justify-center">
+          <Timer className="w-4 h-4 text-white mr-2" />
+          <p className="text-white font-medium">{minutesLeft} minutes remaining</p>
+        </div>
+      )}
 
       {/* Call controls - positioned at bottom of screen but above nav */}
       <div className="absolute bottom-24 left-0 right-0 flex justify-center space-x-6">
@@ -98,22 +104,24 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
           )}
         </button>
 
-        {/* Mute Button */}
-        <button
-          onClick={onToggleMute}
-          className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all transform hover:scale-105 ${
-            isMuted 
-              ? 'bg-gray-700 hover:bg-gray-800' 
-              : 'bg-white/90 hover:bg-white'
-          }`}
-          aria-label={isMuted ? "Unmute" : "Mute"}
-        >
-          {isMuted ? (
-            <MicOff className="h-6 w-6 text-white" strokeWidth={2} />
-          ) : (
-            <Mic className="h-6 w-6 text-[#1B4965]" strokeWidth={2} />
-          )}
-        </button>
+        {/* Mute Button - only show when connected */}
+        {isConnected && (
+          <button
+            onClick={onToggleMute}
+            className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all transform hover:scale-105 ${
+              isMuted 
+                ? 'bg-gray-700 hover:bg-gray-800' 
+                : 'bg-white/90 hover:bg-white'
+            }`}
+            aria-label={isMuted ? "Unmute" : "Mute"}
+          >
+            {isMuted ? (
+              <MicOff className="h-6 w-6 text-white" strokeWidth={2} />
+            ) : (
+              <Mic className="h-6 w-6 text-[#1B4965]" strokeWidth={2} />
+            )}
+          </button>
+        )}
       </div>
     </div>
   );
