@@ -12,5 +12,5 @@ export const RippleCirclesCompact: React.FC = () => {
   );
 };
 
-// Make sure to export as default as well since it's currently being imported that way
+// Ensure default export is also added
 export default RippleCirclesCompact;

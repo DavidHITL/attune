@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,34 +31,37 @@ export const useTerryRealInsights = () => {
         }
         
         if (data && data.length > 0) {
-          // Properly convert the data to match the UserInsight type
           const rawData = data[0];
           const convertedInsight: UserInsight = {
             id: rawData.id,
             user_id: rawData.user_id,
             conversation_id: rawData.conversation_id,
-            triggers: Array.isArray(rawData.triggers) ? rawData.triggers : [],
+            triggers: Array.isArray(rawData.triggers) 
+              ? rawData.triggers.map(t => String(t))
+              : [],
             losing_strategies: {
-              primary: typeof rawData.losing_strategies === 'object' && rawData.losing_strategies !== null 
+              primary: typeof rawData.losing_strategies === 'object' 
                 ? (rawData.losing_strategies as any).primary || 'unknown'
                 : 'unknown',
-              scores: typeof rawData.losing_strategies === 'object' && rawData.losing_strategies !== null 
-                ? (rawData.losing_strategies as any).scores || {
-                    beingRight: 0,
-                    control: 0,
-                    unbridledExpression: 0,
-                    retaliation: 0,
-                    withdrawal: 0,
+              scores: typeof rawData.losing_strategies === 'object' 
+                ? {
+                    beingRight: Number((rawData.losing_strategies as any).scores?.beingRight || 0),
+                    control: Number((rawData.losing_strategies as any).scores?.control || 0),
+                    unbridledExpression: Number((rawData.losing_strategies as any).scores?.unbridledExpression || 0),
+                    retaliation: Number((rawData.losing_strategies as any).scores?.retaliation || 0),
+                    withdrawal: Number((rawData.losing_strategies as any).scores?.withdrawal || 0)
                   }
                 : {
                     beingRight: 0,
                     control: 0,
                     unbridledExpression: 0,
                     retaliation: 0,
-                    withdrawal: 0,
+                    withdrawal: 0
                   }
             },
-            suggestions: Array.isArray(rawData.suggestions) ? rawData.suggestions : [],
+            suggestions: Array.isArray(rawData.suggestions) 
+              ? rawData.suggestions.map(s => String(s))
+              : [],
             updated_at: rawData.updated_at
           };
           
@@ -83,7 +85,6 @@ export const useTerryRealInsights = () => {
       setLoading(true);
       toast.info('Analyzing your conversation history...');
       
-      // Call the edge function to analyze the user's messages
       const response = await supabase.functions.invoke('analyze-messages', {
         body: {
           userId: user.id,
@@ -95,7 +96,6 @@ export const useTerryRealInsights = () => {
         throw new Error(response.error.message);
       }
       
-      // Fetch the updated insights
       const { data, error } = await supabase
         .from('user_insights')
         .select('*')
@@ -108,34 +108,37 @@ export const useTerryRealInsights = () => {
       }
       
       if (data && data.length > 0) {
-        // Properly convert the data to match the UserInsight type
         const rawData = data[0];
         const convertedInsight: UserInsight = {
           id: rawData.id,
           user_id: rawData.user_id,
           conversation_id: rawData.conversation_id,
-          triggers: Array.isArray(rawData.triggers) ? rawData.triggers : [],
+          triggers: Array.isArray(rawData.triggers) 
+            ? rawData.triggers.map(t => String(t))
+            : [],
           losing_strategies: {
-            primary: typeof rawData.losing_strategies === 'object' && rawData.losing_strategies !== null 
+            primary: typeof rawData.losing_strategies === 'object'
               ? (rawData.losing_strategies as any).primary || 'unknown'
               : 'unknown',
-            scores: typeof rawData.losing_strategies === 'object' && rawData.losing_strategies !== null 
-              ? (rawData.losing_strategies as any).scores || {
-                  beingRight: 0,
-                  control: 0,
-                  unbridledExpression: 0,
-                  retaliation: 0,
-                  withdrawal: 0,
+            scores: typeof rawData.losing_strategies === 'object'
+              ? {
+                  beingRight: Number((rawData.losing_strategies as any).scores?.beingRight || 0),
+                  control: Number((rawData.losing_strategies as any).scores?.control || 0),
+                  unbridledExpression: Number((rawData.losing_strategies as any).scores?.unbridledExpression || 0),
+                  retaliation: Number((rawData.losing_strategies as any).scores?.retaliation || 0),
+                  withdrawal: Number((rawData.losing_strategies as any).scores?.withdrawal || 0)
                 }
               : {
                   beingRight: 0,
                   control: 0,
                   unbridledExpression: 0,
                   retaliation: 0,
-                  withdrawal: 0,
+                  withdrawal: 0
                 }
           },
-          suggestions: Array.isArray(rawData.suggestions) ? rawData.suggestions : [],
+          suggestions: Array.isArray(rawData.suggestions) 
+            ? rawData.suggestions.map(s => String(s))
+            : [],
           updated_at: rawData.updated_at
         };
         

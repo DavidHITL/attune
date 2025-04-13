@@ -6,24 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-
-type UserInsight = {
-  id: string;
-  user_id: string;
-  triggers: string[];
-  losing_strategies: {
-    primary: string;
-    scores: {
-      beingRight: number;
-      control: number;
-      unbridledExpression: number;
-      retaliation: number;
-      withdrawal: number;
-    };
-  };
-  suggestions: string[];
-  updated_at: string;
-};
+import { UserInsight } from '@/utils/types';
 
 const Profile = () => {
   const { user, signOut } = useAuth();
@@ -58,7 +41,41 @@ const Profile = () => {
           throw error;
         }
         
-        setInsights(data as UserInsight);
+        const rawData = data as any;
+        const convertedInsight: UserInsight = {
+          id: rawData.id,
+          user_id: rawData.user_id,
+          conversation_id: rawData.conversation_id,
+          triggers: Array.isArray(rawData.triggers) 
+            ? rawData.triggers.map(t => String(t))
+            : [],
+          losing_strategies: {
+            primary: typeof rawData.losing_strategies === 'object'
+              ? (rawData.losing_strategies as any).primary || 'unknown'
+              : 'unknown',
+            scores: typeof rawData.losing_strategies === 'object'
+              ? {
+                  beingRight: Number((rawData.losing_strategies as any).scores?.beingRight || 0),
+                  control: Number((rawData.losing_strategies as any).scores?.control || 0),
+                  unbridledExpression: Number((rawData.losing_strategies as any).scores?.unbridledExpression || 0),
+                  retaliation: Number((rawData.losing_strategies as any).scores?.retaliation || 0),
+                  withdrawal: Number((rawData.losing_strategies as any).scores?.withdrawal || 0)
+                }
+              : {
+                  beingRight: 0,
+                  control: 0,
+                  unbridledExpression: 0,
+                  retaliation: 0,
+                  withdrawal: 0
+                }
+          },
+          suggestions: Array.isArray(rawData.suggestions) 
+            ? rawData.suggestions.map(s => String(s))
+            : [],
+          updated_at: rawData.updated_at
+        };
+        
+        setInsights(convertedInsight);
       } catch (error) {
         toast({
           title: "Failed to load insights",
@@ -100,7 +117,6 @@ const Profile = () => {
         description: "Your insights have been updated."
       });
       
-      // Reload insights
       const { data, error } = await supabase
         .from('user_insights')
         .select('*')
@@ -113,7 +129,41 @@ const Profile = () => {
         throw error;
       }
       
-      setInsights(data as UserInsight);
+      const rawData = data as any;
+      const convertedInsight: UserInsight = {
+        id: rawData.id,
+        user_id: rawData.user_id,
+        conversation_id: rawData.conversation_id,
+        triggers: Array.isArray(rawData.triggers) 
+          ? rawData.triggers.map(t => String(t))
+          : [],
+        losing_strategies: {
+          primary: typeof rawData.losing_strategies === 'object'
+            ? (rawData.losing_strategies as any).primary || 'unknown'
+            : 'unknown',
+          scores: typeof rawData.losing_strategies === 'object'
+            ? {
+                beingRight: Number((rawData.losing_strategies as any).scores?.beingRight || 0),
+                control: Number((rawData.losing_strategies as any).scores?.control || 0),
+                unbridledExpression: Number((rawData.losing_strategies as any).scores?.unbridledExpression || 0),
+                retaliation: Number((rawData.losing_strategies as any).scores?.retaliation || 0),
+                withdrawal: Number((rawData.losing_strategies as any).scores?.withdrawal || 0)
+              }
+            : {
+                beingRight: 0,
+                control: 0,
+                unbridledExpression: 0,
+                retaliation: 0,
+                withdrawal: 0
+              }
+        },
+        suggestions: Array.isArray(rawData.suggestions) 
+          ? rawData.suggestions.map(s => String(s))
+          : [],
+        updated_at: rawData.updated_at
+      };
+      
+      setInsights(convertedInsight);
     } catch (error) {
       toast({
         title: "Analysis failed",

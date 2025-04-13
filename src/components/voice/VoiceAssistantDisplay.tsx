@@ -3,7 +3,7 @@ import React from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import VoiceActivityIndicator, { VoiceActivityState } from '../VoiceActivityIndicator';
 import ConversationHistory from './ConversationHistory';
-import { RippleCirclesCompact } from './RippleStyles';
+import RippleCirclesCompact from './RippleStyles';
 import SmartContext from './SmartContext';
 import { Message } from '@/utils/types';
 
@@ -11,7 +11,7 @@ type VoiceAssistantDisplayProps = {
   status: string;
   isConnected: boolean;
   voiceActivityState: VoiceActivityState;
-  messages?: Message[]; // Make this optional or use the hook's messages
+  messages?: Message[]; 
   messageCount?: number;
   hasContext?: boolean;
   isMicOn?: boolean;
@@ -28,7 +28,6 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   isConnected,
   status,
   messages: propMessages,
-  // Add other props with defaults
   messageCount = 0,
   hasContext = false,
   isMicOn = false,
@@ -40,7 +39,6 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   onStartConversation = () => {}
 }) => {
   const { messages: hookMessages } = useConversation();
-  // Use prop messages if provided, otherwise use messages from hook
   const messages = propMessages || hookMessages;
   
   return (
@@ -49,15 +47,12 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
         <RippleCirclesCompact />
       </div>
       
-      {/* Voice activity indicator overlay */}
       <div className="absolute inset-0 flex items-center justify-center">
         <VoiceActivityIndicator 
           state={voiceActivityState}
-          isVisible={isConnected} // Fix the prop name to match component expectations
         />
       </div>
       
-      {/* Conversation UI */}
       <div className="relative z-10 flex flex-col w-full max-w-xl h-full overflow-hidden">
         {messages.length > 50 && <SmartContext />}
         <ConversationHistory messages={messages} />
