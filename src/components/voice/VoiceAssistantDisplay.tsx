@@ -3,9 +3,13 @@ import React from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import VoiceActivityIndicator, { VoiceActivityState } from '../VoiceActivityIndicator';
 import ConversationHistory from './ConversationHistory';
+import StatusIndicator from './StatusIndicator';
+import CallControls from './CallControls';
+import { Message } from '@/utils/types';
 import RippleCirclesCompact from './RippleStyles';
 import SmartContext from './SmartContext';
-import { Message } from '@/utils/types';
+import ConnectedStateContent from './ConnectedStateContent';
+import DisconnectedStateContent from './DisconnectedStateContent';
 
 type VoiceAssistantDisplayProps = {
   status: string;
@@ -43,20 +47,34 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   
   return (
     <div className="relative flex flex-col justify-start items-center pt-4 w-full h-full overflow-hidden">
+      {/* Status indicator at the top */}
+      <StatusIndicator 
+        status={status} 
+        isConnected={isConnected} 
+        voiceActivityState={voiceActivityState} 
+      />
+      
       <div className="absolute inset-0 overflow-hidden">
-        <RippleCirclesCompact />
+        {isConnected && <RippleCirclesCompact />}
       </div>
       
-      <div className="absolute inset-0 flex items-center justify-center">
-        <VoiceActivityIndicator 
-          state={voiceActivityState}
-        />
+      {/* Content changes based on connection state */}
+      <div className="flex-1 w-full flex flex-col items-center justify-center z-10">
+        {isConnected ? (
+          <ConnectedStateContent minutesLeft={30} />
+        ) : (
+          <DisconnectedStateContent />
+        )}
       </div>
       
-      <div className="relative z-10 flex flex-col w-full max-w-xl h-full overflow-hidden">
-        {messages.length > 50 && <SmartContext />}
-        <ConversationHistory messages={messages} />
-      </div>
+      {/* Call controls at the bottom */}
+      <CallControls
+        isConnected={isConnected}
+        isMuted={isMuted}
+        onToggleMute={onToggleMute}
+        onEndConversation={onEndConversation}
+        onStartConversation={onStartConversation}
+      />
     </div>
   );
 };

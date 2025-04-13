@@ -54,7 +54,7 @@ const RealtimeChat: React.FC = () => {
 
   return (
     <div className="relative h-full">
-      {/* Background animation - only show when connected and enhanced visibility */}
+      {/* Background animation - only show when connected */}
       {isConnected && (
         <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden">
           <BackgroundCircles 
@@ -67,7 +67,7 @@ const RealtimeChat: React.FC = () => {
         </div>
       )}
       
-      {/* Voice assistant display with improved visibility */}
+      {/* Voice assistant display */}
       <div className="relative z-10 h-full">
         <VoiceAssistantDisplay
           status={status}
