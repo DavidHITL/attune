@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useBackground, BACKGROUND_COLORS } from '@/context/BackgroundContext';
 import AttuneLogo from '@/components/AttuneLogo';
-import { BackgroundCircles } from '@/components/ui/background-circles';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Voice = () => {
   const { user, loading } = useAuth();
@@ -18,12 +18,18 @@ const Voice = () => {
 
   return (
     <div className="min-h-screen relative bg-[#1B4965]">
-      
       <div className="relative z-10 min-h-screen flex flex-col items-center py-12 px-4 pt-20 pb-24">
         <div className="w-full max-w-[390px] h-[500px] max-h-[60vh]">
           {loading ? (
-            <div className="h-full flex items-center justify-center">
-              <p className="text-white">Loading...</p>
+            <div className="h-full flex flex-col items-center">
+              <AttuneLogo />
+              <div className="flex-1 w-full flex flex-col items-center justify-center mt-8 space-y-4">
+                <Skeleton className="h-6 w-3/4 bg-white/10" />
+                <Skeleton className="h-24 w-4/5 bg-white/10" />
+                <div className="mt-auto mb-16 flex justify-center">
+                  <Skeleton className="h-24 w-24 rounded-full bg-white/10" />
+                </div>
+              </div>
             </div>
           ) : user ? (
             <RealtimeChat />
