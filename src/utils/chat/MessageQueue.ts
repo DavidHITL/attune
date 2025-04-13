@@ -2,7 +2,7 @@ import { Message, SaveMessageCallback } from '../types';
 import { toast } from 'sonner';
 
 export class MessageQueue {
-  private messageQueue: { role: 'user' | 'assistant', content: string }[] = [];
+  private messageQueue: { role: 'user' | 'assistant', content: string, priority: boolean }[] = [];
   private isProcessingQueue: boolean = false;
   private lastMessageSentTime: number = 0;
   private minTimeBetweenMessages: number = 500; // ms
@@ -11,7 +11,7 @@ export class MessageQueue {
   
   constructor(private saveMessageCallback: SaveMessageCallback) {}
   
-  queueMessage(role: 'user' | 'assistant', content: string) {
+  queueMessage(role: 'user' | 'assistant', content: string, priority: boolean = false) {
     // Don't save empty messages
     if (!content || content.trim() === '') {
       console.log(`Skipping empty ${role} message`);
@@ -35,28 +35,32 @@ export class MessageQueue {
     
     this.lastMessageSentTime = now;
     
-    console.log(`Queued ${role} message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
+    console.log(`Queued ${role} message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}", priority: ${priority}`);
     
-    // For user messages, try to save immediately with high priority
-    if (role === 'user') {
-      console.log(`Processing user message with HIGH PRIORITY`);
+    // For user messages or priority messages, try to save immediately
+    if (role === 'user' || priority) {
+      console.log(`Processing ${role} message with HIGH PRIORITY`);
       
       // Create a message ID to track this message
-      const messageId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      this.userMessagesPending.add(messageId);
+      const messageId = `${role}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      if (role === 'user') {
+        this.userMessagesPending.add(messageId);
+      }
       
-      // Save user message immediately with direct error handling
+      // Save message immediately with direct error handling
       this.saveMessageDirectly(role, content, messageId);
       
       // Show toast for queued user message
-      toast.info("User message queued", {
-        description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
-        id: `queue-${messageId}`,
-        duration: 1500,
-      });
+      if (role === 'user') {
+        toast.info("Processing user message", {
+          description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
+          id: `queue-${messageId}`,
+          duration: 1500,
+        });
+      }
     } else {
       // For assistant messages, add to queue for processing
-      this.messageQueue.push({ role, content });
+      this.messageQueue.push({ role, content, priority: false });
       console.log(`Queue length: ${this.messageQueue.length}`);
       this.processMessageQueue();
     }
@@ -65,59 +69,74 @@ export class MessageQueue {
   // New method for direct message saving with better error handling
   private async saveMessageDirectly(role: 'user' | 'assistant', content: string, messageId?: string) {
     this.activeMessageSaves++;
-    try {
-      console.log(`Directly saving ${role} message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
-      
-      // Save to database
-      const savedMessage = await this.saveMessageCallback({
-        role: role,
-        content: content
-      });
-      
-      console.log(`Successfully saved ${role} message to database`, 
-        savedMessage ? `with ID: ${savedMessage.id}` : "(no ID returned)");
+    
+    // For user messages, try multiple times with increasing delays
+    const maxRetries = role === 'user' ? 3 : 1;
+    let attempt = 0;
+    let saved = false;
+    
+    while (!saved && attempt < maxRetries) {
+      attempt++;
+      try {
+        console.log(`Directly saving ${role} message (attempt ${attempt}): "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
         
-      if (messageId) {
-        this.userMessagesPending.delete(messageId);
-        console.log(`Remaining pending user messages: ${this.userMessagesPending.size}`);
+        // Save to database
+        const savedMessage = await this.saveMessageCallback({
+          role: role,
+          content: content
+        });
         
-        // Show success toast for user message
-        if (role === 'user') {
+        console.log(`Successfully saved ${role} message to database`, 
+          savedMessage ? `with ID: ${savedMessage.id}` : "(no ID returned)");
+          
+        saved = true;
+        
+        if (messageId && role === 'user') {
+          this.userMessagesPending.delete(messageId);
+          console.log(`Remaining pending user messages: ${this.userMessagesPending.size}`);
+          
+          // Show success toast for user message
           toast.success("User message saved to database", {
             description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
             id: `save-${messageId}`,
             duration: 2000,
           });
         }
-      }
-    } catch (error) {
-      console.error(`Error directly saving ${role} message:`, error);
-      
-      // Add to queue for retry
-      console.log(`Adding ${role} message to retry queue after direct save failure`);
-      this.messageQueue.push({ role, content });
-      this.processMessageQueue();
-      
-      if (messageId) {
-        // Keep track that we still have a pending message
-        console.log(`User message ${messageId} failed to save directly, moved to retry queue`);
         
-        // Show error toast for failed user message
-        if (role === 'user') {
-          toast.error("Failed to save user message, retrying", {
-            description: error instanceof Error ? error.message : "Database error",
-            id: `error-${messageId}`,
-            duration: 3000,
-          });
+        break; // Exit retry loop on success
+      } catch (error) {
+        console.error(`Error directly saving ${role} message (attempt ${attempt}):`, error);
+        
+        if (attempt < maxRetries) {
+          const delay = attempt * 1000; // Increase delay with each retry
+          console.log(`Will retry in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          // Add to queue for retry through normal queue processing
+          console.log(`Adding ${role} message to retry queue after all direct save failures`);
+          this.messageQueue.push({ role, content, priority: true });
+          this.processMessageQueue();
+          
+          if (messageId && role === 'user') {
+            // Keep track that we still have a pending message
+            console.log(`User message ${messageId} failed to save directly after ${maxRetries} attempts, moved to retry queue`);
+            
+            // Show error toast for failed user message
+            toast.error(`Failed to save user message after ${maxRetries} attempts, retrying via queue`, {
+              description: error instanceof Error ? error.message : "Database error",
+              id: `error-${messageId}`,
+              duration: 3000,
+            });
+          }
         }
       }
-    } finally {
-      this.activeMessageSaves--;
     }
+    
+    this.activeMessageSaves--;
   }
 
   // Save message asynchronously with error handling
-  private async saveMessageAsync(message: { role: 'user' | 'assistant', content: string }) {
+  private async saveMessageAsync(message: { role: 'user' | 'assistant', content: string, priority: boolean }) {
     try {
       console.log(`Saving ${message.role} message from queue: "${message.content.substring(0, 30)}${message.content.length > 30 ? '...' : ''}"`);
       const savedMessage = await this.saveMessageCallback({

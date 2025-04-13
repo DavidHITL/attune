@@ -1,4 +1,3 @@
-
 import { MessageQueue } from './MessageQueue';
 import { ResponseParser } from './ResponseParser';
 import { MessageCallback } from '../types';
@@ -12,6 +11,8 @@ export class EventHandler {
   private messageQueue: MessageQueue;
   private responseParser: ResponseParser;
   private lastTranscriptTime: number = 0;
+  private audioEvents: Set<string> = new Set();
+  private userSpeechDetected: boolean = false;
 
   constructor(
     messageQueue: MessageQueue,
@@ -27,45 +28,70 @@ export class EventHandler {
     this.responseParser.logEvent(event);
     this.messageCallback(event);
     
-    // Mark session as created when we receive that event
-    if (event.type === "session.created") {
-      console.log("Session created event received");
+    // Detailed logging for speech events
+    if (event.type?.includes('speech') || event.type?.includes('audio') || event.type?.includes('transcript')) {
+      console.log(`SPEECH EVENT [${event.type}]:`, JSON.stringify(event).substring(0, 200));
+      this.audioEvents.add(event.type);
+    }
+    
+    // Handle speech started events
+    if (event.type === "input_audio_buffer.speech_started") {
+      this.userSpeechDetected = true;
+      console.log("User speech started - preparing to capture transcript");
     }
     
     // Process events for user messages
     if (event.type === "response.audio_transcript.delta" && event.delta?.text) {
       // Accumulate transcript text
       this.userTranscript += event.delta.text;
-      console.log(`Accumulating user transcript: ${this.userTranscript}`);
+      console.log(`Accumulating user transcript: "${this.userTranscript}"`);
       this.lastTranscriptTime = Date.now();
     }
     
+    // Direct transcript handling (high priority)
     if (event.type === "transcript" && event.transcript) {
-      // Handle direct transcript events (high priority user messages)
       console.log("Direct transcript event received:", event.transcript);
       if (event.transcript && event.transcript.trim()) {
         console.log("Saving direct user transcript:", event.transcript);
         this.messageQueue.queueMessage('user', event.transcript);
         
-        // Show toast notification for transcript
-        toast.info("Transcript received", {
+        toast.info("User message captured", {
           description: event.transcript.substring(0, 50) + (event.transcript.length > 50 ? "..." : ""),
           duration: 2000,
         });
       }
     }
     
+    // Handle speech stopped events to capture speech even if we don't get a transcript.done
+    if (event.type === "input_audio_buffer.speech_stopped" && this.userSpeechDetected) {
+      console.log("User speech stopped - checking for transcript");
+      
+      // If we have transcript, save it after a small delay to allow for final transcripts
+      if (this.userTranscript && this.userTranscript.trim()) {
+        console.log(`User speech stopped with transcript: "${this.userTranscript}"`);
+        setTimeout(() => {
+          if (this.userTranscript && this.userTranscript.trim()) {
+            console.log("Saving speech-stopped transcript:", this.userTranscript);
+            this.messageQueue.queueMessage('user', this.userTranscript);
+            this.userTranscript = '';
+            this.userSpeechDetected = false;
+          }
+        }, 300);
+      }
+    }
+    
+    // Handle final transcript completions
     if (event.type === "response.audio_transcript.done" && event.transcript?.text) {
       // Get the final transcript and save it
       const content = event.transcript.text;
       if (content && content.trim()) {
         console.log("Final user transcript received:", content);
-        this.messageQueue.queueMessage('user', content);
+        this.messageQueue.queueMessage('user', content, true); // High priority save
         
         // Reset transcript accumulator
         this.userTranscript = '';
+        this.userSpeechDetected = false;
         
-        // Show toast notification for final transcript
         toast.success("User message saved", {
           description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
           duration: 2000,
@@ -73,7 +99,7 @@ export class EventHandler {
       } else if (this.userTranscript && this.userTranscript.trim()) {
         // Fallback to accumulated transcript if final is missing
         console.log("Using accumulated user transcript:", this.userTranscript);
-        this.messageQueue.queueMessage('user', this.userTranscript);
+        this.messageQueue.queueMessage('user', this.userTranscript, true); // High priority save
         
         toast.success("User message saved (accumulated)", {
           description: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? "..." : ""),
@@ -81,28 +107,27 @@ export class EventHandler {
         });
         
         this.userTranscript = '';
+        this.userSpeechDetected = false;
       } else {
         console.log("Empty user transcript, not saving");
+        this.userSpeechDetected = false;
       }
     }
     
-    // If we haven't received a response.audio_transcript.done event but have accumulated transcript,
-    // save it after a timeout period of inactivity
-    if (this.userTranscript && this.userTranscript.trim() && 
-        this.lastTranscriptTime > 0 && 
-        Date.now() - this.lastTranscriptTime > 3000) {
-      console.log("Saving accumulated transcript after timeout:", this.userTranscript);
-      this.messageQueue.queueMessage('user', this.userTranscript);
+    // Detect committed audio buffer events which may contain speech
+    if (event.type === "input_audio_buffer.committed") {
+      console.log("Audio buffer committed, checking if we need to save partial transcript");
       
-      toast.success("User message saved (timeout)", {
-        description: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? "..." : ""),
-        duration: 2000,
-      });
-      
-      this.userTranscript = '';
-      this.lastTranscriptTime = 0;
+      // If user was speaking and we have transcript, consider saving it
+      if (this.userSpeechDetected && this.userTranscript && this.userTranscript.trim() &&
+          Date.now() - this.lastTranscriptTime > 1500) {
+        console.log("Saving transcript from committed buffer:", this.userTranscript);
+        this.messageQueue.queueMessage('user', this.userTranscript, false);
+        this.userTranscript = '';
+      }
     }
     
+    // Handle assistant responses (keep existing code)
     this.handleAssistantResponse(event);
   }
 
@@ -203,32 +228,20 @@ export class EventHandler {
 
   // For cleanup - save any pending messages
   flushPendingMessages(): void {
+    console.log("Flushing pending messages, audio events detected:", Array.from(this.audioEvents).join(", "));
+    
     // If there's a pending assistant message, save it
     if (this.pendingAssistantMessage && this.assistantResponse && this.assistantResponse.trim()) {
       console.log("Saving pending assistant response during disconnect:", this.assistantResponse.substring(0, 30) + "...");
       this.messageQueue.queueMessage('assistant', this.assistantResponse);
-    } else if (this.pendingAssistantMessage && Date.now() - this.lastResponseDelta > 5000) {
-      // If we haven't received response deltas for 5+ seconds but have a pending message flag
-      console.warn("Pending assistant message with no content and no recent deltas during disconnect");
-      
-      // Try to use a fallback method to get a message
-      const fallback = this.responseParser.constructFallbackMessage();
-      if (fallback) {
-        console.log("Using fallback method for pending message:", fallback.substring(0, 30) + "...");
-        this.messageQueue.queueMessage('assistant', fallback);
-      } else {
-        // Use a static message as last resort
-        this.messageQueue.queueMessage('assistant', "I'm listening. How can I help you?");
-      }
     }
 
     // Save any partial transcripts that weren't saved yet
     if (this.userTranscript && this.userTranscript.trim()) {
       console.log("Saving partial user transcript during disconnect:", this.userTranscript);
-      this.messageQueue.queueMessage('user', this.userTranscript);
+      this.messageQueue.queueMessage('user', this.userTranscript, true); // High priority
       
-      // Show toast notification
-      toast.success("User message saved (disconnect)", {
+      toast.success("Final user message saved during disconnect", {
         description: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? "..." : ""),
         duration: 2000,
       });

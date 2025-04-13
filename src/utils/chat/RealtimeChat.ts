@@ -1,4 +1,3 @@
-
 import { MessageCallback, StatusCallback, SaveMessageCallback } from '../types';
 import { ConnectionManager } from './ConnectionManager';
 import { MessageQueue } from './MessageQueue';
@@ -13,6 +12,7 @@ export class RealtimeChat {
   private eventHandler: EventHandler;
   private isMuted: boolean = false;
   private microphonePaused: boolean = false;
+  private userTranscriptAccumulator: string = '';
   
   constructor(
     private messageCallback: MessageCallback,
@@ -27,7 +27,7 @@ export class RealtimeChat {
     this.eventHandler = new EventHandler(
       this.messageQueue, 
       this.responseParser, 
-      messageCallback
+      this.handleMessageEvent
     );
     
     // Create connection manager with event handler and message saving capability
@@ -40,6 +40,37 @@ export class RealtimeChat {
       },
       saveMessageCallback
     );
+  }
+
+  // Custom message event handler that will also watch for speech events
+  private handleMessageEvent = (event: any): void => {
+    // Pass all events to the original callback
+    this.messageCallback(event);
+    
+    // Look for transcript events to save user messages
+    if (event.type === "transcript" && event.transcript) {
+      console.log("Handling transcript event for saving:", event.transcript.substring(0, 50));
+      this.saveUserTranscript(event.transcript);
+    }
+    
+    // Also handle audio transcript delta events
+    if (event.type === "response.audio_transcript.delta" && event.delta?.text) {
+      this.userTranscriptAccumulator += event.delta.text;
+    }
+    
+    // Handle final transcript completion
+    if (event.type === "response.audio_transcript.done" && event.transcript?.text) {
+      console.log("Final audio transcript received:", event.transcript.text.substring(0, 50));
+      this.saveUserTranscript(event.transcript.text);
+      this.userTranscriptAccumulator = ''; // Reset accumulator
+    }
+    
+    // Periodically save accumulated transcript if it's not empty
+    if (this.userTranscriptAccumulator && this.userTranscriptAccumulator.length > 15) {
+      console.log("Saving accumulated transcript:", this.userTranscriptAccumulator);
+      this.saveUserTranscript(this.userTranscriptAccumulator);
+      this.userTranscriptAccumulator = ''; // Reset after saving
+    }
   }
 
   async init() {
@@ -120,9 +151,86 @@ export class RealtimeChat {
     // When unmuting, the microphone state will be managed by the calling code
   }
   
+  // Add a method to manually save a user message with improved reliability
+  saveUserMessage(content: string) {
+    if (!content || content.trim() === '') {
+      console.log("Skipping empty user message");
+      return;
+    }
+    
+    console.log("[RealtimeChat] Saving user message:", content.substring(0, 30) + "...");
+    
+    // Log the conversation ID being used for saving messages
+    const queueStatus = this.messageQueue.getQueueStatus();
+    console.log(`[RealtimeChat] Queue status before saving: ${JSON.stringify(queueStatus)}`);
+
+    // Make multiple attempts to save the message
+    this.attemptSaveUserMessage(content);
+  }
+  
+  // New method to make multiple attempts at saving a user message
+  private async attemptSaveUserMessage(content: string, attempt: number = 1) {
+    const maxAttempts = 3;
+    
+    try {
+      console.log(`[RealtimeChat] Attempt ${attempt} to save user message`);
+      
+      // Directly save the message via the callback
+      const savedMsg = await this.saveMessageCallback({
+        role: 'user',
+        content: content
+      });
+      
+      if (savedMsg && savedMsg.id) {
+        console.log(`[RealtimeChat] Direct save successful for message with ID: ${savedMsg.id}`);
+        toast.success("User message saved to database", {
+          description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
+          duration: 3000,
+        });
+      } else {
+        throw new Error("Save returned null or missing ID");
+      }
+    } catch (err) {
+      console.error(`[RealtimeChat] Direct save failed (attempt ${attempt}):`, err);
+      
+      if (attempt < maxAttempts) {
+        // Try again with exponential backoff
+        const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        console.log(`[RealtimeChat] Will retry in ${delayMs}ms...`);
+        
+        setTimeout(() => {
+          this.attemptSaveUserMessage(content, attempt + 1);
+        }, delayMs);
+      } else {
+        // Fall back to queue on direct save failure after all retries
+        console.log("[RealtimeChat] All direct save attempts failed, falling back to message queue");
+        this.messageQueue.queueMessage('user', content, true);
+        
+        toast.error("Failed direct save, using backup method", {
+          description: err?.message || "Database error", 
+          duration: 3000
+        });
+      }
+    }
+  }
+
+  // Helper method to save user transcripts
+  private saveUserTranscript(transcript: string) {
+    if (!transcript || transcript.trim() === '') return;
+    
+    console.log(`[RealtimeChat] Saving user transcript: "${transcript.substring(0, 50)}${transcript.length > 50 ? '...' : ''}"`);
+    this.saveUserMessage(transcript);
+  }
+  
   async disconnect() {
     const eventCounts = this.responseParser.getEventCounts();
     console.log("Event type counts:", eventCounts);
+    
+    // Save any accumulated transcript before disconnecting
+    if (this.userTranscriptAccumulator && this.userTranscriptAccumulator.trim()) {
+      console.log("Saving accumulated transcript before disconnect:", this.userTranscriptAccumulator);
+      this.saveUserMessage(this.userTranscriptAccumulator);
+    }
     
     // Flush any pending messages in the event handler
     this.eventHandler.flushPendingMessages();
@@ -134,50 +242,5 @@ export class RealtimeChat {
     this.connectionManager.disconnect();
     
     this.statusCallback("Disconnected");
-  }
-
-  // Add a method to manually save a user message
-  saveUserMessage(content: string) {
-    if (content && content.trim() !== '') {
-      console.log("[RealtimeChat] Manually saving user message:", content.substring(0, 30));
-      
-      // Log the conversation ID being used for saving messages
-      const queueStatus = this.messageQueue.getQueueStatus();
-      console.log(`[RealtimeChat] Queue status before saving: ${JSON.stringify(queueStatus)}`);
-      
-      try {
-        // Directly save the message via the callback first for highest priority
-        this.saveMessageCallback({
-          role: 'user',
-          content: content
-        })
-        .then(savedMsg => {
-          console.log("[RealtimeChat] Direct save successful for message with ID:", savedMsg?.id);
-          toast.success("User message saved to database", {
-            description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
-            duration: 3000,
-          });
-        })
-        .catch(err => {
-          console.error("[RealtimeChat] Direct save failed:", err);
-          // Fall back to queue on direct save failure
-          console.log("[RealtimeChat] Falling back to message queue");
-          this.messageQueue.queueMessage('user', content);
-          
-          toast.error("Failed direct save, using backup method", {
-            description: err?.message || "Database error", 
-            duration: 3000
-          });
-        });
-      } catch (error) {
-        console.error("[RealtimeChat] Error in direct save:", error);
-        // Ensure the message is queued even if direct save throws
-        this.messageQueue.queueMessage('user', content);
-      }
-      
-      // Add a verification marker to check if this specific message is saved
-      const verificationMarker = `VERIFY-${Date.now()}`;
-      console.log(`[RealtimeChat] Adding verification marker: ${verificationMarker}`);
-    }
   }
 }
