@@ -1,7 +1,6 @@
 
 import React from 'react';
 
-// Renamed to match the import
 export const RippleCirclesCompact: React.FC = () => {
   return (
     <div className="absolute inset-0 overflow-hidden opacity-20">
@@ -13,4 +12,5 @@ export const RippleCirclesCompact: React.FC = () => {
   );
 };
 
+// Make sure to export as default as well since it's currently being imported that way
 export default RippleCirclesCompact;

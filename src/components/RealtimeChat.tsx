@@ -70,7 +70,6 @@ const RealtimeChat: React.FC = () => {
       {/* Voice assistant display with improved visibility */}
       <div className="relative z-10 h-full">
         <VoiceAssistantDisplay
-          user={user}
           status={status}
           isConnected={isConnected}
           voiceActivityState={voiceActivityState}

@@ -3,25 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
-export type UserInsight = {
-  id: string;
-  user_id: string;
-  conversation_id: string | null;
-  triggers: string[];
-  losing_strategies: {
-    primary: string;
-    scores: {
-      beingRight: number;
-      control: number;
-      unbridledExpression: number;
-      retaliation: number;
-      withdrawal: number;
-    };
-  };
-  suggestions: string[];
-  updated_at: string;
-};
+import { UserInsight } from '@/utils/types';
 
 export const useTerryRealInsights = () => {
   const { user } = useAuth();
@@ -50,7 +32,38 @@ export const useTerryRealInsights = () => {
         }
         
         if (data && data.length > 0) {
-          setInsights(data[0] as UserInsight);
+          // Properly convert the data to match the UserInsight type
+          const rawData = data[0];
+          const convertedInsight: UserInsight = {
+            id: rawData.id,
+            user_id: rawData.user_id,
+            conversation_id: rawData.conversation_id,
+            triggers: Array.isArray(rawData.triggers) ? rawData.triggers : [],
+            losing_strategies: {
+              primary: typeof rawData.losing_strategies === 'object' && rawData.losing_strategies !== null 
+                ? (rawData.losing_strategies as any).primary || 'unknown'
+                : 'unknown',
+              scores: typeof rawData.losing_strategies === 'object' && rawData.losing_strategies !== null 
+                ? (rawData.losing_strategies as any).scores || {
+                    beingRight: 0,
+                    control: 0,
+                    unbridledExpression: 0,
+                    retaliation: 0,
+                    withdrawal: 0,
+                  }
+                : {
+                    beingRight: 0,
+                    control: 0,
+                    unbridledExpression: 0,
+                    retaliation: 0,
+                    withdrawal: 0,
+                  }
+            },
+            suggestions: Array.isArray(rawData.suggestions) ? rawData.suggestions : [],
+            updated_at: rawData.updated_at
+          };
+          
+          setInsights(convertedInsight);
         }
       } catch (error) {
         console.error('Error loading insights:', error);
@@ -95,7 +108,38 @@ export const useTerryRealInsights = () => {
       }
       
       if (data && data.length > 0) {
-        setInsights(data[0] as UserInsight);
+        // Properly convert the data to match the UserInsight type
+        const rawData = data[0];
+        const convertedInsight: UserInsight = {
+          id: rawData.id,
+          user_id: rawData.user_id,
+          conversation_id: rawData.conversation_id,
+          triggers: Array.isArray(rawData.triggers) ? rawData.triggers : [],
+          losing_strategies: {
+            primary: typeof rawData.losing_strategies === 'object' && rawData.losing_strategies !== null 
+              ? (rawData.losing_strategies as any).primary || 'unknown'
+              : 'unknown',
+            scores: typeof rawData.losing_strategies === 'object' && rawData.losing_strategies !== null 
+              ? (rawData.losing_strategies as any).scores || {
+                  beingRight: 0,
+                  control: 0,
+                  unbridledExpression: 0,
+                  retaliation: 0,
+                  withdrawal: 0,
+                }
+              : {
+                  beingRight: 0,
+                  control: 0,
+                  unbridledExpression: 0,
+                  retaliation: 0,
+                  withdrawal: 0,
+                }
+          },
+          suggestions: Array.isArray(rawData.suggestions) ? rawData.suggestions : [],
+          updated_at: rawData.updated_at
+        };
+        
+        setInsights(convertedInsight);
         toast.success('Your insights have been updated');
         return true;
       }
