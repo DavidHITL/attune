@@ -7,7 +7,29 @@ import { createAnonymousMessage } from '@/utils/chat/message/anonymousMessageCre
 import { isValidMessageContent, getMessagePreview } from '@/utils/chat/message/messageValidator';
 
 /**
- * Hook for saving messages to the database
+ * Creates a new conversation for a user
+ */
+const createNewConversation = async (userId: string): Promise<string | null> => {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_or_create_conversation', {
+        p_user_id: userId
+      });
+
+    if (error) {
+      console.error('Error creating conversation:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Failed to create conversation:', error);
+    return null;
+  }
+};
+
+/**
+ * Hook for saving messages to the database with proper conversation handling
  */
 export const useSaveMessage = (
   user: any, 
@@ -32,13 +54,29 @@ export const useSaveMessage = (
     }
     
     // Handle anonymous mode
-    if (!user || !conversationId) {
+    if (!user) {
       console.log(`👤 Anonymous user message processing: ${normalizedMessage.role}`);
       return createAnonymousMessage(normalizedMessage.role, normalizedMessage.content);
     }
     
+    // Ensure we have a valid conversation ID for authenticated users
+    let targetConversationId = conversationId;
+    
+    if (!targetConversationId && normalizedMessage.role === 'user') {
+      console.log('No conversation ID found, creating new conversation...');
+      targetConversationId = await createNewConversation(user.id);
+      
+      if (!targetConversationId) {
+        console.error('Failed to create conversation');
+        toast.error('Unable to start conversation. Please try again.');
+        return createAnonymousMessage(normalizedMessage.role, normalizedMessage.content);
+      }
+      
+      console.log('Created new conversation:', targetConversationId);
+    }
+    
     const insertData = {
-      conversation_id: conversationId,
+      conversation_id: targetConversationId,
       user_id: user.id,
       role: normalizedMessage.role,
       content: normalizedMessage.content
