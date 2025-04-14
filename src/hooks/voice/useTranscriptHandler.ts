@@ -2,14 +2,17 @@
 import { useCallback } from 'react';
 import { useConversationValidator } from './transcript/useConversationValidator';
 import { useTranscriptSaver } from './transcript/useTranscriptSaver';
+import { useConversation } from '../useConversation';
 
 export const useTranscriptHandler = () => {
   const { user, conversationId } = useConversationValidator();
   const { saveTranscript } = useTranscriptSaver();
+  const { saveMessage } = useConversation();
 
   const handleTranscriptEvent = useCallback((event: any, saveUserMessage?: (content: string) => void) => {
     console.log('🎯 Transcript Handler - Processing event:', {
       type: event.type,
+      hasTranscript: !!event.transcript || !!(event.transcript?.text),
       hasUser: !!user,
       hasConversationId: !!conversationId,
       timestamp: new Date().toISOString()
@@ -24,10 +27,17 @@ export const useTranscriptHandler = () => {
         userId: user?.id
       });
       
-      saveTranscript(event.transcript, (msg) => useConversation().saveMessage({
+      // Direct save approach to ensure transcript is saved
+      if (saveUserMessage) {
+        console.log("💾 Using direct saveUserMessage for transcript");
+        saveUserMessage(event.transcript);
+      }
+      
+      // Also try the secondary save approach
+      saveTranscript(event.transcript, (msg) => saveMessage({
         role: 'user' as const,
         content: msg.content
-      }), saveUserMessage);
+      }));
     }
     
     // Handle response.audio_transcript.done events
@@ -37,17 +47,21 @@ export const useTranscriptHandler = () => {
         timestamp: new Date().toISOString()
       });
       
-      saveTranscript(event.transcript.text, (msg) => useConversation().saveMessage({
+      // Direct save approach to ensure transcript is saved
+      if (saveUserMessage) {
+        console.log("💾 Using direct saveUserMessage for final transcript");
+        saveUserMessage(event.transcript.text);
+      }
+      
+      // Also try the secondary save approach
+      saveTranscript(event.transcript.text, (msg) => saveMessage({
         role: 'user' as const,
         content: msg.content
-      }), saveUserMessage);
+      }));
     }
-  }, [user, conversationId, saveTranscript]);
+  }, [user, conversationId, saveTranscript, saveMessage]);
 
   return {
     handleTranscriptEvent
   };
 };
-
-// Import this at the end to avoid circular dependencies
-import { useConversation } from '../useConversation';

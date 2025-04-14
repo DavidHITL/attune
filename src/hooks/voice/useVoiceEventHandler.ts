@@ -2,6 +2,7 @@
 import { useCallback } from 'react';
 import { useVoiceActivityState } from '@/hooks/voice/useVoiceActivityState';
 import { useVoiceChatLogger } from '@/hooks/voice/useVoiceChatLogger';
+import { useTranscriptHandler } from './useTranscriptHandler';
 
 /**
  * Hook for handling voice and transcript events with enhanced debugging
@@ -9,8 +10,6 @@ import { useVoiceChatLogger } from '@/hooks/voice/useVoiceChatLogger';
 export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>) => {
   const { voiceActivityState, handleMessageEvent: handleVoiceActivityEvent } = useVoiceActivityState();
   const { logSpeechEvents } = useVoiceChatLogger();
-  
-  // Directly import the function to avoid circular dependencies
   const { handleTranscriptEvent } = useTranscriptHandler();
   
   const handleVoiceEvent = useCallback((event: any) => {
@@ -47,11 +46,16 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
     
     // Enhanced message saving debug logging
     if (chatClientRef.current) {
-      console.log('💾 Attempting to save transcript via chatClientRef');
+      console.log('💾 Processing transcript via chatClientRef');
+      
+      // Pass direct save function to ensure transcript gets saved
       handleTranscriptEvent(event, (content) => {
-        console.log(`💾 Saving message with conversation ID: ${chatClientRef.current?.conversationId}`);
-        console.log(`💾 Message content preview: "${content.substring(0, 50)}..."`);
-        chatClientRef.current.saveUserMessage(content);
+        if (content && content.trim()) {
+          console.log(`💾 Directly saving user message: "${content.substring(0, 50)}..."`);
+          chatClientRef.current.saveUserMessage(content);
+        } else {
+          console.log(`⚠️ Empty content, not saving user message`);
+        }
       });
     } else {
       console.warn('⚠️ chatClientRef not available for saving transcript');
@@ -63,6 +67,3 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
     handleVoiceEvent
   };
 };
-
-// Import this at the end to avoid circular dependencies
-import { useTranscriptHandler } from '@/hooks/voice/useTranscriptHandler';

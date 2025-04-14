@@ -1,4 +1,3 @@
-
 import { MessageCallback, StatusCallback, SaveMessageCallback } from '../types';
 import { ConnectionManager } from './ConnectionManager';
 import { MessageQueue } from './messageQueue';
@@ -49,9 +48,15 @@ export class RealtimeChat {
     // Create microphone manager
     this.microphoneManager = new MicrophoneManager(this.connectionManager);
     
+    // Make a direct reference to saveMessageCallback for userMessageHandler
+    this.userMessageHandler = new UserMessageHandler(saveMessageCallback);
+    
     // Create transcript event handler with improved user message handling
     this.transcriptHandler = new TranscriptEventHandler(
-      (text) => this.userMessageHandler.saveUserMessage(text),
+      (text) => {
+        console.log(`📣 TranscriptEventHandler - Direct save for text: "${text.substring(0, 30)}..."`);
+        this.saveUserMessage(text);
+      },
       (text) => this.userMessageHandler.accumulateTranscript(text),
       () => this.userMessageHandler.saveTranscriptIfNotEmpty()
     );
@@ -65,9 +70,19 @@ export class RealtimeChat {
     // Handle transcript events with improved user message handling
     this.transcriptHandler.handleTranscriptEvents(event);
     
+    // Additional logging for transcript events
+    if (event.type === 'transcript' || event.type === 'response.audio_transcript.done') {
+      console.log(`🗣️ Transcript event detected [${event.type}]:`, {
+        hasTranscript: !!event.transcript,
+        hasTextProperty: !!(event.transcript && event.transcript.text),
+        timestamp: new Date().toISOString()
+      });
+    }
+    
     // Periodically save accumulated transcript if it's not empty
     const accumulator = this.userMessageHandler.getAccumulatedTranscript();
     if (accumulator && accumulator.length > 15) {
+      console.log(`📝 Auto-saving accumulated transcript (${accumulator.length} chars)`);
       this.userMessageHandler.saveTranscriptIfNotEmpty();
     }
   }
@@ -117,20 +132,55 @@ export class RealtimeChat {
     this.microphoneManager.setMuted(muted);
   }
   
-  // Public method to manually save a user message
+  // Public method to manually save a user message with enhanced logging
   saveUserMessage(content: string) {
-    console.log("RealtimeChat.saveUserMessage called with:", content.substring(0, 30) + "...");
+    if (!content || content.trim() === '') {
+      console.log("⚠️ Skipping empty user message");
+      return;
+    }
+    
+    console.log(`💾 RealtimeChat.saveUserMessage called with: "${content.substring(0, 30)}..."`, {
+      contentLength: content.length,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Verify the saveMessageCallback is available
+    if (!this.saveMessageCallback) {
+      console.error("❌ saveMessageCallback is not available!");
+      return;
+    }
+    
+    // Try to save directly using the provided callback for maximum reliability
+    this.saveMessageCallback({
+      role: 'user',
+      content: content
+    }).then(result => {
+      console.log(`✅ Direct save user message result:`, {
+        success: !!result,
+        messageId: result?.id,
+        timestamp: new Date().toISOString()
+      });
+    }).catch(error => {
+      console.error("❌ Direct save user message error:", error);
+    });
+    
+    // Also try the regular handler as a backup
     this.userMessageHandler.saveUserMessage(content);
   }
   
   // Added method to flush pending messages
   flushPendingMessages() {
-    console.log("Flushing pending messages in RealtimeChat");
+    console.log("💾 Flushing pending messages in RealtimeChat");
+    // Try one last time to save any accumulated transcript
+    const accumulator = this.userMessageHandler.getAccumulatedTranscript();
+    if (accumulator && accumulator.trim() !== '') {
+      console.log(`📝 Flushing accumulated transcript: "${accumulator.substring(0, 30)}..."`);
+      this.saveUserMessage(accumulator);
+      this.userMessageHandler.clearAccumulatedTranscript();
+    }
+    
     // Forward to event handler which manages message processing
     this.eventHandler.flushPendingMessages();
-    
-    // Also attempt to save any accumulated transcript
-    this.userMessageHandler.saveTranscriptIfNotEmpty();
   }
 
   // Added method to accumulate transcript
