@@ -6,7 +6,7 @@ import { MessageQueue } from './messageQueue';
 
 export class ConnectionManager {
   private webRTCConnection: WebRTCConnection;
-  private audioProcessor: AudioProcessor;
+  public audioProcessor: AudioProcessor;
   private messageQueue: MessageQueue | null = null;
   
   constructor(

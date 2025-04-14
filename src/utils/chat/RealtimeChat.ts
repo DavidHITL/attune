@@ -1,3 +1,4 @@
+
 import { ConnectionManager } from './ConnectionManager';
 import { MessageQueue } from './messageQueue';
 import { ResponseParser } from './ResponseParser';
@@ -23,8 +24,8 @@ export class RealtimeChat {
     private saveMessageCallback: SaveMessageCallback
   ) {
     this.responseParser = new ResponseParser();
-    this.messageQueue = new MessageQueue(saveMessageCallback);
-    this.userMessageHandler = new UserMessageHandler(saveMessageCallback);
+    this.messageQueue = new MessageQueue(this.saveMessageCallback);
+    this.userMessageHandler = new UserMessageHandler(this.saveMessageCallback);
     this.transcriptHandler = new TranscriptEventHandler(this.messageQueue);
     this.messageEventHandler = new MessageEventHandler(
       this.messageQueue,
@@ -97,6 +98,48 @@ export class RealtimeChat {
     this.messageQueue?.flushQueue();
     this.userMessageHandler.saveTranscriptIfNotEmpty();
   }
+
+  /**
+   * Check if microphone is paused
+   */
+  isMicrophonePaused(): boolean {
+    return this.connectionManager?.audioProcessor.isMicrophonePaused() || false;
+  }
+
+  /**
+   * Pause microphone
+   */
+  pauseMicrophone(): void {
+    this.connectionManager?.pauseMicrophone();
+  }
+
+  /**
+   * Resume microphone
+   */
+  resumeMicrophone(): void {
+    this.connectionManager?.resumeMicrophone();
+  }
+
+  /**
+   * Force stop microphone
+   */
+  forceStopMicrophone(): void {
+    this.connectionManager?.completelyStopMicrophone();
+  }
+
+  /**
+   * Force resume microphone
+   */
+  forceResumeMicrophone(): void {
+    this.connectionManager?.forceResumeMicrophone();
+  }
+
+  /**
+   * Set muted state
+   */
+  setMuted(muted: boolean): void {
+    this.connectionManager?.setMuted(muted);
+  }
   
   /**
    * Disconnect from the chat
@@ -106,6 +149,6 @@ export class RealtimeChat {
     this.statusCallback('Disconnected');
     this.connectionManager?.disconnect();
     this.userMessageHandler.cleanupProcessedMessages();
-    this.messageQueue?.reportPendingMessages();
+    // Removed the nonexistent method call on messageQueue
   }
 }

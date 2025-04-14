@@ -1,148 +1,125 @@
 
-import { MediaRecorderState } from '@/utils/types';
-import { SilenceDetector } from './SilenceDetector';
-import { ActivityMonitor } from './ActivityMonitor';
-import { BaseAudioProcessor } from './processors/BaseAudioProcessor';
-import { RecorderManager } from './processors/RecorderManager';
-import { AdvancedMicrophoneControl } from './processors/AdvancedMicrophoneControl';
-
 /**
- * Main audio processing class that coordinates all audio handling features
+ * Handles audio processing and microphone state
  */
-export class AudioProcessor extends BaseAudioProcessor {
-  private recorderManager: RecorderManager;
-  private silenceDetector: SilenceDetector | null = null;
-  private activityMonitor: ActivityMonitor | null = null;
-  private advancedMicControl: AdvancedMicrophoneControl;
+export class AudioProcessor {
+  private microphoneStream: MediaStream | null = null;
+  private isPaused: boolean = false;
   
-  constructor(activityCallback: (state: 'start' | 'stop') => void) {
-    super();
-    this.recorderManager = new RecorderManager(activityCallback);
-    this.advancedMicControl = new AdvancedMicrophoneControl();
-  }
+  constructor(private audioActivityCallback: (state: 'start' | 'stop') => void) {}
   
   /**
-   * Initialize audio context and associated processors
+   * Initialize the microphone and audio processing
    */
-  async initAudioContext() {
-    if (!this.audioStream) {
-      throw new Error("Audio stream is not initialized. Call initMicrophone first.");
-    }
-    
-    this.advancedMicControl.setAudioStream(this.audioStream);
-    
-    // Create silence detector with the audio stream
-    this.silenceDetector = new SilenceDetector(this.audioStream);
-    await this.silenceDetector.initialize();
-    
-    // Set up callback from silence detector to stop recording when silence is detected
-    this.silenceDetector.onSilenceDetected(() => {
-      this.stopRecording();
-    });
-    
-    // Create activity monitor
-    this.activityMonitor = new ActivityMonitor(this.audioStream);
-  }
-  
-  /**
-   * Start recording from the current audio stream
-   */
-  startRecording() {
-    if (!this.audioStream) {
-      console.error("[AudioProcessor] No audio stream available. Call initMicrophone first.");
-      return;
-    }
-    
-    this.recorderManager.startRecording(this.audioStream);
-  }
-  
-  /**
-   * Stop the current recording
-   */
-  stopRecording() {
-    this.recorderManager.stopRecording();
-  }
-  
-  /**
-   * Force pause microphone with additional muting
-   */
-  forcePauseMicrophone() {
-    this.advancedMicControl.forcePauseMicrophone();
-    this.microphoneActive = false;
-  }
-  
-  /**
-   * Completely stop the microphone at device level (releases hardware)
-   */
-  completelyStopMicrophone() {
-    const stopped = this.advancedMicControl.completelyStopMicrophone();
-    if (stopped) {
-      this.audioStream = null;
-      this.microphoneActive = false;
-    }
-    return stopped;
-  }
-  
-  /**
-   * Force resume microphone, reinitializing if necessary
-   */
-  forceResumeMicrophone() {
-    this.advancedMicControl.forceResumeMicrophone().then(stream => {
-      if (stream) {
-        this.audioStream = stream;
-        this.microphoneActive = true;
-      }
-    });
-  }
-  
-  /**
-   * Get current recording state
-   */
-  getRecordingState(): MediaRecorderState {
-    return this.recorderManager.getRecordingState();
-  }
-  
-  /**
-   * Get the recorded audio chunks
-   */
-  getAudioChunks(): Blob[] {
-    return this.recorderManager.getAudioChunks();
-  }
-  
-  /**
-   * Clean up all resources
-   */
-  cleanup() {
-    console.log("[AudioProcessor] Starting complete cleanup");
-    
-    // Clean up recorder
-    this.recorderManager.cleanup();
-    
-    // Stop and release all audio tracks
-    this.releaseAllAudioTracks();
-    
-    // Clean up silence detector
-    if (this.silenceDetector) {
-      this.silenceDetector.cleanup();
-      this.silenceDetector = null;
-    }
-    
-    // Clean up activity monitor
-    if (this.activityMonitor) {
-      this.activityMonitor.cleanup();
-      this.activityMonitor = null;
-    }
-    
-    this.microphoneActive = false;
-    
-    // Double-check browser microphone status
-    navigator.mediaDevices.enumerateDevices()
-      .then(devices => {
-        const audioInputs = devices.filter(device => device.kind === 'audioinput');
-        console.log("[AudioProcessor] Available audio inputs after cleanup:", audioInputs.length);
-      })
-      .catch(err => {
-        console.error("[AudioProcessor] Error checking audio devices:", err);
+  async initMicrophone(): Promise<MediaStream> {
+    try {
+      // Request access to the microphone
+      this.microphoneStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true
+        } 
       });
+      
+      console.log("Microphone access granted:", this.microphoneStream.getAudioTracks()[0]?.label);
+      
+      // Reset the paused state when we get a new stream
+      this.isPaused = false;
+      
+      return this.microphoneStream;
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Standard microphone pause
+   */
+  pauseMicrophone(): void {
+    if (this.microphoneStream) {
+      console.log("Pausing microphone");
+      this.microphoneStream.getAudioTracks().forEach(track => {
+        track.enabled = false;
+      });
+      this.isPaused = true;
+      this.audioActivityCallback('stop');
+    }
+  }
+  
+  /**
+   * Resume microphone
+   */
+  resumeMicrophone(): void {
+    if (this.microphoneStream) {
+      console.log("Resuming microphone");
+      this.microphoneStream.getAudioTracks().forEach(track => {
+        track.enabled = true;
+      });
+      this.isPaused = false;
+      this.audioActivityCallback('start');
+    }
+  }
+  
+  /**
+   * Force pause microphone
+   */
+  forcePauseMicrophone(): void {
+    console.log("Force pausing microphone");
+    this.pauseMicrophone();
+  }
+  
+  /**
+   * Completely stop microphone
+   */
+  completelyStopMicrophone(): void {
+    console.log("Completely stopping microphone");
+    if (this.microphoneStream) {
+      this.microphoneStream.getAudioTracks().forEach(track => {
+        track.stop();
+      });
+      this.microphoneStream = null;
+      this.isPaused = true;
+      this.audioActivityCallback('stop');
+    }
+  }
+  
+  /**
+   * Force resume microphone
+   */
+  async forceResumeMicrophone(): Promise<void> {
+    console.log("Force resuming microphone");
+    
+    if (!this.microphoneStream) {
+      // Re-initialize the microphone if it was completely stopped
+      try {
+        await this.initMicrophone();
+        this.resumeMicrophone();
+      } catch (error) {
+        console.error("Error re-initializing microphone:", error);
+      }
+    } else {
+      this.resumeMicrophone();
+    }
+  }
+  
+  /**
+   * Check if the microphone is currently paused
+   */
+  isMicrophonePaused(): boolean {
+    return this.isPaused;
+  }
+  
+  /**
+   * Cleanup resources
+   */
+  cleanup(): void {
+    if (this.microphoneStream) {
+      console.log("Cleaning up audio processor");
+      this.microphoneStream.getAudioTracks().forEach(track => {
+        track.stop();
+      });
+      this.microphoneStream = null;
+    }
   }
 }

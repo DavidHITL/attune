@@ -76,6 +76,16 @@ export class MessageQueue {
       pendingPreInitMessages: this.pendingPreInitMessages.length
     };
   }
+
+  /**
+   * Report any pending messages (for cleanup/debugging)
+   */
+  reportPendingMessages(): void {
+    const status = this.getQueueStatus();
+    if (status.pendingPreInitMessages > 0 || status.pendingMessages > 0) {
+      console.warn(`MessageQueue still has pending messages: ${status.pendingPreInitMessages} pre-init, ${status.pendingMessages} regular`);
+    }
+  }
 }
 
 // Export all the types and classes needed externally
