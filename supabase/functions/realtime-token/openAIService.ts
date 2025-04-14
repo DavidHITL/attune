@@ -11,20 +11,19 @@ export async function requestOpenAIToken(instructions: string, voice: string): P
   console.log("[REALTIME-TOKEN] Instructions last 100 chars:", instructions.substring(instructions.length - 100));
   console.log("[REALTIME-TOKEN] Voice setting:", voice);
   
-  // Ensure the Terry Real therapy approach is explicitly included
-  const terryRealApproach = "Act as a couples coach using Terry Real's approach, blending direct advice and thought-provoking questions. Focus on core concepts like the harmony-disharmony-repair cycle, the adaptive child versus the wise adult, and the five losing strategies.";
+  // The specific Terry Real approach prompt that should be used
+  const terryRealPrompt = "Act as a couples coach using Terry Real's approach, blending direct advice and thought-provoking questions. Focus on identifying core concepts like the harmony-disharmony-repair cycle, the adaptive child versus the wise adult, and the five losing strategies. Focus less on giving the user reassurance, and more on questioning their beliefs. Invite them subtly to reflect and gain new insights about themselves. Each session should last around 25 minutes: the first 10 minutes inviting the user to open up, with active listening and gentle nudges if needed. The next 10 minutes address core issues and any identified losing strategies, and the final 5 minutes wrap up positively. Use examples from Terry Real's book \"Us\".";
   
-  // Check if instructions already contain Terry Real approach
-  const containsTerryReal = instructions.includes("Terry Real") && 
-    instructions.includes("harmony-disharmony-repair");
+  // Check if instructions already contain the exact Terry Real prompt
+  const containsTerryRealPrompt = instructions.includes(terryRealPrompt);
     
-  console.log(`[REALTIME-TOKEN] Instructions already contain Terry Real approach: ${containsTerryReal}`);
+  console.log(`[REALTIME-TOKEN] Instructions already contain Terry Real prompt: ${containsTerryRealPrompt}`);
   
-  // If Terry Real approach is not in the instructions, prepend it
+  // If Terry Real prompt is not in the instructions, prepend it
   let finalInstructions = instructions;
-  if (!containsTerryReal) {
-    console.log("[REALTIME-TOKEN] Adding Terry Real approach to instructions");
-    finalInstructions = terryRealApproach + "\n\n" + instructions;
+  if (!containsTerryRealPrompt) {
+    console.log("[REALTIME-TOKEN] Adding Terry Real prompt to instructions");
+    finalInstructions = terryRealPrompt + "\n\n" + instructions;
     console.log("[REALTIME-TOKEN] New instructions length:", finalInstructions.length);
   }
 
@@ -34,15 +33,8 @@ export async function requestOpenAIToken(instructions: string, voice: string): P
     console.log("[REALTIME-TOKEN] Final instructions last 200 chars:", finalInstructions.substring(finalInstructions.length - 200));
     console.log("[REALTIME-TOKEN] Using voice:", voice);
     
-    // Check if final instructions contain key phrases from Terry Real approach
-    const terryRealPhrases = [
-      "Terry Real", "harmony-disharmony-repair", "adaptive child", "wise adult", "losing strategies"
-    ];
-    
-    terryRealPhrases.forEach(phrase => {
-      const containsPhrase = finalInstructions.includes(phrase);
-      console.log(`[REALTIME-TOKEN] Final instructions contain "${phrase}": ${containsPhrase}`);
-    });
+    // Check if final instructions contain the Terry Real prompt
+    console.log(`[REALTIME-TOKEN] Final instructions contain Terry Real prompt: ${finalInstructions.includes(terryRealPrompt)}`);
     
     const requestBody = {
       model: "gpt-4o-realtime-preview-2024-12-17",

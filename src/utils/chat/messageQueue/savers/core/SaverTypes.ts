@@ -17,4 +17,5 @@ export interface SaveOptions {
   trackId?: string;
   maxRetries?: number;
   showNotification?: boolean;
+  checkTerryRealCompliance?: boolean; // New option to check if message follows Terry Real approach
 }
