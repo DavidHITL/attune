@@ -10,7 +10,7 @@ export const useTranscriptSaver = () => {
 
   const saveTranscript = useCallback(async (
     transcript: string, 
-    saveMessage: (msg: { role: string, content: string }) => Promise<Message | undefined>,
+    saveMessage: (msg: { role: 'user' | 'assistant'; content: string }) => Promise<Message | undefined>,
     saveUserMessage?: (content: string) => void
   ) => {
     if (!validateConversationContext()) return;

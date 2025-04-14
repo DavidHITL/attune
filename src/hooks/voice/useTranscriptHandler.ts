@@ -24,7 +24,10 @@ export const useTranscriptHandler = () => {
         userId: user?.id
       });
       
-      saveTranscript(event.transcript, (msg) => useConversation().saveMessage(msg), saveUserMessage);
+      saveTranscript(event.transcript, (msg) => useConversation().saveMessage({
+        role: 'user' as const,
+        content: msg.content
+      }), saveUserMessage);
     }
     
     // Handle response.audio_transcript.done events
@@ -34,7 +37,10 @@ export const useTranscriptHandler = () => {
         timestamp: new Date().toISOString()
       });
       
-      saveTranscript(event.transcript.text, (msg) => useConversation().saveMessage(msg), saveUserMessage);
+      saveTranscript(event.transcript.text, (msg) => useConversation().saveMessage({
+        role: 'user' as const,
+        content: msg.content
+      }), saveUserMessage);
     }
   }, [user, conversationId, saveTranscript]);
 
