@@ -11,7 +11,7 @@ import { useVoiceStateManagement } from './useVoiceStateManagement';
 import { useVoiceEvents } from './useVoiceEvents';
 
 /**
- * Main hook for chat client functionality, refactored for improved modularity
+ * Main hook for chat client functionality, refactored for improved modularity and reliability
  */
 export const useChatClient = () => {
   // Initialize refs and basic state
@@ -36,7 +36,7 @@ export const useChatClient = () => {
     handleSessionCreated
   } = useVoiceStateManagement();
 
-  // Get voice event handling
+  // Get enhanced voice event handling with improved transcript processing
   const { handleVoiceEvent } = useVoiceEvents(chatClientRef, setVoiceActivityState);
   
   // Combined message handler for all event types
@@ -46,6 +46,11 @@ export const useChatClient = () => {
     
     // Process session creation events
     handleSessionCreated(event);
+    
+    // Log the last few event types for debugging
+    if (event.type && event.type !== 'input_audio_buffer.append') {
+      console.log(`EVENT [${event.type}] #${Math.floor(Math.random() * 10)} at ${new Date().toISOString()}`);
+    }
   }, [handleVoiceEvent, handleSessionCreated]);
   
   // Initialize connection manager
@@ -54,12 +59,17 @@ export const useChatClient = () => {
     combinedMessageHandler,
     setStatus,
     (message) => {
-      // Save message logic
+      // Enhanced save message logic with better error handling
       if (!user || !conversationId) {
+        console.error(
+          !user ? "User not authenticated" : "No conversation ID"
+        );
         return Promise.reject(new Error(
           !user ? "User not authenticated" : "No conversation ID"
         ));
       }
+      
+      console.log(`Saving ${message.role} message: ${message.content?.substring(0, 30)}...`);
       return saveMessage(message);
     },
     setIsConnected,
@@ -94,12 +104,21 @@ export const useChatClient = () => {
     }
   }, [startConversation, isConnected]);
   
-  // Cleanup effect on unmount
+  // Cleanup effect on unmount with enhanced reliability
   useEffect(() => {
     return () => {
       console.log("Cleaning up chat client");
       if (chatClientRef.current) {
-        chatClientRef.current.disconnect();
+        // Ensure any pending messages are flushed before disconnecting
+        try {
+          chatClientRef.current.flushPendingMessages?.();
+          setTimeout(() => {
+            chatClientRef.current?.disconnect();
+          }, 300);
+        } catch (e) {
+          console.error("Error during cleanup:", e);
+          chatClientRef.current.disconnect();
+        }
       }
     };
   }, []);

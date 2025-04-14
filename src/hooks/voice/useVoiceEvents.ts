@@ -2,9 +2,10 @@
 import { useCallback } from 'react';
 import { VoiceActivityState } from '@/components/VoiceActivityIndicator';
 import { useVoiceActivityState } from '@/hooks/voice/useVoiceActivityState';
+import { toast } from 'sonner';
 
 /**
- * Hook for handling voice events and transcripts
+ * Hook for handling voice events and transcripts with enhanced reliability
  */
 export const useVoiceEvents = (
   chatClientRef: React.MutableRefObject<any>,
@@ -13,13 +14,56 @@ export const useVoiceEvents = (
   // Get voice activity tracking functions
   const { handleMessageEvent: handleVoiceActivityEvent } = useVoiceActivityState();
   
+  // Track transcript accumulation between speech events
+  const transcriptAccumulator = useCallback((event: any) => {
+    // Handle audio transcript delta events
+    if (event.type === "response.audio_transcript.delta" && event.delta?.text) {
+      console.log(`Transcript delta received: "${event.delta.text}"`);
+      if (chatClientRef.current) {
+        chatClientRef.current.accumulateTranscript?.(event.delta.text);
+      }
+    }
+    
+    // Handle audio buffer events - ensure we save any pending transcript
+    if (event.type === "output_audio_buffer.stopped") {
+      console.log("Audio output buffer stopped - ensuring transcript is complete");
+      setTimeout(() => {
+        if (chatClientRef.current) {
+          chatClientRef.current.flushPendingMessages?.();
+        }
+      }, 500);
+    }
+  }, [chatClientRef]);
+  
   // Handle transcript events
   const handleTranscriptEvent = useCallback((event: any, saveCallback?: (content: string) => void) => {
-    // Check for transcript events
+    // Check for direct transcript events
     if (event.type === 'transcript' && event.text) {
-      console.log(`Transcript received: ${event.text.substring(0, 30)}...`);
+      console.log(`Direct transcript received: ${event.text.substring(0, 30)}...`);
       if (saveCallback) {
         saveCallback(event.text);
+        
+        // Show a toast notification for transcript received
+        toast.info("Speech transcribed", {
+          description: event.text.substring(0, 50) + (event.text.length > 50 ? "..." : ""),
+          duration: 2000
+        });
+      }
+    }
+    
+    // Handle final transcript completion (highest reliability)
+    if (event.type === "response.audio_transcript.done" && event.transcript?.text) {
+      const finalTranscript = event.transcript.text;
+      console.log("Final audio transcript received:", finalTranscript.substring(0, 50));
+      
+      if (saveCallback) {
+        saveCallback(finalTranscript);
+        
+        // Show toast for final transcript
+        toast.success("Full transcript processed", { 
+          description: finalTranscript.substring(0, 50) + (finalTranscript.length > 50 ? "..." : ""),
+          duration: 2000
+        });
       }
     }
   }, []);
@@ -29,9 +73,13 @@ export const useVoiceEvents = (
     // Process voice activity state changes
     handleVoiceActivityEvent(event);
     
+    // Track transcript accumulation
+    transcriptAccumulator(event);
+    
     // Log speech events for debugging
-    if (event.type && event.type.includes('speech')) {
-      console.log(`Speech event: ${event.type}`);
+    if (event.type && event.type.includes('speech') || 
+        event.type && event.type.includes('audio')) {
+      console.log(`Speech/audio event: ${event.type}`);
     }
     
     // Handle transcript events
@@ -40,7 +88,12 @@ export const useVoiceEvents = (
         chatClientRef.current?.saveUserMessage(content);
       });
     }
-  }, [handleVoiceActivityEvent, handleTranscriptEvent, chatClientRef]);
+    
+    // Handle audio stopped events to ensure complete messages
+    if (event.type === 'output_audio_buffer.stopped') {
+      setVoiceActivityState(VoiceActivityState.Idle);
+    }
+  }, [handleVoiceActivityEvent, transcriptAccumulator, handleTranscriptEvent, chatClientRef, setVoiceActivityState]);
 
   return {
     handleVoiceEvent,
