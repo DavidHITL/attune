@@ -77,12 +77,12 @@ serve(async (req) => {
 async function analyzeUserPatterns(userId: string, conversationId?: string) {
   console.log(`Analyzing patterns for user ${userId}, conversation ${conversationId || 'all'}`);
   
-  // Get user messages for analysis
+  // Get user messages for analysis - ONLY getting 'user' messages now
   let messagesQuery = supabase
     .from('messages')
-    .select('content, created_at')
+    .select('content, created_at, role')
     .eq('user_id', userId)
-    .eq('role', 'user')
+    .eq('role', 'user')  // Only select user messages for primary analysis
     .order('created_at', { ascending: true });
   
   // Filter by conversation if specified
@@ -90,30 +90,30 @@ async function analyzeUserPatterns(userId: string, conversationId?: string) {
     messagesQuery = messagesQuery.eq('conversation_id', conversationId);
   }
   
-  const { data: messages, error } = await messagesQuery;
+  const { data: userMessages, error: userError } = await messagesQuery;
   
-  if (error) {
-    console.error('Error fetching messages:', error);
+  if (userError) {
+    console.error('Error fetching user messages:', userError);
     return new Response(
-      JSON.stringify({ error: 'Failed to fetch messages' }),
+      JSON.stringify({ error: 'Failed to fetch user messages' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
   
-  if (!messages || messages.length === 0) {
+  if (!userMessages || userMessages.length === 0) {
     return new Response(
-      JSON.stringify({ message: 'No messages found for analysis' }),
+      JSON.stringify({ message: 'No user messages found for analysis' }),
       { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
   
-  console.log(`Found ${messages.length} messages for analysis`);
+  console.log(`Found ${userMessages.length} user messages for analysis`);
   
-  // Prepare messages for analysis (limit to most recent 50 for API efficiency)
-  const messagesToAnalyze = messages.slice(-50).map(msg => msg.content).join('\n\n');
+  // Prepare user messages for analysis (limit to most recent 50 for API efficiency)
+  const userMessagesToAnalyze = userMessages.slice(-50).map(msg => msg.content).join('\n\n');
   
   // Call OpenAI for pattern analysis
-  const analysis = await analyzeWithOpenAI(messagesToAnalyze);
+  const analysis = await analyzeWithOpenAI(userMessagesToAnalyze);
   
   // Save analysis results
   const { data: savedAnalysis, error: saveError } = await supabase
@@ -202,9 +202,40 @@ async function generateConversationSummaries(userId: string, conversationId?: st
     // Generate summary for each batch
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i];
-      const batchContent = batch
-        .map(msg => `${msg.role}: ${msg.content}`)
-        .join('\n\n');
+      
+      // Separate user messages and assistant messages
+      const userMessages = batch.filter(msg => msg.role === 'user');
+      const assistantMessages = batch.filter(msg => msg.role === 'assistant');
+      
+      // Check if we have enough user messages to summarize
+      if (userMessages.length < 5) {
+        console.log(`Batch ${i} has only ${userMessages.length} user messages, skipping`);
+        continue;
+      }
+      
+      // Format conversation with focus on user messages but including assistant context
+      let batchContent = '';
+      let currentIndex = 0;
+      
+      // Build a conversation string that preserves context but emphasizes user messages
+      while (currentIndex < batch.length) {
+        const message = batch[currentIndex];
+        
+        if (message.role === 'user') {
+          batchContent += `USER: ${message.content}\n\n`;
+          
+          // Include the next assistant message for context if it exists
+          if (currentIndex + 1 < batch.length && batch[currentIndex + 1].role === 'assistant') {
+            batchContent += `ASSISTANT (context): ${batch[currentIndex + 1].content.substring(0, 200)}${batch[currentIndex + 1].content.length > 200 ? '...' : ''}\n\n`;
+            currentIndex += 2; // Skip the next message since we've included it
+          } else {
+            currentIndex += 1;
+          }
+        } else {
+          // Just skip assistant messages that don't follow user messages
+          currentIndex += 1;
+        }
+      }
       
       const startId = batch[0].id;
       const endId = batch[batch.length - 1].id;
@@ -300,11 +331,11 @@ CORE CONCEPTS TO APPLY:
 
 ANALYSIS REQUESTED:
 
-Carefully analyze the provided messages to identify:
+Carefully analyze the provided USER MESSAGES ONLY to identify:
 
 1. TRIGGERS: Identify 3-5 specific situations or interaction patterns that appear to activate the user's adaptive child mode. Be specific and descriptive.
 
-2. LOSING STRATEGIES: Score each of the five losing strategies on a scale of 0-10 based on evidence in the messages. Determine which appears to be the user's primary strategy and provide concrete examples.
+2. LOSING STRATEGIES: Score each of the five losing strategies on a scale of 0-10 based on evidence in the user's messages. Determine which appears to be the user's primary strategy and provide concrete examples.
 
 3. WISE ADULT DEVELOPMENT: Identify 3-5 practical, specific suggestions for how the user could strengthen their wise adult presence in challenging moments. These should be actionable and tailored to their specific patterns.
 
@@ -315,7 +346,7 @@ Return your analysis in JSON format with these fields:
           },
           {
             role: 'user',
-            content: `Here are messages from the user:\n\n${messageContent}`
+            content: `Here are the user's messages to analyze:\n\n${messageContent}`
           }
         ],
         temperature: 0.3,
@@ -383,15 +414,16 @@ async function summarizeWithOpenAI(messageContent: string) {
         messages: [
           {
             role: 'system',
-            content: `Summarize the following conversation between a user and an AI assistant. 
-            Focus on:
-            1. Core themes and topics discussed
-            2. Key insights or realizations from the user
-            3. Emotional patterns or tendencies shown by the user
+            content: `Summarize the following conversation between a user and an AI assistant.
+            Focus primarily on what the USER said, with the assistant's responses only providing context.
+            Pay special attention to:
+            1. Core themes and topics discussed by the USER
+            2. Key insights or realizations shared by the USER
+            3. Emotional patterns or tendencies shown by the USER
             
             Return your summary in JSON format with these fields:
-            - content: A concise summary (100-200 words)
-            - keyPoints: Array of up to 5 key points from the conversation`
+            - content: A concise summary (100-200 words) focusing primarily on the USER's messages
+            - keyPoints: Array of up to 5 key points from the user's side of the conversation`
           },
           {
             role: 'user',
