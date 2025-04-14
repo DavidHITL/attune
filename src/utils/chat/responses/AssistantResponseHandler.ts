@@ -71,4 +71,26 @@ export class AssistantResponseHandler {
       }
     }
   }
+
+  // Add the missing methods
+  handleConversationTruncated(): void {
+    console.log("Conversation truncated event received");
+    // Handle any cleanup or notifications related to truncated conversations
+    if (this.pendingAssistantMessage && this.assistantResponse) {
+      console.log("Saving pending assistant message due to conversation truncation");
+      this.messageQueue.queueMessage('assistant', this.assistantResponse, true);
+      this.pendingAssistantMessage = false;
+      this.assistantResponse = '';
+    }
+  }
+
+  flushPendingResponse(): void {
+    console.log("Flushing any pending assistant response");
+    if (this.pendingAssistantMessage && this.assistantResponse && this.assistantResponse.trim()) {
+      console.log(`Flushing pending assistant response [${this.assistantResponse.length} chars]`);
+      this.messageQueue.queueMessage('assistant', this.assistantResponse, true);
+      this.pendingAssistantMessage = false;
+      this.assistantResponse = '';
+    }
+  }
 }

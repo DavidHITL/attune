@@ -26,9 +26,7 @@ export class RealtimeChat {
     this.messageQueue = new MessageQueue(this.saveMessageCallback);
     this.userMessageHandler = new UserMessageHandler(this.saveMessageCallback);
     this.transcriptHandler = new TranscriptEventHandler(
-      (text) => this.saveUserMessage(text),
-      (text) => this.userMessageHandler.accumulateTranscript(text),
-      () => this.userMessageHandler.saveTranscriptIfNotEmpty()
+      (text) => this.saveUserMessage(text)
     );
     this.messageEventHandler = new MessageEventHandler(
       this.messageQueue,

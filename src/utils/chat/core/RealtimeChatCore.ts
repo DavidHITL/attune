@@ -1,4 +1,3 @@
-
 import { MessageQueue } from '../messageQueue';
 import { ResponseParser } from '../ResponseParser';
 import { EventHandler } from '../EventHandler';
@@ -49,9 +48,7 @@ export class RealtimeChatCore {
       (text) => {
         console.log(`📣 TranscriptEventHandler - Direct save for text: "${text.substring(0, 30)}..."`);
         this.saveUserMessage(text);
-      },
-      (text) => this.userMessageHandler.accumulateTranscript(text),
-      () => this.userMessageHandler.saveTranscriptIfNotEmpty()
+      }
     );
     
     this.messageEventHandler = new MessageEventHandler(
