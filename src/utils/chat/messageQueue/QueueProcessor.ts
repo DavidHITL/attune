@@ -1,4 +1,3 @@
-
 import { SaveMessageCallback } from '../../types';
 import { MessageSaver } from './MessageSaver';
 import { QueuedMessage } from './types';
@@ -7,9 +6,6 @@ import { QueueProcessingLogic } from './processors/QueueProcessingLogic';
 import { QueueFlusher } from './processors/QueueFlusher';
 import { MessageValidator } from './processors/MessageValidator';
 
-/**
- * Handles processing message queue with reliability and error handling
- */
 export class QueueProcessor {
   private messageQueue: QueuedMessage[] = [];
   private messageSaver: MessageSaver;
@@ -31,7 +27,7 @@ export class QueueProcessor {
   }
   
   /**
-   * Add a message to the queue
+   * Add a message to the queue with unified processing logic
    */
   queueMessage(role: 'user' | 'assistant', content: string, priority: boolean = false): void {
     // Validate the message
@@ -39,33 +35,21 @@ export class QueueProcessor {
       return;
     }
     
-    // Check for duplicate content
-    if (this.messageValidator.isDuplicate(role, content, this.messageQueue)) {
-      return;
-    }
-    
     console.log(`Queued ${role} message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}", priority: ${priority}`);
     
-    // For user messages or priority messages, try to save immediately
-    if (role === 'user' || priority) {
+    // For high priority messages, attempt immediate save
+    if (priority) {
       console.log(`Processing ${role} message with HIGH PRIORITY`);
-      
-      // Create a message ID to track this message
       const messageId = `${role}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      if (role === 'user') {
-        this.messageSaver.trackPendingUserMessage(messageId);
-      }
-      
-      // Save message immediately with direct error handling
       this.saveMessageDirectly(role, content, messageId);
     } else {
-      // For assistant messages, add to queue for processing
-      this.messageQueue.push({ role, content, priority: false });
+      // Add to queue for standard processing
+      this.messageQueue.push({ role, content, priority });
       console.log(`Queue length: ${this.messageQueue.length}`);
       this.processMessageQueue();
     }
   }
-  
+
   /**
    * Save message directly with better error handling
    */

@@ -1,11 +1,7 @@
-
 import { MessageQueue } from '../messageQueue';
 import { ResponseParser } from '../ResponseParser';
 import { toast } from 'sonner';
 
-/**
- * Handles capturing and processing assistant responses
- */
 export class AssistantResponseHandler {
   private assistantResponse: string = '';
   private pendingAssistantMessage: boolean = false;
@@ -17,9 +13,6 @@ export class AssistantResponseHandler {
     private responseParser: ResponseParser
   ) {}
 
-  /**
-   * Handle response created events
-   */
   handleResponseCreated(): void {
     console.log("Assistant response started, setting pendingAssistantMessage flag");
     this.pendingAssistantMessage = true;
@@ -29,9 +22,6 @@ export class AssistantResponseHandler {
     this.emptyResponseHandled = false;
   }
   
-  /**
-   * Handle response delta events
-   */
   handleResponseDelta(event: any): void {
     this.lastResponseDelta = Date.now();
     let extractedContent = this.responseParser.extractContentFromDelta(event);
@@ -52,47 +42,29 @@ export class AssistantResponseHandler {
   }
   
   /**
-   * Handle response done events
+   * Handle response done events with unified message saving
    */
   handleResponseDone(event: any): void {
     console.log("Response done event received", JSON.stringify(event).substring(0, 200));
     
-    // Extract final message from response.done event if possible
-    let finalResponse = this.responseParser.extractCompletedResponseFromDoneEvent(event);
-    
-    // Use extracted response or fallback to accumulated response
-    let finalContent = finalResponse && finalResponse.trim() 
-      ? finalResponse 
-      : this.assistantResponse;
+    let finalContent = this.responseParser.extractCompletedResponseFromDoneEvent(event) || 
+                      this.assistantResponse;
       
     if (finalContent && finalContent.trim()) {
       console.log(`Saving assistant response [${finalContent.length} chars]: "${finalContent.substring(0, 50)}${finalContent.length > 50 ? '...' : ''}"`);
-      this.messageQueue.queueMessage('assistant', finalContent);
-    } else {
-      console.error("Empty assistant response after done event. Response events:", 
-        JSON.stringify(this.responseParser.getEventLog().slice(-10)));
+      // Use standard queueMessage path with lower priority for assistant messages
+      this.messageQueue.queueMessage('assistant', finalContent, false);
+    } else if (!this.emptyResponseHandled) {
+      console.error("Empty assistant response after done event");
+      const defaultMessage = "I'm listening. Could you please continue?";
+      this.messageQueue.queueMessage('assistant', defaultMessage, false);
       
-      // Emergency fallback - try to construct a message from the last few events
-      const fallbackMessage = this.responseParser.constructFallbackMessage();
-      if (fallbackMessage) {
-        console.log(`Using fallback message construction: "${fallbackMessage}"`);
-        this.messageQueue.queueMessage('assistant', fallbackMessage);
-      } else if (!this.emptyResponseHandled) {
-        console.error("Empty assistant response after done event");
-        
-        // Use a static message as last resort to prevent empty responses
-        const defaultMessage = "I'm listening. Could you please continue?";
-        console.log(`Using default message: "${defaultMessage}"`);
-        this.messageQueue.queueMessage('assistant', defaultMessage);
-        
-        // Show toast notification about empty response
-        toast.error("Received an empty response from the assistant", {
-          description: "This may be due to a temporary issue. Please try again.",
-          duration: 4000,
-        });
-        
-        this.emptyResponseHandled = true;
-      }
+      toast.error("Received an empty response from the assistant", {
+        description: "This may be due to a temporary issue. Please try again.",
+        duration: 4000,
+      });
+      
+      this.emptyResponseHandled = true;
     }
     
     // Reset state
@@ -101,9 +73,6 @@ export class AssistantResponseHandler {
     this.responseParser.clearRawEvents();
   }
   
-  /**
-   * Handle conversation item truncated events
-   */
   handleConversationTruncated(): void {
     console.log("Conversation item truncated event received");
     
@@ -118,9 +87,6 @@ export class AssistantResponseHandler {
     }
   }
   
-  /**
-   * Handle content part done events
-   */
   handleContentPartDone(content: any): void {
     console.log("Content part done event received with content");
     

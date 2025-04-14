@@ -1,12 +1,7 @@
-
 import { Message, SaveMessageCallback } from '../../types';
 import { QueueProcessor } from './QueueProcessor';
 import { QueueStatus } from './types';
 
-/**
- * Main MessageQueue class - refactored to delegate to a QueueProcessor with better handling
- * of messages arriving before conversation initialization
- */
 export class MessageQueue {
   private queueProcessor: QueueProcessor;
   private pendingPreInitMessages: Array<{role: 'user' | 'assistant', content: string, priority: boolean}> = [];
@@ -17,15 +12,23 @@ export class MessageQueue {
   }
   
   /**
-   * Queue a message for saving, with special handling for pre-initialization messages
+   * Queue a message for saving, with unified handling for all message types
    */
   queueMessage(role: 'user' | 'assistant', content: string, priority: boolean = false): void {
-    if (!this.isConversationInitialized && role === 'user') {
+    // Skip empty messages
+    if (!content || content.trim() === '') {
+      console.log(`Skipping empty ${role} message`);
+      return;
+    }
+
+    // Handle pre-initialization state uniformly for both roles
+    if (!this.isConversationInitialized) {
       console.log(`Pre-initialization message received, queueing until conversation is ready: ${content.substring(0, 30)}...`);
       this.pendingPreInitMessages.push({ role, content, priority });
       return;
     }
     
+    // Unified processing through QueueProcessor
     this.queueProcessor.queueMessage(role, content, priority);
   }
   
@@ -45,11 +48,10 @@ export class MessageQueue {
       this.pendingPreInitMessages.forEach((msg, index) => {
         setTimeout(() => {
           console.log(`Processing pre-init message ${index + 1}/${this.pendingPreInitMessages.length}: ${msg.content.substring(0, 30)}...`);
-          this.queueProcessor.queueMessage(msg.role, msg.content, msg.priority || true); // Force high priority
+          this.queueProcessor.queueMessage(msg.role, msg.content, msg.priority);
         }, index * 200);
       });
       
-      // Clear the queue
       this.pendingPreInitMessages = [];
     }
   }
@@ -88,6 +90,5 @@ export class MessageQueue {
   }
 }
 
-// Export all the types and classes needed externally
 export * from './types';
 export * from './QueueTypes';
