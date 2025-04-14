@@ -3,9 +3,10 @@ import { useCallback } from 'react';
 import { useConversationValidator } from './transcript/useConversationValidator';
 import { useTranscriptSaver } from './transcript/useTranscriptSaver';
 import { useConversation } from '../useConversation';
+import { toast } from 'sonner';
 
 export const useTranscriptHandler = () => {
-  const { user, conversationId } = useConversationValidator();
+  const { user, conversationId, validateConversationContext } = useConversationValidator();
   const { saveTranscript } = useTranscriptSaver();
   const { saveMessage } = useConversation();
   
@@ -18,33 +19,99 @@ export const useTranscriptHandler = () => {
       timestamp: new Date().toISOString()
     });
     
-    // Handle direct transcripts
-    if (event.type === 'transcript' && event.transcript && event.transcript.trim()) {
-      console.log("📝 Processing direct transcript:", {
-        contentPreview: event.transcript.substring(0, 50),
+    // Validate conversation context for all transcript handling
+    if (!validateConversationContext()) {
+      console.error("❌ Cannot process transcript: Invalid conversation context", {
+        userId: user?.id,
+        conversationId
+      });
+      return;
+    }
+    
+    // CRITICAL FIX: Direct transcript handling
+    if (event.type === 'transcript' && typeof event.transcript === 'string' && event.transcript.trim()) {
+      console.log("📝 Processing direct transcript with content:", {
+        transcriptPreview: event.transcript.substring(0, 50),
         conversationId,
         userId: user?.id
       });
       
+      // Explicitly ensure we have valid transcript content
+      if (!event.transcript.trim()) {
+        console.warn("⚠️ Empty direct transcript received, skipping");
+        return;
+      }
+      
+      // Notification for user feedback
+      toast.success("Speech detected", {
+        description: event.transcript.substring(0, 50) + (event.transcript.length > 50 ? "..." : ""),
+        duration: 3000
+      });
+      
+      // Save message with high priority
       saveMessage({
         role: 'user' as const,
         content: event.transcript
+      }).then(msg => {
+        if (msg?.id) {
+          console.log("✅ Successfully saved direct transcript with ID:", msg.id);
+        } else {
+          console.error("❌ Direct transcript save operation failed");
+        }
+      }).catch(error => {
+        console.error("❌ Error saving direct transcript:", error);
       });
+      
+      return; // Exit after handling direct transcript
     }
     
-    // Handle final transcripts
+    // CRITICAL FIX: Final transcript handling  
     if (event.type === 'response.audio_transcript.done' && event.transcript?.text && event.transcript.text.trim()) {
       console.log("📝 Processing final transcript:", {
-        preview: event.transcript.text.substring(0, 50),
+        textPreview: event.transcript.text.substring(0, 50),
         timestamp: new Date().toISOString()
       });
       
+      // Explicitly log the full transcript content for debugging
+      console.log("📄 FINAL TRANSCRIPT CONTENT:", event.transcript.text);
+      
+      // Notification for user feedback
+      toast.success("Speech transcribed", {
+        description: event.transcript.text.substring(0, 50) + (event.transcript.text.length > 50 ? "..." : ""),
+        duration: 3000
+      });
+      
+      // Actual message saving with promise handling
       saveMessage({
         role: 'user' as const,
         content: event.transcript.text
+      }).then(msg => {
+        if (msg?.id) {
+          console.log("✅ Successfully saved final transcript with ID:", msg.id);
+        } else {
+          console.error("❌ Final transcript save operation failed");
+        }
+      }).catch(error => {
+        console.error("❌ Error saving final transcript:", error);
       });
     }
-  }, [user, conversationId, saveMessage]);
+    
+    // Handle partial delta transcripts for accumulation
+    if (event.type === 'response.audio_transcript.delta' && event.delta?.text) {
+      console.log("🔄 Received transcript delta:", event.delta.text);
+      // No direct saving here, just log for debugging
+    }
+    
+    // Handle speech started/stopped events for debugging
+    if (event.type === 'input_audio_buffer.speech_started') {
+      console.log("🎙️ Speech started event detected");
+    }
+    
+    if (event.type === 'input_audio_buffer.speech_stopped') {
+      console.log("🛑 Speech stopped event detected");
+    }
+    
+  }, [user, conversationId, saveMessage, validateConversationContext]);
 
   return {
     handleTranscriptEvent

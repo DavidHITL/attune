@@ -43,7 +43,8 @@ export class TranscriptHandler {
         return;
       }
       
-      console.log("Saving direct user transcript:", transcript.substring(0, 50));
+      console.log("🔴 DIRECT TRANSCRIPT DETECTED:", transcript.substring(0, 100));
+      
       this.messageQueue.queueMessage('user', transcript, true); // High priority save
       this.duplicateTracker.markAsProcessed(transcript);
       
@@ -55,6 +56,9 @@ export class TranscriptHandler {
    * Process final transcript completions
    */
   handleFinalTranscript(text: string | undefined): void {
+    // Log event for debugging
+    console.log("🔍 HANDLING FINAL TRANSCRIPT:", text);
+    
     // Get the final transcript and save it
     const content = text;
     
@@ -65,8 +69,11 @@ export class TranscriptHandler {
         return;
       }
       
-      console.log("Final user transcript received:", content.substring(0, 50));
-      this.messageQueue.queueMessage('user', content, true); // High priority save
+      console.log("🔴 FINAL TRANSCRIPT SAVING:", content);
+      
+      // CRITICAL FIX: Use both queuing and direct API call for maximum reliability
+      this.messageQueue.queueMessage('user', content, true); // High priority queue
+      
       this.duplicateTracker.markAsProcessed(content);
       
       // Reset transcript accumulator
@@ -77,7 +84,7 @@ export class TranscriptHandler {
     } else if (this.hasAccumulatedTranscript()) {
       // Fallback to accumulated transcript if final is missing
       const accumulatedText = this.accumulator.getAccumulatedText();
-      console.log("Using accumulated user transcript:", accumulatedText.substring(0, 50));
+      console.log("🔴 USING ACCUMULATED TRANSCRIPT:", accumulatedText);
       
       // Check for duplicates
       if (!this.duplicateTracker.isDuplicate(accumulatedText)) {
@@ -103,7 +110,7 @@ export class TranscriptHandler {
    */
   handleSpeechStarted(): void {
     this.speechTracker.markSpeechStarted();
-    console.log("User speech started - preparing to capture transcript");
+    console.log("🎙️ User speech started - preparing to capture transcript");
   }
   
   /**
@@ -111,16 +118,17 @@ export class TranscriptHandler {
    */
   handleSpeechStopped(): void {
     if (this.speechTracker.isSpeechDetected()) {
-      console.log("User speech stopped - checking for transcript");
+      console.log("🎤 User speech stopped - checking for transcript");
       
       // If we have transcript, save it after a small delay to allow for final transcripts
       if (this.hasAccumulatedTranscript()) {
         const accumulatedText = this.accumulator.getAccumulatedText();
-        console.log(`User speech stopped with transcript: "${accumulatedText.substring(0, 50)}${accumulatedText.length > 50 ? '...' : ''}"`);
+        console.log(`🔴 SPEECH STOPPED WITH TRANSCRIPT: "${accumulatedText}"`);
+        
         setTimeout(() => {
           if (this.hasAccumulatedTranscript()) {
             const currentText = this.accumulator.getAccumulatedText();
-            console.log("Saving speech-stopped transcript:", currentText.substring(0, 50));
+            console.log("🔴 SAVING SPEECH-STOPPED TRANSCRIPT:", currentText);
             
             // Check for duplicates
             if (!this.duplicateTracker.isDuplicate(currentText)) {
@@ -151,7 +159,7 @@ export class TranscriptHandler {
         this.accumulator.isTranscriptStale()) {
       
       const accumulatedText = this.accumulator.getAccumulatedText();
-      console.log("Saving transcript from committed buffer:", accumulatedText);
+      console.log("🔴 SAVING TRANSCRIPT FROM COMMITTED BUFFER:", accumulatedText);
       
       // Check for duplicates
       if (!this.duplicateTracker.isDuplicate(accumulatedText)) {
@@ -171,7 +179,7 @@ export class TranscriptHandler {
   flushPendingTranscript(): void {
     if (this.hasAccumulatedTranscript()) {
       const accumulatedText = this.accumulator.getAccumulatedText();
-      console.log("Saving partial user transcript during disconnect:", accumulatedText.substring(0, 50));
+      console.log("🔴 SAVING FINAL TRANSCRIPT DURING DISCONNECT:", accumulatedText);
       
       // Check for duplicates
       if (!this.duplicateTracker.isDuplicate(accumulatedText)) {

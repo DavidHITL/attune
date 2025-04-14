@@ -35,19 +35,48 @@ export class EventHandler {
     // Track audio-related events for debugging purposes
     this.eventMonitor.trackAudioEvent(event);
     
+    // CRITICAL FIX: Complete logging for transcript events
+    if (event.type && (
+        event.type === 'transcript' || 
+        event.type.includes('audio_transcript')
+    )) {
+      let transcriptText = null;
+      
+      if (typeof event.transcript === 'string') {
+        transcriptText = event.transcript;
+      } else if (event.transcript && event.transcript.text) {
+        transcriptText = event.transcript.text;
+      } else if (event.delta && event.delta.text) {
+        transcriptText = event.delta.text;
+      }
+      
+      if (transcriptText) {
+        console.log(`📝 EventHandler - Transcript event ${event.type}: "${transcriptText.substring(0, 100)}"`);
+      }
+    }
+    
     // Handle speech and transcript events with improved user message handling
     this.speechEventHandler.handleSpeechEvents(event);
     
     // Handle assistant response events
     this.responseEventHandler.handleAssistantResponse(event);
     
-    // Log key transcript events for debugging
+    // CRITICAL FIX: Enhanced logging for key events
     if (event.type && 
       (event.type === 'transcript' || 
        event.type === 'response.audio_transcript.done' ||
        event.type === 'input_audio_buffer.speech_started' ||
        event.type === 'input_audio_buffer.speech_stopped')) {
       console.log(`Key transcript event: ${event.type}`);
+      
+      // Extra logging for final transcript
+      if (event.type === 'response.audio_transcript.done') {
+        if (event.transcript && event.transcript.text) {
+          console.log(`FINAL TRANSCRIPT DATA: "${event.transcript.text}"`);
+        } else {
+          console.log("Final transcript event received but no text content");
+        }
+      }
     }
   }
 
