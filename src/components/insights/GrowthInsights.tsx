@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useTerryRealInsights } from '@/hooks/useTerryRealInsights';
 import { BrainCircuit, AlertTriangle, Sparkles, Calendar } from 'lucide-react';
@@ -47,16 +48,21 @@ const GrowthInsights = () => {
       ) : !hasInsights ? (
         // Empty state with updated messaging
         <InsightCard 
-          title="Insights in Progress"
-          description="We're still thinking about our last conversation"
+          title="Still thinking about our last talk"
+          description="Your personalized insights are being generated"
         >
           <div className="text-center space-y-4 py-4">
-            <BrainCircuit className="h-12 w-12 mx-auto text-primary/60 animate-pulse" />
+            <div className="relative">
+              <BrainCircuit className="h-14 w-14 mx-auto text-primary/60" />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/30 to-transparent rounded-full animate-pulse" />
+            </div>
             <p className="text-gray-300">
-              Your personalized insights are being generated based on our recent dialogue. 
-              These insights help you understand your communication patterns 
-              through the lens of Terry Real's relational framework.
+              After each conversation, we reflect on your communication patterns through the lens of 
+              Terry Real's relational framework. This helps you understand your triggers and response strategies.
             </p>
+            <div className="text-xs text-gray-400 italic mt-2">
+              Insights will appear here once we've had enough conversations to identify meaningful patterns.
+            </div>
           </div>
         </InsightCard>
       ) : (
