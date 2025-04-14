@@ -1,6 +1,7 @@
 
 import { MessageQueue } from '../messageQueue';
 import { ResponseParser } from '../ResponseParser';
+import { toast } from 'sonner';
 
 /**
  * Handles capturing and processing assistant responses
@@ -9,6 +10,7 @@ export class AssistantResponseHandler {
   private assistantResponse: string = '';
   private pendingAssistantMessage: boolean = false;
   private lastResponseDelta: number = 0;
+  private emptyResponseHandled: boolean = false;
   
   constructor(
     private messageQueue: MessageQueue,
@@ -24,6 +26,7 @@ export class AssistantResponseHandler {
     this.assistantResponse = '';
     this.lastResponseDelta = Date.now();
     this.responseParser.resetBuffer();
+    this.emptyResponseHandled = false;
   }
   
   /**
@@ -74,10 +77,21 @@ export class AssistantResponseHandler {
       if (fallbackMessage) {
         console.log(`Using fallback message construction: "${fallbackMessage}"`);
         this.messageQueue.queueMessage('assistant', fallbackMessage);
-      } else {
-        console.error("Failed to construct fallback message");
+      } else if (!this.emptyResponseHandled) {
+        console.error("Empty assistant response after done event");
+        
         // Use a static message as last resort to prevent empty responses
-        this.messageQueue.queueMessage('assistant', "I'm listening. Could you please continue?");
+        const defaultMessage = "I'm listening. Could you please continue?";
+        console.log(`Using default message: "${defaultMessage}"`);
+        this.messageQueue.queueMessage('assistant', defaultMessage);
+        
+        // Show toast notification about empty response
+        toast.error("Received an empty response from the assistant", {
+          description: "This may be due to a temporary issue. Please try again.",
+          duration: 4000,
+        });
+        
+        this.emptyResponseHandled = true;
       }
     }
     

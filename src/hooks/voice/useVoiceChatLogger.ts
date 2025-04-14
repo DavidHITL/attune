@@ -24,6 +24,10 @@ export const useVoiceChatLogger = () => {
       toast.warning("Please log in to save your conversation", { duration: 5000 });
     } else if (!conversationId) {
       console.warn("No active conversation ID! Messages won't be saved to database.");
+      toast.warning("No active conversation. Your messages won't be saved to the database.", { 
+        id: "no-conversation-warning",
+        duration: 5000 
+      });
     } else {
       console.log("Voice chat ready with conversation ID:", conversationId);
       toast.info("Voice chat initialized", { 
@@ -31,6 +35,11 @@ export const useVoiceChatLogger = () => {
         duration: 2000
       });
     }
+    
+    // Return cleanup function
+    return () => {
+      toast.dismiss("no-conversation-warning");
+    };
   }, [user, conversationId, messages.length]);
 
   const logSpeechEvents = useCallback((event: any) => {

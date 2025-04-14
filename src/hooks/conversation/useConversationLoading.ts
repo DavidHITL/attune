@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { Message } from '@/utils/types';
+import { toast } from 'sonner';
 
 /**
  * Hook for initializing and loading conversations
@@ -17,6 +18,8 @@ export const useConversationLoading = (
   initializedRef: React.MutableRefObject<boolean>
 ) => {
   const loadingRef = useRef(false);
+  const retryCount = useRef(0);
+  const maxRetries = 3;
   
   useEffect(() => {
     // Skip if already loading, no user, we already have a conversation ID, or already initialized
@@ -42,6 +45,10 @@ export const useConversationLoading = (
           throw error;
         }
         
+        if (!data) {
+          throw new Error("No conversation ID returned from database");
+        }
+        
         console.log("Retrieved conversation ID:", data);
         setConversationId(data);
         
@@ -50,11 +57,39 @@ export const useConversationLoading = (
         
         // Mark as initialized to prevent further initialization
         initializedRef.current = true;
+        
+        // Reset retry counter on success
+        retryCount.current = 0;
+        
+        // Show success toast
+        toast.success("Conversation loaded successfully");
       } catch (error) {
         console.error('Error getting conversation:', error);
+        
+        // Implement retry logic
+        if (retryCount.current < maxRetries) {
+          retryCount.current++;
+          const delay = Math.pow(2, retryCount.current) * 1000; // Exponential backoff
+          
+          toast.error(`Failed to load conversation. Retrying in ${delay/1000}s...`, {
+            duration: delay + 1000
+          });
+          
+          setTimeout(() => {
+            loadingRef.current = false;
+            getOrCreateConversation();
+          }, delay);
+        } else {
+          toast.error("Failed to load conversation after multiple attempts", {
+            description: "Please try refreshing the page",
+            duration: 8000
+          });
+        }
       } finally {
-        setLoading(false);
-        loadingRef.current = false;
+        if (retryCount.current >= maxRetries || !error) {
+          setLoading(false);
+          loadingRef.current = false;
+        }
       }
     };
     

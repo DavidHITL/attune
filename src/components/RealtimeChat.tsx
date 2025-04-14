@@ -6,9 +6,10 @@ import VoiceAssistantDisplay from './voice/VoiceAssistantDisplay';
 import { BackgroundCircles } from '@/components/ui/background-circles';
 import { Skeleton } from '@/components/ui/skeleton';
 import AttuneLogo from '@/components/AttuneLogo';
+import { toast } from 'sonner';
 
 const RealtimeChat: React.FC = () => {
-  const { messages, loading: conversationLoading } = useConversation();
+  const { messages, loading: conversationLoading, conversationId } = useConversation();
   
   // Get chat client functionality
   const {
@@ -28,8 +29,17 @@ const RealtimeChat: React.FC = () => {
   // Log mount for debugging
   useEffect(() => {
     console.log("RealtimeChat component mounted");
+    
+    // Check if conversation ID is available
+    if (!conversationId) {
+      console.warn("Warning: No active conversation ID available on mount");
+      toast.warning("No active conversation ID detected. Messages may not be saved properly.");
+    } else {
+      console.log("Conversation ID available:", conversationId);
+    }
+    
     return () => console.log("RealtimeChat component unmounted");
-  }, []);
+  }, [conversationId]);
 
   // Show a loading skeleton while conversation data is loading
   if (conversationLoading) {
