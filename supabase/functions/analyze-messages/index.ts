@@ -18,6 +18,7 @@ const corsHeaders = {
 // Terry Real therapy concepts for context in our prompts
 const terryRealConcepts = {
   adaptiveChild: "The 'Adaptive Child' is a survival mode developed in childhood to deal with difficult circumstances. It activates when triggered, leading to reactive behaviors rather than mature responses.",
+  wiseAdult: "The 'Wise Adult' represents our capacity for mature, thoughtful response rather than reaction. It maintains connection while addressing issues directly.",
   losingStrategies: [
     "Being right: Focusing on proving correctness at the expense of connection",
     "Control: Attempting to manage others' behaviors or feelings",
@@ -25,7 +26,13 @@ const terryRealConcepts = {
     "Retaliation: Seeking to hurt others when feeling hurt",
     "Withdrawal: Disengaging emotionally or physically from conflict"
   ],
-  wiseAdult: "The 'Wise Adult' represents our capacity for mature, thoughtful response rather than reaction. It maintains connection while addressing issues directly."
+  harmonyDisharmonyRepair: "Relationships cycle through harmony, disharmony, and repair. Growth happens in the repair phase.",
+  intimacySkills: [
+    "Listening without defensiveness",
+    "Speaking with vulnerability rather than criticism",
+    "Self-regulation during difficult conversations",
+    "Valuing the relationship over winning arguments"
+  ]
 };
 
 serve(async (req) => {
@@ -256,16 +263,55 @@ async function analyzeWithOpenAI(messageContent: string) {
         messages: [
           {
             role: 'system',
-            content: `You are an expert in Terry Real's Relational Life Therapy approach. Analyze the following conversation transcript to identify:
-            
-            1. Key triggers that may activate the user's adaptive child mode
-            2. Which of the five losing strategies (being right, control, unbridled self-expression, retaliation, withdrawal) the user seems most prone to use
-            3. Practical suggestions for the user to respond from their wise adult mode instead
-            
-            Return your analysis in JSON format with these fields:
-            - triggers: Array of identified trigger patterns
-            - losingStrategies: Object with scores (0-10) for each strategy and the primary strategy identified
-            - suggestions: Array of practical steps to move toward wise adult responses`
+            content: `You are an expert in Terry Real's Relational Life Therapy approach. Your task is to analyze communication patterns in the provided messages to identify relational dynamics and growth opportunities.
+
+CORE CONCEPTS TO APPLY:
+
+1. ADAPTIVE CHILD VS. WISE ADULT:
+   - Adaptive Child: A reactive survival mode developed in childhood. Characteristics include:
+     * Black and white thinking
+     * Emotional reactivity
+     * Focus on self-protection
+     * Defensive communication
+     * Need to be right
+   - Wise Adult: A mature, responsive state. Characteristics include:
+     * Balanced perspective
+     * Emotional regulation
+     * Focus on connection
+     * Vulnerable communication
+     * Ability to hold paradox and complexity
+
+2. THE FIVE LOSING STRATEGIES:
+   - Being Right: Prioritizing correctness over connection; intellectual dominance
+   - Control: Attempting to change or manage others' feelings or behaviors
+   - Unbridled Self-Expression: Emotional dumping without filters or consideration
+   - Retaliation: Inflicting hurt in response to feeling hurt
+   - Withdrawal: Emotionally or physically disengaging from difficult interactions
+
+3. RELATIONAL CYCLES:
+   - Harmony → Disharmony → Repair
+   - Growth happens primarily in the repair phase
+   - How users handle transitions between these states reveals patterns
+
+4. CORE TRIGGERS:
+   - Situations that activate the adaptive child
+   - Often rooted in early developmental experiences
+   - Create predictable reaction patterns
+
+ANALYSIS REQUESTED:
+
+Carefully analyze the provided messages to identify:
+
+1. TRIGGERS: Identify 3-5 specific situations or interaction patterns that appear to activate the user's adaptive child mode. Be specific and descriptive.
+
+2. LOSING STRATEGIES: Score each of the five losing strategies on a scale of 0-10 based on evidence in the messages. Determine which appears to be the user's primary strategy and provide concrete examples.
+
+3. WISE ADULT DEVELOPMENT: Identify 3-5 practical, specific suggestions for how the user could strengthen their wise adult presence in challenging moments. These should be actionable and tailored to their specific patterns.
+
+Return your analysis in JSON format with these fields:
+- triggers: Array of identified trigger patterns (specific situations that activate adaptive child)
+- losingStrategies: Object with scores (0-10) for each strategy and the primary strategy identified with examples
+- suggestions: Array of practical, specific steps to move toward wise adult responses`
           },
           {
             role: 'user',
@@ -273,7 +319,7 @@ async function analyzeWithOpenAI(messageContent: string) {
           }
         ],
         temperature: 0.3,
-        max_tokens: 1000,
+        max_tokens: 1500,
         response_format: { type: "json_object" }
       }),
     });
