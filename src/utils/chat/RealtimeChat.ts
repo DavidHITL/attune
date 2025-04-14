@@ -1,4 +1,3 @@
-
 import { ConnectionManager } from './ConnectionManager';
 import { MessageQueue } from './messageQueue';
 import { ResponseParser } from './ResponseParser';
@@ -27,10 +26,7 @@ export class RealtimeChat {
     this.messageQueue = new MessageQueue(this.saveMessageCallback);
     this.userMessageHandler = new UserMessageHandler(this.saveMessageCallback);
     this.transcriptHandler = new TranscriptEventHandler(
-      (text) => {
-        console.log(`📣 TranscriptEventHandler - Direct save for text: "${text.substring(0, 30)}..."`);
-        this.saveUserMessage(text);
-      },
+      (text) => this.saveUserMessage(text),
       (text) => this.userMessageHandler.accumulateTranscript(text),
       () => this.userMessageHandler.saveTranscriptIfNotEmpty()
     );
@@ -43,9 +39,6 @@ export class RealtimeChat {
     );
   }
 
-  /**
-   * Initialize the chat connection
-   */
   async init(): Promise<boolean> {
     try {
       // Initialize the connection manager
@@ -82,12 +75,25 @@ export class RealtimeChat {
       return false;
     }
   }
-  
-  /**
-   * Save a user message using the message queue
-   */
+
   saveUserMessage(content: string): void {
-    this.messageEventHandler.saveUserMessage(content);
+    if (!content || content.trim() === '') {
+      console.log("Skipping empty user message");
+      return;
+    }
+    
+    console.log(`Queueing user message: "${content.substring(0, 30)}..."`);
+    this.messageQueue?.queueMessage('user', content, true);
+  }
+
+  saveAssistantMessage(content: string): void {
+    if (!content || content.trim() === '') {
+      console.log("Skipping empty assistant message");
+      return;
+    }
+    
+    console.log(`Queueing assistant message: "${content.substring(0, 30)}..."`);
+    this.messageQueue?.queueMessage('assistant', content, false);
   }
 
   /**
@@ -148,15 +154,11 @@ export class RealtimeChat {
     this.connectionManager?.setMuted(muted);
   }
   
-  /**
-   * Disconnect from the chat
-   */
   disconnect(): void {
     console.log("Disconnecting from chat...");
     this.statusCallback('Disconnected');
     this.connectionManager?.disconnect();
     this.userMessageHandler.cleanupProcessedMessages();
-    // Check if messageQueue exists before calling reportPendingMessages
-    this.messageQueue?.reportPendingMessages();
+    this.messageQueue?.flushQueue();
   }
 }

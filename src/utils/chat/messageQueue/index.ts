@@ -1,3 +1,4 @@
+
 import { Message, SaveMessageCallback } from '../../types';
 import { QueueProcessor } from './QueueProcessor';
 import { QueueStatus } from './types';
@@ -11,43 +12,32 @@ export class MessageQueue {
     this.queueProcessor = new QueueProcessor(saveMessageCallback);
   }
   
-  /**
-   * Queue a message for saving, with unified handling for all message types
-   */
   queueMessage(role: 'user' | 'assistant', content: string, priority: boolean = false): void {
-    // Skip empty messages
     if (!content || content.trim() === '') {
       console.log(`Skipping empty ${role} message`);
       return;
     }
 
-    // Handle pre-initialization state uniformly for both roles
     if (!this.isConversationInitialized) {
-      console.log(`Pre-initialization message received, queueing until conversation is ready: ${content.substring(0, 30)}...`);
+      console.log(`Pre-initialization message received, queueing until conversation is ready`);
       this.pendingPreInitMessages.push({ role, content, priority });
       return;
     }
     
-    // Unified processing through QueueProcessor
     this.queueProcessor.queueMessage(role, content, priority);
   }
   
-  /**
-   * Signal that conversation is initialized and safe to process messages
-   */
   setConversationInitialized(): void {
     if (this.isConversationInitialized) return;
     
     this.isConversationInitialized = true;
     
-    // Process any messages that arrived before initialization
     if (this.pendingPreInitMessages.length > 0) {
-      console.log(`Processing ${this.pendingPreInitMessages.length} messages that arrived before conversation initialization`);
+      console.log(`Processing ${this.pendingPreInitMessages.length} pending messages`);
       
-      // Process in order received, with a slight delay between messages
       this.pendingPreInitMessages.forEach((msg, index) => {
         setTimeout(() => {
-          console.log(`Processing pre-init message ${index + 1}/${this.pendingPreInitMessages.length}: ${msg.content.substring(0, 30)}...`);
+          console.log(`Processing pre-init message ${index + 1}/${this.pendingPreInitMessages.length}`);
           this.queueProcessor.queueMessage(msg.role, msg.content, msg.priority);
         }, index * 200);
       });
@@ -56,37 +46,25 @@ export class MessageQueue {
     }
   }
   
-  /**
-   * Process any remaining messages synchronously
-   */
   async flushQueue(): Promise<void> {
-    // First process any pre-init messages if we haven't initialized yet
     if (!this.isConversationInitialized && this.pendingPreInitMessages.length > 0) {
-      console.log(`Forcing processing of ${this.pendingPreInitMessages.length} pending pre-init messages during flush`);
+      console.log(`Forcing processing of pending pre-init messages during flush`);
       this.setConversationInitialized();
     }
     
     return this.queueProcessor.flushQueue();
   }
   
-  /**
-   * Get queue status for debugging
-   */
   getQueueStatus(): QueueStatus & { pendingPreInitMessages: number } {
-    return {
+    const status = {
       ...this.queueProcessor.getQueueStatus(),
       pendingPreInitMessages: this.pendingPreInitMessages.length
     };
-  }
 
-  /**
-   * Report any pending messages (for cleanup/debugging)
-   */
-  reportPendingMessages(): void {
-    const status = this.getQueueStatus();
-    if (status.pendingPreInitMessages > 0 || status.pendingUserMessages > 0) {
-      console.warn(`MessageQueue still has pending messages: ${status.pendingPreInitMessages} pre-init, ${status.pendingUserMessages} regular`);
-    }
+    const { pendingUserMessages } = status;
+    console.log(`Queue status: ${this.pendingPreInitMessages.length} pre-init, ${pendingUserMessages} regular`);
+    
+    return status;
   }
 }
 
