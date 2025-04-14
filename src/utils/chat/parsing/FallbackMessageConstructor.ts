@@ -1,4 +1,6 @@
 
+import { ContentExtractor } from './ContentExtractor';
+
 /**
  * Handles construction of fallback messages when normal content extraction fails
  */
