@@ -1,7 +1,6 @@
 
 import { EventType, isEventType } from './EventTypes';
 import { TranscriptHandler } from '../transcripts/TranscriptHandler';
-import { toast } from 'sonner';
 
 /**
  * Handler for speech and transcript-related events

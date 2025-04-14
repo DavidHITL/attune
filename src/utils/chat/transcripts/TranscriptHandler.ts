@@ -1,25 +1,34 @@
+
 import { MessageQueue } from '../messageQueue';
 import { toast } from 'sonner';
+import { TranscriptAccumulator } from './handlers/TranscriptAccumulator';
+import { DuplicateTracker } from './handlers/DuplicateTracker';
+import { SpeechStateTracker } from './handlers/SpeechStateTracker';
+import { TranscriptNotifier } from './handlers/TranscriptNotifier';
 
 /**
- * Handles capturing and processing user transcripts
+ * Main handler for capturing and processing user transcripts
+ * Coordinates multiple specialized utilities for transcript handling
  */
 export class TranscriptHandler {
-  private userTranscript: string = '';
-  private lastTranscriptTime: number = 0;
-  private userSpeechDetected: boolean = false;
-  private processedTranscripts: Set<string> = new Set();
+  private accumulator: TranscriptAccumulator;
+  private duplicateTracker: DuplicateTracker;
+  private speechTracker: SpeechStateTracker;
+  private notifier: TranscriptNotifier;
   
-  constructor(private messageQueue: MessageQueue) {}
+  constructor(private messageQueue: MessageQueue) {
+    this.accumulator = new TranscriptAccumulator();
+    this.duplicateTracker = new DuplicateTracker();
+    this.speechTracker = new SpeechStateTracker();
+    this.notifier = new TranscriptNotifier();
+  }
 
   /**
    * Process transcript events and accumulate transcript text
    */
   handleTranscriptDelta(deltaText: string): void {
     if (deltaText) {
-      this.userTranscript += deltaText;
-      console.log(`Accumulating user transcript (${this.userTranscript.length} chars): "${this.userTranscript.substring(0, 50)}${this.userTranscript.length > 50 ? '...' : ''}"`);
-      this.lastTranscriptTime = Date.now();
+      this.accumulator.accumulateText(deltaText);
     }
   }
   
@@ -29,19 +38,16 @@ export class TranscriptHandler {
   handleDirectTranscript(transcript: string): void {
     if (transcript && transcript.trim()) {
       // Check for duplicates
-      if (this.processedTranscripts.has(transcript)) {
+      if (this.duplicateTracker.isDuplicate(transcript)) {
         console.log("Duplicate transcript detected, skipping:", transcript.substring(0, 50));
         return;
       }
       
       console.log("Saving direct user transcript:", transcript.substring(0, 50));
       this.messageQueue.queueMessage('user', transcript, true); // High priority save
-      this.processedTranscripts.add(transcript);
+      this.duplicateTracker.markAsProcessed(transcript);
       
-      toast.info("User message captured", {
-        description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
-        duration: 2000,
-      });
+      this.notifier.notifyTranscriptCaptured(transcript);
     }
   }
   
@@ -54,54 +60,49 @@ export class TranscriptHandler {
     
     if (content && content.trim()) {
       // Check for duplicates
-      if (this.processedTranscripts.has(content)) {
+      if (this.duplicateTracker.isDuplicate(content)) {
         console.log("Duplicate final transcript detected, skipping:", content.substring(0, 50));
         return;
       }
       
       console.log("Final user transcript received:", content.substring(0, 50));
       this.messageQueue.queueMessage('user', content, true); // High priority save
-      this.processedTranscripts.add(content);
+      this.duplicateTracker.markAsProcessed(content);
       
       // Reset transcript accumulator
-      this.userTranscript = '';
-      this.userSpeechDetected = false;
+      this.accumulator.reset();
+      this.speechTracker.markSpeechStopped();
       
-      toast.success("User message saved", {
-        description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
-        duration: 2000,
-      });
-    } else if (this.userTranscript && this.userTranscript.trim()) {
+      this.notifier.notifyTranscriptSaved(content);
+    } else if (this.hasAccumulatedTranscript()) {
       // Fallback to accumulated transcript if final is missing
-      console.log("Using accumulated user transcript:", this.userTranscript.substring(0, 50));
+      const accumulatedText = this.accumulator.getAccumulatedText();
+      console.log("Using accumulated user transcript:", accumulatedText.substring(0, 50));
       
       // Check for duplicates
-      if (!this.processedTranscripts.has(this.userTranscript)) {
-        this.messageQueue.queueMessage('user', this.userTranscript, true); // High priority save
-        this.processedTranscripts.add(this.userTranscript);
+      if (!this.duplicateTracker.isDuplicate(accumulatedText)) {
+        this.messageQueue.queueMessage('user', accumulatedText, true); // High priority save
+        this.duplicateTracker.markAsProcessed(accumulatedText);
         
-        toast.success("User message saved (accumulated)", {
-          description: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? "..." : ""),
-          duration: 2000,
-        });
+        this.notifier.notifyTranscriptSaved(accumulatedText, "accumulated");
       }
       
-      this.userTranscript = '';
-      this.userSpeechDetected = false;
+      this.accumulator.reset();
+      this.speechTracker.markSpeechStopped();
     } else {
       console.log("Empty user transcript, not saving");
-      this.userSpeechDetected = false;
+      this.speechTracker.markSpeechStopped();
     }
     
     // Clean up transcript processing to prevent memory leaks
-    this.cleanupProcessedTranscripts();
+    this.duplicateTracker.cleanup();
   }
   
   /**
    * Handle speech started events
    */
   handleSpeechStarted(): void {
-    this.userSpeechDetected = true;
+    this.speechTracker.markSpeechStarted();
     console.log("User speech started - preparing to capture transcript");
   }
   
@@ -109,30 +110,29 @@ export class TranscriptHandler {
    * Handle speech stopped events
    */
   handleSpeechStopped(): void {
-    if (this.userSpeechDetected) {
+    if (this.speechTracker.isSpeechDetected()) {
       console.log("User speech stopped - checking for transcript");
       
       // If we have transcript, save it after a small delay to allow for final transcripts
-      if (this.userTranscript && this.userTranscript.trim()) {
-        console.log(`User speech stopped with transcript: "${this.userTranscript.substring(0, 50)}${this.userTranscript.length > 50 ? '...' : ''}"`);
+      if (this.hasAccumulatedTranscript()) {
+        const accumulatedText = this.accumulator.getAccumulatedText();
+        console.log(`User speech stopped with transcript: "${accumulatedText.substring(0, 50)}${accumulatedText.length > 50 ? '...' : ''}"`);
         setTimeout(() => {
-          if (this.userTranscript && this.userTranscript.trim()) {
-            console.log("Saving speech-stopped transcript:", this.userTranscript.substring(0, 50));
+          if (this.hasAccumulatedTranscript()) {
+            const currentText = this.accumulator.getAccumulatedText();
+            console.log("Saving speech-stopped transcript:", currentText.substring(0, 50));
             
             // Check for duplicates
-            if (!this.processedTranscripts.has(this.userTranscript)) {
-              this.messageQueue.queueMessage('user', this.userTranscript, true); // High priority
-              this.processedTranscripts.add(this.userTranscript);
+            if (!this.duplicateTracker.isDuplicate(currentText)) {
+              this.messageQueue.queueMessage('user', currentText, true); // High priority
+              this.duplicateTracker.markAsProcessed(currentText);
               
-              toast.success("User message saved", {
-                description: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? "..." : ""),
-                duration: 2000,
-              });
+              this.notifier.notifyTranscriptSaved(currentText);
               
-              this.userTranscript = '';
+              this.accumulator.reset();
             }
             
-            this.userSpeechDetected = false;
+            this.speechTracker.markSpeechStopped();
           }
         }, 300);
       }
@@ -146,23 +146,21 @@ export class TranscriptHandler {
     console.log("Audio buffer committed, checking if we need to save partial transcript");
     
     // If user was speaking and we have transcript, consider saving it
-    if (this.userSpeechDetected && 
-        this.userTranscript && 
-        this.userTranscript.trim() &&
-        Date.now() - this.lastTranscriptTime > 1500) {
-      console.log("Saving transcript from committed buffer:", this.userTranscript);
+    if (this.speechTracker.isSpeechDetected() && 
+        this.hasAccumulatedTranscript() &&
+        this.accumulator.isTranscriptStale()) {
+      
+      const accumulatedText = this.accumulator.getAccumulatedText();
+      console.log("Saving transcript from committed buffer:", accumulatedText);
       
       // Check for duplicates
-      if (!this.processedTranscripts.has(this.userTranscript)) {
-        this.messageQueue.queueMessage('user', this.userTranscript, true);
-        this.processedTranscripts.add(this.userTranscript);
+      if (!this.duplicateTracker.isDuplicate(accumulatedText)) {
+        this.messageQueue.queueMessage('user', accumulatedText, true);
+        this.duplicateTracker.markAsProcessed(accumulatedText);
         
-        toast.info("User message saved (buffer)", {
-          description: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? "..." : ""),
-          duration: 2000,
-        });
+        this.notifier.notifyTranscriptSaved(accumulatedText, "buffer");
         
-        this.userTranscript = '';
+        this.accumulator.reset();
       }
     }
   }
@@ -171,51 +169,46 @@ export class TranscriptHandler {
    * For cleanup - save any pending transcript
    */
   flushPendingTranscript(): void {
-    if (this.userTranscript && this.userTranscript.trim()) {
-      console.log("Saving partial user transcript during disconnect:", this.userTranscript.substring(0, 50));
+    if (this.hasAccumulatedTranscript()) {
+      const accumulatedText = this.accumulator.getAccumulatedText();
+      console.log("Saving partial user transcript during disconnect:", accumulatedText.substring(0, 50));
       
       // Check for duplicates
-      if (!this.processedTranscripts.has(this.userTranscript)) {
-        this.messageQueue.queueMessage('user', this.userTranscript, true); // High priority
-        this.processedTranscripts.add(this.userTranscript);
+      if (!this.duplicateTracker.isDuplicate(accumulatedText)) {
+        this.messageQueue.queueMessage('user', accumulatedText, true); // High priority
+        this.duplicateTracker.markAsProcessed(accumulatedText);
         
-        toast.success("Final user message saved during disconnect", {
-          description: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? "..." : ""),
-          duration: 2000,
-        });
+        this.notifier.notifyTranscriptSaved(accumulatedText, "disconnect");
       }
     }
   }
   
   /**
-   * Clean up processed transcripts to prevent memory leaks
+   * Check if we have accumulated transcript
    */
-  cleanupProcessedTranscripts(): void {
-    // Only keep the last 25 processed transcripts
-    if (this.processedTranscripts.size > 25) {
-      const toRemove = Array.from(this.processedTranscripts).slice(0, this.processedTranscripts.size - 25);
-      toRemove.forEach(transcript => this.processedTranscripts.delete(transcript));
-    }
+  private hasAccumulatedTranscript(): boolean {
+    const text = this.accumulator.getAccumulatedText();
+    return !!text && text.trim() !== '';
   }
   
   /**
    * Get the current accumulated transcript
    */
   getTranscript(): string {
-    return this.userTranscript;
+    return this.accumulator.getAccumulatedText();
   }
   
   /**
    * Clear the current transcript
    */
   clearTranscript(): void {
-    this.userTranscript = '';
+    this.accumulator.reset();
   }
   
   /**
    * Get user speech detected state
    */
   isUserSpeechDetected(): boolean {
-    return this.userSpeechDetected;
+    return this.speechTracker.isSpeechDetected();
   }
 }
