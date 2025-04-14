@@ -26,7 +26,14 @@ export class RealtimeChat {
     this.responseParser = new ResponseParser();
     this.messageQueue = new MessageQueue(this.saveMessageCallback);
     this.userMessageHandler = new UserMessageHandler(this.saveMessageCallback);
-    this.transcriptHandler = new TranscriptEventHandler(this.messageQueue);
+    this.transcriptHandler = new TranscriptEventHandler(
+      (text) => {
+        console.log(`📣 TranscriptEventHandler - Direct save for text: "${text.substring(0, 30)}..."`);
+        this.saveUserMessage(text);
+      },
+      (text) => this.userMessageHandler.accumulateTranscript(text),
+      () => this.userMessageHandler.saveTranscriptIfNotEmpty()
+    );
     this.messageEventHandler = new MessageEventHandler(
       this.messageQueue,
       this.responseParser,
@@ -149,6 +156,7 @@ export class RealtimeChat {
     this.statusCallback('Disconnected');
     this.connectionManager?.disconnect();
     this.userMessageHandler.cleanupProcessedMessages();
-    // Removed the nonexistent method call on messageQueue
+    // Check if messageQueue exists before calling reportPendingMessages
+    this.messageQueue?.reportPendingMessages();
   }
 }

@@ -82,8 +82,8 @@ export class MessageQueue {
    */
   reportPendingMessages(): void {
     const status = this.getQueueStatus();
-    if (status.pendingPreInitMessages > 0 || status.pendingMessages > 0) {
-      console.warn(`MessageQueue still has pending messages: ${status.pendingPreInitMessages} pre-init, ${status.pendingMessages} regular`);
+    if (status.pendingPreInitMessages > 0 || status.pendingUserMessages > 0) {
+      console.warn(`MessageQueue still has pending messages: ${status.pendingPreInitMessages} pre-init, ${status.pendingUserMessages} regular`);
     }
   }
 }
