@@ -1,7 +1,6 @@
 import React from 'react';
-import { useEffect } from 'react';
 import { useTerryRealInsights } from '@/hooks/useTerryRealInsights';
-import { RefreshCcw, BrainCircuit, AlertTriangle, Sparkles, Calendar } from 'lucide-react';
+import { BrainCircuit, AlertTriangle, Sparkles, Calendar } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import InsightCard from './InsightCard';
 import TriggersList from './TriggersList';
@@ -9,7 +8,7 @@ import SuggestionsList from './SuggestionsList';
 import StrategiesChart from './StrategiesChart';
 
 const GrowthInsights = () => {
-  const { insights, loading, refreshInsights, formatStrategy } = useTerryRealInsights();
+  const { insights, loading, formatStrategy } = useTerryRealInsights();
   
   // Function to format date nicely
   const formatDate = (dateString?: string) => {
