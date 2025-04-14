@@ -17,7 +17,7 @@ export const useConnectionManager = (
   setVoiceActivityState: (state: any) => void
 ) => {
   
-  const startConversation = useCallback(async () => {
+  const startConversation = useCallback(async (): Promise<void> => {
     try {
       console.log("Starting conversation, creating chat client...");
       
@@ -44,7 +44,7 @@ export const useConnectionManager = (
       toast.success("Connected successfully!");
       
       // The session.created event will handle showing the context-aware toast
-      return true;
+      // No return value needed since we're returning Promise<void>
     } catch (error) {
       console.error('Failed to start conversation:', error);
       toast.error("Failed to connect. Please try again.");

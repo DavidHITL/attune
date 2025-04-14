@@ -71,16 +71,17 @@ export const useChatClient = () => {
   );
 
   // Direct access to start conversation function - bypassing the conversation controls hook
-  const directStartConversation = useCallback(() => {
+  const directStartConversation = useCallback(async (): Promise<void> => {
     console.log("Direct start conversation called");
     if (!isConnected) {
-      return startConversation().catch(error => {
+      try {
+        await startConversation();
+      } catch (error) {
         console.error("Failed to start conversation:", error);
         toast.error("Connection failed. Please check your internet and try again.");
-      });
+      }
     } else {
       console.log("Already connected");
-      return Promise.resolve();
     }
   }, [startConversation, isConnected]);
   
