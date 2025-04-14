@@ -1,5 +1,6 @@
 
 import { normalizeMessageRole, ensureValidMessageRole } from './messageUtils';
+import { Message } from '../types';
 
 describe('Message Role Utilities', () => {
   test('normalizeMessageRole handles valid roles', () => {

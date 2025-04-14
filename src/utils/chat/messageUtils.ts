@@ -1,4 +1,6 @@
 
+import { Message } from '../types'; // Import Message type from types file
+
 /**
  * Validates and normalizes message role
  */
