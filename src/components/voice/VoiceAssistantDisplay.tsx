@@ -8,6 +8,7 @@ import { Message } from '@/utils/types';
 import ConnectedStateContent from './ConnectedStateContent';
 import DisconnectedStateContent from './DisconnectedStateContent';
 import AttuneLogo from '@/components/AttuneLogo';
+import { AlertCircle } from 'lucide-react';
 
 type VoiceAssistantDisplayProps = {
   status: string;
@@ -19,6 +20,7 @@ type VoiceAssistantDisplayProps = {
   isMicOn?: boolean;
   isMuted?: boolean;
   conversationLoading?: boolean;
+  connectionError?: string | null;
   onToggleMicrophone?: () => void;
   onToggleMute?: () => void;
   onEndConversation?: () => void;
@@ -30,6 +32,7 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   voiceActivityState, 
   isConnected,
   isMuted = false,
+  connectionError,
   onToggleMute = () => {},
   onEndConversation = () => {},
   onStartConversation = () => {},
@@ -55,7 +58,14 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
         {isConnected ? (
           <ConnectedStateContent minutesLeft={30} />
         ) : (
-          <DisconnectedStateContent />
+          <DisconnectedStateContent 
+            errorMessage={connectionError ? (
+              <div className="flex items-center space-x-2 text-red-400 mt-2">
+                <AlertCircle className="h-4 w-4" />
+                <span className="text-sm">Error: {connectionError}</span>
+              </div>
+            ) : null} 
+          />
         )}
       </div>
       
@@ -67,6 +77,7 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
           onToggleMute={onToggleMute}
           onEndConversation={onEndConversation}
           onStartConversation={onStartConversation}
+          disabled={!!connectionError}
         />
       </div>
     </div>
@@ -74,4 +85,3 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
 };
 
 export default VoiceAssistantDisplay;
-

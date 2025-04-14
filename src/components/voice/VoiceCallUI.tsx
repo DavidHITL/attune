@@ -5,6 +5,8 @@ import { BackgroundCircles } from '@/components/ui/background-circles';
 import { VoiceActivityState } from '@/components/VoiceActivityIndicator';
 import { Skeleton } from '@/components/ui/skeleton';
 import AttuneLogo from '@/components/AttuneLogo';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 interface VoiceCallUIProps {
   isConnected: boolean;
@@ -15,6 +17,7 @@ interface VoiceCallUIProps {
   onEndConversation: () => void;
   onStartConversation: () => void;
   currentVoice?: string;
+  connectionError?: string | null;
 }
 
 const VoiceCallUI: React.FC<VoiceCallUIProps> = ({
@@ -25,7 +28,8 @@ const VoiceCallUI: React.FC<VoiceCallUIProps> = ({
   onToggleMute,
   onEndConversation,
   onStartConversation,
-  currentVoice = 'default'
+  currentVoice = 'default',
+  connectionError
 }) => {
   // Show a loading skeleton while conversation data is loading
   if (conversationLoading) {
@@ -58,6 +62,19 @@ const VoiceCallUI: React.FC<VoiceCallUIProps> = ({
         </div>
       )}
       
+      {/* Error alert if there's a connection error */}
+      {connectionError && (
+        <div className="absolute top-4 left-4 right-4 z-50">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Connection Error</AlertTitle>
+            <AlertDescription>
+              {connectionError}
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+      
       {/* Voice assistant display */}
       <div className="relative z-10 h-full">
         <VoiceAssistantDisplay
@@ -69,6 +86,7 @@ const VoiceCallUI: React.FC<VoiceCallUIProps> = ({
           onEndConversation={onEndConversation}
           onStartConversation={onStartConversation}
           currentVoice={currentVoice}
+          connectionError={connectionError}
         />
       </div>
     </div>

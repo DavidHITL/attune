@@ -7,6 +7,7 @@ import { createRipple } from '@/lib/animation-utils';
 interface CallControlsProps {
   isConnected: boolean;
   isMuted: boolean;
+  disabled?: boolean;
   onToggleMute: () => void;
   onEndConversation: () => void;
   onStartConversation: () => void;
@@ -15,6 +16,7 @@ interface CallControlsProps {
 const CallControls: React.FC<CallControlsProps> = ({
   isConnected,
   isMuted,
+  disabled = false,
   onToggleMute,
   onEndConversation,
   onStartConversation
@@ -45,7 +47,10 @@ const CallControls: React.FC<CallControlsProps> = ({
       {/* Call/End Call Button */}
       <button
         onClick={handleCallButton}
+        disabled={disabled}
         className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95 overflow-hidden ${
+          disabled ? 'opacity-50 cursor-not-allowed' : ''
+        } ${
           isConnected 
             ? 'bg-red-500 hover:bg-red-600' 
             : 'bg-white hover:bg-gray-100'
@@ -63,7 +68,10 @@ const CallControls: React.FC<CallControlsProps> = ({
       {isConnected && (
         <button
           onClick={handleMuteButton}
+          disabled={disabled}
           className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95 overflow-hidden ${
+            disabled ? 'opacity-50 cursor-not-allowed' : ''
+          } ${
             isMuted 
               ? 'bg-red-500 hover:bg-red-600' 
               : 'bg-white/90 hover:bg-white'

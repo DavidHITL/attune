@@ -13,10 +13,36 @@ serve(async (req) => {
   }
 
   try {
-    // Get auth header and authenticate user
-    const authHeader = req.headers.get('Authorization');
-    const user = await authenticateUser(authHeader);
+    let user = null;
+    let requestBody = null;
     
+    try {
+      // Parse request body if present
+      const contentType = req.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        requestBody = await req.json();
+      }
+    } catch (e) {
+      // If JSON parsing fails, continue without body
+      console.error("Failed to parse request body:", e);
+    }
+    
+    // Get auth header and authenticate user - now with better error handling
+    const authHeader = req.headers.get('Authorization');
+    
+    if (authHeader) {
+      try {
+        user = await authenticateUser(authHeader);
+        console.log("User authenticated:", user ? user.id : "failed");
+      } catch (authError) {
+        // Log the auth error but continue - we'll handle anonymous access
+        console.error("Authentication error:", authError);
+      }
+    } else {
+      console.log("No Authorization header present, proceeding as anonymous");
+    }
+    
+    // Even if auth fails, we can still provide a limited experience
     let instructions = "";
     let recentMessages = [];
     
@@ -43,7 +69,7 @@ serve(async (req) => {
         console.log("Has history:", recentMessages.length > 0);
       } catch (historyError) {
         console.error("Error processing conversation history:", historyError);
-        throw new Error(`History processing error: ${historyError.message}`);
+        // Continue with base instructions
       }
     } else {
       console.log("No authenticated user, skipping conversation history");

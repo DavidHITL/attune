@@ -31,21 +31,8 @@ const Voice = () => {
                 </div>
               </div>
             </div>
-          ) : user ? (
-            <RealtimeChat />
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-center">
-              <AttuneLogo />
-              <h2 className="text-2xl font-semibold mb-4 mt-8 text-white">
-                Feel like talking?
-              </h2>
-              <p className="text-white mb-6 px-4">
-                Attune remembers conversations, and keeps them secret, so you can always pick up where you left off — or not.
-              </p>
-              <Link to="/auth" className="bg-white text-black px-6 py-2 rounded-full hover:bg-gray-100 transition-colors font-sans inline-block">
-                Sign In
-              </Link>
-            </div>
+            <RealtimeChat />
           )}
         </div>
       </div>

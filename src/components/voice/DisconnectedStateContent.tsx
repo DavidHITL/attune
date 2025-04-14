@@ -1,15 +1,21 @@
 
-import React from 'react';
+import React, { ReactNode } from 'react';
 
-const DisconnectedStateContent: React.FC = () => {
+interface DisconnectedStateContentProps {
+  errorMessage?: ReactNode;
+}
+
+const DisconnectedStateContent: React.FC<DisconnectedStateContentProps> = ({ errorMessage }) => {
   return (
-    <div className="text-center mb-6">
-      <h1 className="text-2xl font-semibold text-white mb-1">
-        Feel like talking?
-      </h1>
-      <p className="text-white/90 px-4">
-        Attune remembers past conversations and keeps them secret, so you can always pick up where you left off — or not.
+    <div className="flex flex-col items-center justify-center text-center px-6">
+      <h2 className="text-2xl font-semibold mb-4 text-white">
+        Let's talk
+      </h2>
+      <p className="text-white/90 mb-6">
+        Tap the call button to start a voice chat with Attune.
       </p>
+      
+      {errorMessage}
     </div>
   );
 };

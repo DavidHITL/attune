@@ -1,5 +1,5 @@
 
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
 import { useMicrophoneControls } from '@/hooks/voice/useMicrophoneControls';
@@ -19,6 +19,7 @@ export const useChatClient = () => {
   const chatClientRef = useRef<RealtimeChatClient | null>(null);
   const { user } = useAuth();
   const { saveMessage, messages, conversationId } = useConversation();
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   
   // Set up logging
   useVoiceChatLogger();
@@ -64,13 +65,13 @@ export const useChatClient = () => {
     setStatus,
     (message) => {
       // Enhanced save message logic with better error handling
-      if (!user || !conversationId) {
-        console.error(
-          !user ? "User not authenticated" : "No conversation ID"
-        );
-        return Promise.reject(new Error(
-          !user ? "User not authenticated" : "No conversation ID"
-        ));
+      if (!user && message.role === 'user') {
+        console.log("User not authenticated but continuing with anonymous session");
+      }
+      
+      if (!conversationId && message.role === 'user') {
+        console.error("No conversation ID available for saving message");
+        return Promise.reject(new Error("No conversation ID available"));
       }
       
       // Add explicit debug logging
@@ -79,7 +80,8 @@ export const useChatClient = () => {
     },
     setIsConnected,
     (isMicOn: boolean) => setIsMicOn(isMicOn),
-    (state: any) => void state
+    (state: any) => void state,
+    setConnectionError
   );
   
   // Initialize microphone controls
@@ -96,18 +98,21 @@ export const useChatClient = () => {
   // Direct access to start conversation function
   const handleStartConversation = useCallback(async () => {
     console.log("Direct start conversation called");
+    setConnectionError(null); // Clear any previous errors
+    
     if (!isConnected) {
       try {
         await startConversation();
         console.log("Conversation started successfully");
       } catch (error) {
         console.error("Failed to start conversation:", error);
+        setConnectionError(error instanceof Error ? error.message : "Unknown connection error");
         toast.error("Connection failed. Please check your internet and try again.");
       }
     } else {
       console.log("Already connected");
     }
-  }, [startConversation, isConnected]);
+  }, [startConversation, isConnected, setConnectionError]);
   
   // Cleanup effect on unmount with enhanced reliability
   useEffect(() => {
@@ -148,6 +153,7 @@ export const useChatClient = () => {
     isMuted,
     hasContext,
     messageCount,
+    connectionError,
     startConversation: handleStartConversation,
     endConversation,
     toggleMicrophone,

@@ -1,35 +1,44 @@
 
-import { supabase } from './supabaseClient.ts';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.23.0";
 
-export interface User {
-  id: string;
-}
+// Initialize Supabase client
+const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
-export async function authenticateUser(authHeader: string | null): Promise<User | null> {
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+export async function authenticateUser(authHeader: string | null): Promise<any> {
   if (!authHeader) {
-    console.log("No Authorization header present");
+    console.log("No auth header provided");
     return null;
   }
-
-  try {
-    const token = authHeader.replace('Bearer ', '');
-    console.log("Auth token received:", token ? "Present (not shown for security)" : "Missing");
-    
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    
-    if (userError) {
-      console.error("Auth error:", userError);
-      throw new Error(`Authentication error: ${userError.message}`);
-    }
-    
-    if (user) {
-      console.log("Authenticated user ID:", user.id);
-      return { id: user.id };
-    }
-  } catch (authError) {
-    console.error("Error parsing auth header:", authError);
-    throw new Error(`Auth header parsing error: ${authError.message}`);
-  }
   
-  return null;
+  try {
+    // Extract the JWT token from the Authorization header
+    const token = authHeader.replace('Bearer ', '');
+    
+    if (!token || token === 'null') {
+      console.log("Invalid token format");
+      return null;
+    }
+    
+    // Verify the token with Supabase Auth
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error) {
+      console.error("Auth error:", error.message);
+      return null;
+    }
+    
+    if (!user) {
+      console.log("No user found for token");
+      return null;
+    }
+    
+    console.log(`User authenticated: ${user.id}`);
+    return user;
+  } catch (error) {
+    console.error("Error in authenticateUser:", error);
+    return null;
+  }
 }

@@ -13,31 +13,42 @@ export interface SessionTokenResponse {
 
 export class SessionManager {
   async getSessionToken(): Promise<SessionTokenResponse> {
-    // Get auth token to pass to the edge function
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) {
-      console.error("Failed to get auth session:", sessionError);
-    }
-    
-    // Get token from edge function
-    const accessToken = session?.access_token || null;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    };
-    
-    // Only add Authorization header if we have a token
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-      console.log("Using authentication token for edge function");
-    } else {
-      console.log("No authentication token available");
-    }
-    
     try {
-      console.log("Calling realtime-token edge function");
+      // Get auth token to pass to the edge function
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error("Failed to get auth session:", sessionError);
+        throw new Error(`Auth session error: ${sessionError.message}`);
+      }
+      
+      if (!session) {
+        console.warn("No active session found, proceeding with anonymous access");
+      }
+      
+      // Get token from edge function
+      const accessToken = session?.access_token || null;
+      
+      // Prepare headers
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Only add Authorization header if we have a token
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+        console.log("Using authentication token for edge function");
+      } else {
+        console.log("No authentication token available, using anonymous access");
+      }
+      
+      console.log("Calling realtime-token edge function with auth:", !!accessToken);
+      
+      // Call the edge function with explicit handling for both auth and non-auth cases
       const response = await supabase.functions.invoke('realtime-token', {
-        headers: headers
+        method: 'POST',
+        headers: headers,
+        body: { anonymous: !accessToken }
       });
       
       if (response.error) {
@@ -45,7 +56,7 @@ export class SessionManager {
         throw new Error(`Failed to get session token: ${response.error.message || 'Unknown error'}`);
       }
       
-      const data = await response.data;
+      const data = response.data;
       
       if (!data || !data.client_secret?.value) {
         console.error("Invalid session token response:", data);
