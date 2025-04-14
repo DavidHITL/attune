@@ -7,6 +7,7 @@ import CallControls from './CallControls';
 import { Message } from '@/utils/types';
 import ConnectedStateContent from './ConnectedStateContent';
 import DisconnectedStateContent from './DisconnectedStateContent';
+import AttuneLogo from '@/components/AttuneLogo';
 
 type VoiceAssistantDisplayProps = {
   status: string;
@@ -36,12 +37,19 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   
   return (
     <div className="h-full flex flex-col justify-between items-center overflow-hidden">
+      {/* Restore hero logo at the top */}
+      <div className="w-full pt-4 z-10">
+        <div className="flex justify-center">
+          <AttuneLogo />
+        </div>
+      </div>
+      
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {isConnected && <RippleCirclesCompact />}
       </div>
       
       {/* Content changes based on connection state */}
-      <div className="flex-1 w-full flex flex-col items-center justify-center z-10 pointer-events-none">
+      <div className="flex-1 w-full flex flex-col items-center justify-center z-10 pointer-events-none mt-4">
         {isConnected ? (
           <ConnectedStateContent minutesLeft={30} />
         ) : (
