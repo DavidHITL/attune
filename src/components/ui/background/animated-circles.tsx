@@ -1,6 +1,3 @@
-
-"use client";
-
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { COLOR_VARIANTS, ColorVariant } from "./color-variants";
@@ -25,8 +22,8 @@ export const AnimatedCircles = ({ variant }: AnimatedCirclesProps) => {
     // Special gray variant for voice call - improve visibility
     const isGrayVariant = variant === "septenary";
     
-    // Reduce the circle size for a more subtle effect, especially for voice calls
-    const circleSize = isGrayVariant ? "h-[400px] w-[400px]" : "h-[240px] w-[240px]";
+    // Reduce the circle size to 300px for voice calls
+    const circleSize = isGrayVariant ? "h-[300px] w-[300px]" : "h-[240px] w-[240px]";
 
     return (
         <motion.div className={`absolute ${circleSize}`}>
