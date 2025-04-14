@@ -28,11 +28,16 @@ serve(async (req) => {
       );
     }
 
+    // Log the request details for debugging
+    console.log(`Processing ${operation} request for user ${userId} ${conversationId ? `and conversation ${conversationId}` : ''}`);
+
     // Determine which operation to perform
     switch (operation) {
       case 'analyze_patterns':
+        console.log(`Analyzing patterns for user ${userId}, conversation ${conversationId || 'all'}`);
         return await analyzeUserPatterns(userId, conversationId);
       case 'generate_summaries':
+        console.log(`Generating summaries for user ${userId}, conversation ${conversationId || 'all'}`);
         return await generateConversationSummaries(userId, conversationId);
       default:
         return new Response(
@@ -44,8 +49,8 @@ serve(async (req) => {
     console.error('Error processing request:', error);
     
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ message: 'No user messages found for analysis' }),
+      { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
