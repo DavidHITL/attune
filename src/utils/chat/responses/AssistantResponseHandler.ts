@@ -59,20 +59,9 @@ export class AssistantResponseHandler {
       this.emptyResponseHandled = true;
     }
     
-    // Reset state
     this.pendingAssistantMessage = false;
     this.assistantResponse = '';
     this.responseParser.clearRawEvents();
-  }
-  
-  handleConversationTruncated(): void {
-    if (this.pendingAssistantMessage && this.assistantResponse && this.assistantResponse.trim()) {
-      console.log("Saving truncated assistant response");
-      this.messageQueue.queueMessage('assistant', this.assistantResponse, false);
-      
-      this.pendingAssistantMessage = false;
-      this.assistantResponse = '';
-    }
   }
   
   handleContentPartDone(content: any): void {
@@ -80,13 +69,6 @@ export class AssistantResponseHandler {
       if (typeof content === 'string' && content.trim()) {
         this.assistantResponse = content;
       }
-    }
-  }
-  
-  flushPendingResponse(): void {
-    if (this.pendingAssistantMessage && this.assistantResponse && this.assistantResponse.trim()) {
-      console.log("Saving pending assistant response during disconnect");
-      this.messageQueue.queueMessage('assistant', this.assistantResponse, false);
     }
   }
 }
