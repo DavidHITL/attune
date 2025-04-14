@@ -23,13 +23,15 @@ const VoiceSelector: React.FC<VoiceSelectorProps> = ({ value, onValueChange }) =
         <SelectTrigger className="w-full">
           <SelectValue placeholder="Select voice" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="bg-white">
           <SelectItem value="alloy">Alloy - Neutral</SelectItem>
           <SelectItem value="echo">Echo - Male</SelectItem>
           <SelectItem value="fable">Fable - Male</SelectItem>
           <SelectItem value="onyx">Onyx - Male</SelectItem>
           <SelectItem value="nova">Nova - Female</SelectItem>
           <SelectItem value="shimmer">Shimmer - Female</SelectItem>
+          <SelectItem value="cove">Cove - Female (New)</SelectItem>
+          <SelectItem value="ember">Ember - Male (New)</SelectItem>
         </SelectContent>
       </Select>
       <p className="text-sm text-gray-500">

@@ -3,6 +3,7 @@ import React from 'react';
 import { useAudioContent } from './audio/useAudioContent';
 import AudioForm from './audio/AudioForm';
 import AudioList from './audio/AudioList';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const AudioContentManager = () => {
   const {
@@ -36,14 +37,22 @@ const AudioContentManager = () => {
         />
       </div>
       
-      <AudioList
-        audioContent={audioContent}
-        loading={loading}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onMoveUp={moveItemUp}
-        onMoveDown={moveItemDown}
-      />
+      {loading ? (
+        <div className="bg-white p-6 rounded-lg shadow space-y-4">
+          <Skeleton className="h-8 w-1/3" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      ) : (
+        <AudioList
+          audioContent={audioContent}
+          loading={loading}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onMoveUp={moveItemUp}
+          onMoveDown={moveItemDown}
+        />
+      )}
     </div>
   );
 };
