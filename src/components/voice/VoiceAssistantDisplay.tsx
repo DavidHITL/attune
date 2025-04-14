@@ -47,7 +47,7 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   
   return (
     <div className="relative flex flex-col justify-start items-center pt-4 w-full h-full overflow-hidden">
-      {/* Status indicator at the top */}
+      {/* Status indicator at the top - status text removed */}
       <StatusIndicator 
         status={status} 
         isConnected={isConnected} 

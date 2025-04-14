@@ -10,7 +10,6 @@ interface StatusIndicatorProps {
 }
 
 const StatusIndicator: React.FC<StatusIndicatorProps> = ({ 
-  status, 
   isConnected,
   voiceActivityState 
 }) => {
@@ -19,16 +18,13 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({
       <div className="mb-2">
         <AttuneLogo />
       </div>
-      <div className="text-sm font-sans flex flex-col items-center justify-center gap-2">
-        <div>Status: {status}</div>
-        
-        {/* Voice activity indicator - always visible when connected */}
-        {isConnected && (
-          <div className="flex items-center gap-2 justify-center mt-2">
-            <VoiceActivityIndicator state={voiceActivityState} />
-          </div>
-        )}
-      </div>
+      
+      {/* Voice activity indicator - always visible when connected */}
+      {isConnected && (
+        <div className="flex items-center gap-2 justify-center mt-2">
+          <VoiceActivityIndicator state={voiceActivityState} />
+        </div>
+      )}
     </div>
   );
 };
