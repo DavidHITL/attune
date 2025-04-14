@@ -37,7 +37,13 @@ export const useVoiceChatAnalysis = (isConnected: boolean) => {
           return;
         }
         
-        console.log("Background voice chat analysis completed", response.data);
+        // Log detailed stats about the analysis
+        if (response.data && response.data.stats) {
+          console.log("Background voice chat analysis completed with stats:", response.data.stats);
+          console.log(`Analyzed ${response.data.stats.userMessages} user messages and ${response.data.stats.assistantMessages} assistant messages`);
+        } else {
+          console.log("Background voice chat analysis completed", response.data);
+        }
       } catch (error) {
         console.error("Error in background analysis:", error);
         // We don't show errors to the user since this is a background task

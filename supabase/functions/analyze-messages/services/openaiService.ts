@@ -20,7 +20,7 @@ export async function analyzeWithOpenAI(messageContent: string) {
         messages: [
           {
             role: 'system',
-            content: `You are an expert in Terry Real's Relational Life Therapy approach. Your task is to analyze communication patterns in the provided messages to identify relational dynamics and growth opportunities.
+            content: `You are an expert in Terry Real's Relational Life Therapy approach. Your task is to analyze communication patterns in the provided messages to identify relational dynamics and growth opportunities. Analyze both user messages and assistant responses to get full context of the conversation.
 
 CORE CONCEPTS TO APPLY:
 
@@ -57,7 +57,7 @@ CORE CONCEPTS TO APPLY:
 
 ANALYSIS REQUESTED:
 
-Review both the conversation summaries AND the recent user messages provided to identify:
+Review the complete conversation history (including BOTH user and assistant messages) to identify:
 
 1. TRIGGERS: Identify 3-5 specific situations or interaction patterns that appear to activate the user's adaptive child mode. Be specific and descriptive.
 
@@ -141,7 +141,7 @@ export async function summarizeWithOpenAI(messageContent: string) {
           {
             role: 'system',
             content: `Summarize the following conversation between a user and an AI assistant.
-            Focus primarily on what the USER said, with the assistant's responses only providing context.
+            Focus primarily on what the USER said, with the assistant's responses providing context.
             Pay special attention to:
             1. Core themes and topics discussed by the USER
             2. Key insights or realizations shared by the USER
