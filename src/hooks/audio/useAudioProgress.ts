@@ -9,7 +9,7 @@ interface UseAudioProgressProps {
   isPlaying?: boolean;
   setCurrentTime?: (time: number) => void;
   onProgressUpdate?: (seconds: number) => void;
-  createAudio?: () => HTMLAudioElement;
+  createAudio?: () => HTMLAudioElement | null;
 }
 
 // Define a consistent return type for the navigation functions
@@ -47,8 +47,8 @@ export function useAudioProgress({
     audioRef,
     isPlaying,
     currentTime,
-    onProgressUpdate,
-    createAudio
+    onProgressUpdate
+    // Removed createAudio as we don't actually use it in the heartbeat implementation
   });
   
   // If this is used purely for navigation controls, return those

@@ -6,6 +6,7 @@ interface HeartbeatProps {
   isPlaying?: boolean;
   currentTime: number;
   onProgressUpdate?: (seconds: number) => void;
+  createAudio?: () => HTMLAudioElement | null;
 }
 
 /**
