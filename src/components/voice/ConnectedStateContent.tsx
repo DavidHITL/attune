@@ -12,7 +12,7 @@ const ConnectedStateContent: React.FC<ConnectedStateContentProps> = ({
   return (
     <div className="flex flex-col items-center justify-center h-full">
       <div className="text-center z-20 mt-8 mb-4">
-        <h1 className="text-2xl font-semibold text-white mb-2">
+        <h1 className="text-2xl font-semibold text-white mb-1">
           Call in progress
         </h1>
         
