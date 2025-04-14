@@ -7,7 +7,6 @@ import { useMicrophoneControls } from '@/hooks/voice/useMicrophoneControls';
 import { useConnectionManager } from '@/hooks/voice/useConnectionManager';
 import { useMessageEventHandler } from '@/hooks/voice/useMessageEventHandler';
 import { useVoiceChatLogger } from '@/hooks/voice/useVoiceChatLogger';
-import { useConversationControls } from '@/hooks/voice/useConversationControls';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 
