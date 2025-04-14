@@ -5,16 +5,37 @@ import { useConversation } from '@/hooks/useConversation';
 import { useAuth } from '@/context/AuthContext';
 
 /**
- * Hook for handling transcript events from the voice chat
+ * Hook for handling transcript events with enhanced debugging
  */
 export const useTranscriptHandler = () => {
   const { saveMessage, conversationId } = useConversation();
   const { user } = useAuth();
 
   const handleTranscriptEvent = useCallback((event: any, saveUserMessage: (content: string) => void) => {
-    // Handle transcript events for user messages
+    console.log('🎯 Transcript Handler - Processing event:', {
+      type: event.type,
+      hasUser: !!user,
+      hasConversationId: !!conversationId,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Enhanced validation logging
+    if (!user || !conversationId) {
+      console.warn('🚫 Missing required context:', {
+        user: !!user ? 'present' : 'missing',
+        conversationId: !!conversationId ? conversationId : 'missing',
+        eventType: event.type
+      });
+    }
+    
+    // Handle transcript events for user messages with detailed logging
     if (event.type === 'transcript' && event.transcript && event.transcript.trim()) {
-      console.log("📝 Received direct transcript event, saving user message:", event.transcript);
+      console.log("📝 Processing direct transcript event:", {
+        timestamp: new Date().toISOString(),
+        contentPreview: event.transcript.substring(0, 50),
+        conversationId,
+        userId: user?.id
+      });
       
       // Show toast confirmation for transcript received
       toast.info("User speech detected", {
@@ -34,33 +55,55 @@ export const useTranscriptHandler = () => {
         return;
       }
       
-      // Explicitly save through conversation context (high priority)
+      // Explicitly save through conversation context with enhanced logging
       try {
-        console.log("Saving user message via conversation context:", event.transcript.substring(0, 30));
+        console.log("💾 Initiating save via conversation context:", {
+          preview: event.transcript.substring(0, 30),
+          conversationId,
+          timestamp: new Date().toISOString()
+        });
+        
         saveMessage({
           role: 'user',
           content: event.transcript
         }).then(savedMsg => {
-          console.log("✅ Successfully saved user transcript to database with ID:", savedMsg?.id);
+          console.log("✅ Successfully saved user transcript:", {
+            messageId: savedMsg?.id,
+            timestamp: new Date().toISOString()
+          });
         }).catch(err => {
-          console.error("❌ Failed to save user transcript:", err);
+          console.error("❌ Failed to save user transcript:", {
+            error: err,
+            timestamp: new Date().toISOString()
+          });
         });
       } catch (error) {
-        console.error("Error while trying to save user message:", error);
+        console.error("💥 Error in save attempt:", {
+          error,
+          timestamp: new Date().toISOString()
+        });
       }
       
       // Also use the direct save method as a fallback
       if (saveUserMessage) {
+        console.log("📎 Using fallback direct save method");
         saveUserMessage(event.transcript);
       }
       
       // Log key information about conversation state
-      console.log("Current conversation ID:", conversationId);
+      console.log("🔄 Current conversation state:", {
+        conversationId,
+        hasUser: !!user,
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Also handle response.audio_transcript.done events
     if (event.type === 'response.audio_transcript.done' && event.transcript?.text && event.transcript.text.trim()) {
-      console.log("📝 Final transcript received:", event.transcript.text);
+      console.log("📝 Processing final transcript:", {
+        preview: event.transcript.text.substring(0, 50),
+        timestamp: new Date().toISOString()
+      });
       
       // Show toast with transcript
       toast.info("Final transcript received", {
@@ -71,21 +114,36 @@ export const useTranscriptHandler = () => {
       if (user && conversationId) {
         // Make sure the final transcript is also saved
         try {
-          console.log("Saving final transcript via conversation context:", event.transcript.text.substring(0, 30));
+          console.log("💾 Saving final transcript:", {
+            preview: event.transcript.text.substring(0, 30),
+            conversationId,
+            timestamp: new Date().toISOString()
+          });
+          
           saveMessage({
             role: 'user', 
             content: event.transcript.text
           }).then(savedMsg => {
-            console.log("✅ Successfully saved final transcript to database with ID:", savedMsg?.id);
+            console.log("✅ Successfully saved final transcript:", {
+              messageId: savedMsg?.id,
+              timestamp: new Date().toISOString()
+            });
           }).catch(err => {
-            console.error("❌ Failed to save final transcript:", err);
+            console.error("❌ Failed to save final transcript:", {
+              error: err,
+              timestamp: new Date().toISOString()
+            });
           });
         } catch (error) {
-          console.error("Error while trying to save final transcript:", error);
+          console.error("💥 Error saving final transcript:", {
+            error,
+            timestamp: new Date().toISOString()
+          });
         }
         
         // Also use the direct save method as a fallback
         if (saveUserMessage) {
+          console.log("📎 Using fallback direct save for final transcript");
           saveUserMessage(event.transcript.text);
         }
       }
