@@ -24,7 +24,7 @@ export const useTranscriptHandler = () => {
         userId: user?.id
       });
       
-      saveTranscript(event.transcript, saveMessage, saveUserMessage);
+      saveTranscript(event.transcript, (msg) => useConversation().saveMessage(msg), saveUserMessage);
     }
     
     // Handle response.audio_transcript.done events
@@ -34,7 +34,7 @@ export const useTranscriptHandler = () => {
         timestamp: new Date().toISOString()
       });
       
-      saveTranscript(event.transcript.text, saveMessage, saveUserMessage);
+      saveTranscript(event.transcript.text, (msg) => useConversation().saveMessage(msg), saveUserMessage);
     }
   }, [user, conversationId, saveTranscript]);
 
@@ -43,3 +43,5 @@ export const useTranscriptHandler = () => {
   };
 };
 
+// Import this at the end to avoid circular dependencies
+import { useConversation } from '../useConversation';
