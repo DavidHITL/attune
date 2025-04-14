@@ -12,13 +12,13 @@ const ConnectedStateContent: React.FC<ConnectedStateContentProps> = ({
   return (
     <div className="flex flex-col items-center justify-center h-full">
       <div className="text-center z-20 mt-8 mb-4">
-        <h1 className="text-4xl font-semibold text-white mb-2">
+        <h1 className="text-3xl font-semibold text-white mb-2">
           Call in progress
         </h1>
         
         {/* Text centered in the animation circle */}
         <div className="max-w-xs mx-auto mb-4">
-          <p className="text-white/90 px-2 text-lg">
+          <p className="text-white/90 px-2 text-base">
             Your conversation is private and will be remembered for future sessions.
           </p>
         </div>
