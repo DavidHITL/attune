@@ -2,6 +2,7 @@
 import { useCallback } from 'react';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
 import { MessageCallback, StatusCallback, SaveMessageCallback } from '@/utils/types';
+import { toast } from 'sonner';
 
 /**
  * Hook for managing connection to the voice chat service
@@ -18,6 +19,8 @@ export const useConnectionManager = (
   
   const startConversation = useCallback(async () => {
     try {
+      console.log("Starting conversation, creating chat client...");
+      
       // First cleanup any existing connection
       if (chatClientRef.current) {
         console.log("Cleaning up previous chat client instance");
@@ -38,10 +41,14 @@ export const useConnectionManager = (
       console.log("Connection initialized successfully");
       setIsConnected(true);
       setIsMicOn(true);
+      toast.success("Connected successfully!");
       
       // The session.created event will handle showing the context-aware toast
     } catch (error) {
       console.error('Failed to start conversation:', error);
+      toast.error("Failed to connect. Please try again.");
+      setIsConnected(false);
+      setIsMicOn(false);
     }
   }, [chatClientRef, handleMessageEvent, saveMessage, setStatus, setIsConnected, setIsMicOn]);
 

@@ -1,6 +1,5 @@
 
 import { useCallback } from 'react';
-import { VoiceActivityState } from '@/components/VoiceActivityIndicator';
 
 type ChatClientRef = React.MutableRefObject<any>;
 
@@ -12,11 +11,16 @@ export const useConversationControls = (
   isConnected: boolean,
   startConversation: () => Promise<void>
 ) => {
-  // Prevent auto-connecting - only connect when user explicitly requests it
+  // Function to handle user-initiated conversation start
   const handleStartConversation = useCallback(() => {
+    console.log("Handle start conversation called, isConnected:", isConnected);
+    
     if (!isConnected) {
       console.log("User initiated conversation start");
+      // Call startConversation from useConnectionManager
       startConversation();
+    } else {
+      console.log("Already connected, ignoring start request");
     }
   }, [isConnected, startConversation]);
 

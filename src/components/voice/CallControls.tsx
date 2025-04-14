@@ -21,20 +21,24 @@ const CallControls: React.FC<CallControlsProps> = ({
 }) => {
   // Handle button clicks with improved feedback
   const handleCallButton = (e: React.MouseEvent<HTMLButtonElement>) => {
+    console.log("Call button clicked, isConnected:", isConnected);
     createRipple(e);
+    
     if (isConnected) {
+      console.log("Ending conversation...");
       toast.info("Call ended");
       onEndConversation();
     } else {
+      console.log("Starting conversation...");
       toast.success("Starting conversation...");
       onStartConversation();
     }
   };
   
   const handleMuteButton = (e: React.MouseEvent<HTMLButtonElement>) => {
+    console.log("Mute button clicked");
     createRipple(e);
     onToggleMute();
-    // No need for toast here as the hook already shows one
   };
 
   return (
