@@ -1,20 +1,21 @@
 
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
-import { VoiceActivityState } from '../VoiceActivityIndicator';
 import { useMicrophoneControls } from '@/hooks/voice/useMicrophoneControls';
 import { useConnectionManager } from '@/hooks/voice/useConnectionManager';
-import { useMessageEventHandler } from '@/hooks/voice/useMessageEventHandler';
 import { useVoiceChatLogger } from '@/hooks/voice/useVoiceChatLogger';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import { useVoiceStateManagement } from './useVoiceStateManagement';
+import { useVoiceEvents } from './useVoiceEvents';
+import { useVoiceChatAnalysis } from '@/hooks/voice/useVoiceChatAnalysis';
 
 /**
- * Main hook for chat client functionality, refactored for modularity
+ * Main hook for chat client functionality, refactored for improved modularity and reliability
  */
 export const useChatClient = () => {
-  // Initialize refs and states first
+  // Initialize refs and basic state
   const chatClientRef = useRef<RealtimeChatClient | null>(null);
   const { user } = useAuth();
   const { saveMessage, messages, conversationId } = useConversation();
@@ -22,40 +23,63 @@ export const useChatClient = () => {
   // Set up logging
   useVoiceChatLogger();
   
-  // Set up message event handling - initialize in a way that avoids race conditions
+  // Get state management functions
   const {
-    voiceActivityState,
     status,
     setStatus,
     isConnected, 
     setIsConnected,
+    voiceActivityState,
+    setVoiceActivityState,
     hasContext,
     messageCount,
     updateMessagesContext,
-    combinedMessageHandler
-  } = useMessageEventHandler(chatClientRef);
+    handleSessionCreated
+  } = useVoiceStateManagement();
+
+  // Set up background analysis when voice chat sessions end
+  useVoiceChatAnalysis(isConnected);
+
+  // Get enhanced voice event handling with unified transcript processing
+  const { handleVoiceEvent } = useVoiceEvents(chatClientRef, setVoiceActivityState);
   
-  // Initialize connection manager with enhanced message tracking
+  // Combined message handler for all event types
+  const combinedMessageHandler = useCallback((event: any) => {
+    // Process voice events (speech, transcripts)
+    handleVoiceEvent(event);
+    
+    // Process session creation events
+    handleSessionCreated(event);
+    
+    // Log the last few event types for debugging
+    if (event.type && event.type !== 'input_audio_buffer.append') {
+      console.log(`EVENT [${event.type}] #${Math.floor(Math.random() * 10)} at ${new Date().toISOString()}`);
+    }
+  }, [handleVoiceEvent, handleSessionCreated]);
+  
+  // Initialize connection manager with more robust message handling
   const { startConversation, endConversation } = useConnectionManager(
     chatClientRef,
     combinedMessageHandler,
     setStatus,
     (message) => {
-      // Enhanced debug logging for message saving
-      console.log(`Connection manager saving message: ${message.role} - ${message.content?.substring(0, 30)}...`);
-      console.log(`Using conversation ID: ${conversationId}`);
-      
+      // Enhanced save message logic with better error handling
       if (!user || !conversationId) {
+        console.error(
+          !user ? "User not authenticated" : "No conversation ID"
+        );
         return Promise.reject(new Error(
           !user ? "User not authenticated" : "No conversation ID"
         ));
       }
       
+      // Add explicit debug logging
+      console.log(`Unified message saving for ${message.role}: ${message.content?.substring(0, 30)}...`);
       return saveMessage(message);
     },
     setIsConnected,
     (isMicOn: boolean) => setIsMicOn(isMicOn),
-    (state: VoiceActivityState) => void state
+    (state: any) => void state
   );
   
   // Initialize microphone controls
@@ -74,7 +98,6 @@ export const useChatClient = () => {
     console.log("Direct start conversation called");
     if (!isConnected) {
       try {
-        // Call the startConversation from the connection manager directly
         await startConversation();
         console.log("Conversation started successfully");
       } catch (error) {
@@ -86,28 +109,34 @@ export const useChatClient = () => {
     }
   }, [startConversation, isConnected]);
   
-  // Handle conversation end
-  const handleEndConversation = useCallback(() => {
-    console.log("Ending conversation via user action");
-    endConversation();
-  }, [endConversation]);
-  
-  // Cleanup effect on unmount
+  // Cleanup effect on unmount with enhanced reliability
   useEffect(() => {
     return () => {
       console.log("Cleaning up chat client");
       if (chatClientRef.current) {
-        chatClientRef.current.disconnect();
+        // Ensure any pending messages are flushed before disconnecting
+        try {
+          if (typeof chatClientRef.current.flushPendingMessages === 'function') {
+            chatClientRef.current.flushPendingMessages();
+            setTimeout(() => {
+              chatClientRef.current?.disconnect();
+            }, 300);
+          } else {
+            console.warn("flushPendingMessages method not available, falling back to direct disconnect");
+            chatClientRef.current.disconnect();
+          }
+        } catch (e) {
+          console.error("Error during cleanup:", e);
+          chatClientRef.current.disconnect();
+        }
       }
     };
   }, []);
   
-  // Update context info when messages change
+  // Update context when messages change
   useEffect(() => {
     if (updateMessagesContext && messages) {
       updateMessagesContext(messages.length);
-      // Log message count changes for debugging
-      console.log(`Messages updated, now ${messages.length} messages in state`);
     }
   }, [messages, updateMessagesContext]);
   
@@ -120,7 +149,7 @@ export const useChatClient = () => {
     hasContext,
     messageCount,
     startConversation: handleStartConversation,
-    endConversation: handleEndConversation,
+    endConversation,
     toggleMicrophone,
     toggleMute
   };

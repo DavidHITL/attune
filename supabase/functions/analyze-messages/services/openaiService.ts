@@ -6,7 +6,8 @@ const openAIApiKey = Deno.env.get('OPENAI_API_KEY')!;
 // Function to analyze message content using OpenAI
 export async function analyzeWithOpenAI(messageContent: string) {
   try {
-    console.log('Calling OpenAI API for pattern analysis');
+    console.log('Calling OpenAI API for pattern analysis with enhanced context');
+    console.log(`Content length: ${messageContent.length} characters`);
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -56,7 +57,7 @@ CORE CONCEPTS TO APPLY:
 
 ANALYSIS REQUESTED:
 
-Carefully analyze the provided USER MESSAGES ONLY to identify:
+Review both the conversation summaries AND the recent user messages provided to identify:
 
 1. TRIGGERS: Identify 3-5 specific situations or interaction patterns that appear to activate the user's adaptive child mode. Be specific and descriptive.
 
@@ -71,11 +72,11 @@ Return your analysis in JSON format with these fields:
           },
           {
             role: 'user',
-            content: `Here are the user's messages to analyze:\n\n${messageContent}`
+            content: messageContent
           }
         ],
         temperature: 0.3,
-        max_tokens: 1500,
+        max_tokens: 2000,
         response_format: { type: "json_object" }
       }),
     });
