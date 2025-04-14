@@ -2,12 +2,9 @@
 import React from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import VoiceActivityIndicator, { VoiceActivityState } from '../VoiceActivityIndicator';
-import ConversationHistory from './ConversationHistory';
-import StatusIndicator from './StatusIndicator';
+import RippleCirclesCompact from './RippleStyles';
 import CallControls from './CallControls';
 import { Message } from '@/utils/types';
-import RippleCirclesCompact from './RippleStyles';
-import SmartContext from './SmartContext';
 import ConnectedStateContent from './ConnectedStateContent';
 import DisconnectedStateContent from './DisconnectedStateContent';
 
@@ -30,32 +27,15 @@ type VoiceAssistantDisplayProps = {
 const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({ 
   voiceActivityState, 
   isConnected,
-  status,
-  messages: propMessages,
-  messageCount = 0,
-  hasContext = false,
-  isMicOn = false,
   isMuted = false,
-  conversationLoading = false,
-  onToggleMicrophone = () => {},
   onToggleMute = () => {},
   onEndConversation = () => {},
   onStartConversation = () => {}
 }) => {
   const { messages: hookMessages } = useConversation();
-  const messages = propMessages || hookMessages;
   
   return (
     <div className="h-full flex flex-col justify-between items-center overflow-hidden">
-      {/* Status indicator at the top */}
-      <div className="w-full pt-2">
-        <StatusIndicator 
-          status={status} 
-          isConnected={isConnected} 
-          voiceActivityState={voiceActivityState} 
-        />
-      </div>
-      
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {isConnected && <RippleCirclesCompact />}
       </div>

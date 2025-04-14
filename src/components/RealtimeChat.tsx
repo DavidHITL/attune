@@ -89,16 +89,10 @@ const RealtimeChat: React.FC = () => {
       {/* Voice assistant display */}
       <div className="relative z-10 h-full">
         <VoiceAssistantDisplay
-          status={status}
+          status=""
           isConnected={isConnected}
           voiceActivityState={voiceActivityState}
-          messages={messages}
-          messageCount={messageCount}
-          hasContext={hasContext}
-          isMicOn={isMicOn}
           isMuted={isMuted}
-          conversationLoading={conversationLoading}
-          onToggleMicrophone={toggleMicrophone}
           onToggleMute={toggleMute}
           onEndConversation={handleEndCall}
           onStartConversation={handleStartCall}
