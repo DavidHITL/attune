@@ -1,5 +1,5 @@
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
 import { VoiceActivityState } from '../VoiceActivityIndicator';
@@ -9,6 +9,7 @@ import { useMessageEventHandler } from '@/hooks/voice/useMessageEventHandler';
 import { useVoiceChatLogger } from '@/hooks/voice/useVoiceChatLogger';
 import { useConversationControls } from '@/hooks/voice/useConversationControls';
 import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
 
 /**
  * Main hook for chat client functionality, refactored for modularity
@@ -68,12 +69,26 @@ export const useChatClient = () => {
     isConnected,
     startConversation
   );
+
+  // Direct access to start conversation function - bypassing the conversation controls hook
+  const directStartConversation = useCallback(() => {
+    console.log("Direct start conversation called");
+    if (!isConnected) {
+      return startConversation().catch(error => {
+        console.error("Failed to start conversation:", error);
+        toast.error("Connection failed. Please check your internet and try again.");
+      });
+    } else {
+      console.log("Already connected");
+      return Promise.resolve();
+    }
+  }, [startConversation, isConnected]);
   
-  // Set up conversation controls
+  // Set up conversation controls with the direct start function
   const { handleStartConversation, cleanupChatClient } = useConversationControls(
     chatClientRef,
     isConnected,
-    startConversation
+    directStartConversation
   );
   
   // Update context info when messages change

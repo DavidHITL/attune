@@ -12,17 +12,16 @@ export const useConversationControls = (
   startConversation: () => Promise<void>
 ) => {
   // Function to handle user-initiated conversation start
-  const handleStartConversation = useCallback(async () => {
+  const handleStartConversation = useCallback(() => {
     console.log("Handle start conversation called, isConnected:", isConnected);
     
     if (!isConnected) {
       console.log("User initiated conversation start");
-      try {
-        // Call startConversation from useConnectionManager
-        await startConversation();
-      } catch (error) {
+      // Call startConversation from useConnectionManager
+      // Making this synchronous to avoid potential issues with the event chain
+      startConversation().catch(error => {
         console.error("Failed to start conversation:", error);
-      }
+      });
     } else {
       console.log("Already connected, ignoring start request");
     }

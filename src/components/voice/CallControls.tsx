@@ -31,12 +31,8 @@ const CallControls: React.FC<CallControlsProps> = ({
     } else {
       console.log("Starting conversation...");
       toast.success("Starting conversation...");
-      try {
-        onStartConversation();
-      } catch (error) {
-        console.error("Error starting conversation:", error);
-        toast.error("Failed to connect. Please try again.");
-      }
+      onStartConversation();
+      console.log("onStartConversation called");
     }
   };
   

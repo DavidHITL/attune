@@ -44,11 +44,13 @@ export const useConnectionManager = (
       toast.success("Connected successfully!");
       
       // The session.created event will handle showing the context-aware toast
+      return true;
     } catch (error) {
       console.error('Failed to start conversation:', error);
       toast.error("Failed to connect. Please try again.");
       setIsConnected(false);
       setIsMicOn(false);
+      throw error; // Re-throw to allow proper error handling
     }
   }, [chatClientRef, handleMessageEvent, saveMessage, setStatus, setIsConnected, setIsMicOn]);
 
