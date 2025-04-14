@@ -1,6 +1,6 @@
 
 /**
- * Standard event types for speech and response events
+ * Standard event types for speech and transcript events
  */
 export enum EventType {
   // Speech and transcript events
