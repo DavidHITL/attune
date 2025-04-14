@@ -37,8 +37,8 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   
   return (
     <div className="h-full flex flex-col justify-between items-center overflow-hidden">
-      {/* Restore hero logo at the top */}
-      <div className="w-full pt-4 z-10">
+      {/* Logo positioned at the top, consistent with home page */}
+      <div className="w-full py-12 z-10">
         <div className="flex justify-center">
           <AttuneLogo />
         </div>
@@ -49,7 +49,7 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
       </div>
       
       {/* Content changes based on connection state */}
-      <div className="flex-1 w-full flex flex-col items-center justify-center z-10 pointer-events-none mt-4">
+      <div className="flex-1 w-full flex flex-col items-center justify-center z-10 pointer-events-none">
         {isConnected ? (
           <ConnectedStateContent minutesLeft={30} />
         ) : (
