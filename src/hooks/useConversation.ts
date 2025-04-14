@@ -53,7 +53,7 @@ export const useConversation = (): UseConversationReturn => {
     initializedRef
   );
 
-  // Save a new message with anonymous user support
+  // Enhanced saveMessage with conversation ID handling
   const saveMessage = useCallback(async (message: Partial<Message>): Promise<Message | null> => {
     try {
       if (!message.role || !message.content) {
@@ -61,6 +61,7 @@ export const useConversation = (): UseConversationReturn => {
         return null;
       }
       
+      // For anonymous users, handle locally
       if (!user) {
         console.log("Anonymous user detected, using local message only");
         const localMessage: Message = {
@@ -70,17 +71,31 @@ export const useConversation = (): UseConversationReturn => {
           created_at: new Date().toISOString()
         };
         
-        // Add to local state only
         addLocalMessage(localMessage);
         return localMessage;
       }
       
-      console.log(`Saving ${message.role} message to database: "${message.content.substring(0, 30)}${message.content.length > 30 ? '...' : ''}"`);
+      // For authenticated users, ensure conversationId exists
+      let targetConversationId = conversationId;
+      
+      if (!targetConversationId && message.role === 'user') {
+        console.log('No conversation ID found, creating new conversation...');
+        const savedMessage = await saveMessageToDb(message as Message);
+        
+        if (savedMessage) {
+          console.log(`Successfully saved ${message.role} message with new conversation`);
+          setMessages(prev => [...prev, savedMessage]);
+          return savedMessage;
+        }
+        return null;
+      }
+      
+      // Standard message save with existing conversation
+      console.log(`Saving ${message.role} message to database with conversation ID: ${targetConversationId}`);
       const savedMessage = await saveMessageToDb(message as Message);
       
       if (savedMessage) {
         console.log(`Successfully saved ${message.role} message to database with ID: ${savedMessage.id}`);
-        // Add the new message to the local state
         setMessages(prev => [...prev, savedMessage]);
         return savedMessage;
       }
@@ -88,9 +103,9 @@ export const useConversation = (): UseConversationReturn => {
     } catch (error) {
       console.error('Error in saveMessage:', error);
       
-      // Create a temporary message with a generated ID so UI remains consistent
+      // Create a temporary message for UI consistency
       const tempMessage: Message = {
-        id: `temp-${new Date().getTime()}`,
+        id: `temp-${Date.now()}`,
         role: message.role as 'user' | 'assistant',
         content: message.content || '',
         created_at: new Date().toISOString()
@@ -100,7 +115,7 @@ export const useConversation = (): UseConversationReturn => {
       setMessages(prev => [...prev, tempMessage]);
       return tempMessage;
     }
-  }, [saveMessageToDb, setMessages, addLocalMessage, user]);
+  }, [saveMessageToDb, setMessages, addLocalMessage, user, conversationId]);
 
   return {
     conversationId,
