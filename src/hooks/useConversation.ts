@@ -53,12 +53,26 @@ export const useConversation = (): UseConversationReturn => {
     initializedRef
   );
 
-  // Save a new message
+  // Save a new message with anonymous user support
   const saveMessage = useCallback(async (message: Partial<Message>): Promise<Message | null> => {
     try {
       if (!message.role || !message.content) {
         console.error('Cannot save message: Missing role or content');
         return null;
+      }
+      
+      if (!user) {
+        console.log("Anonymous user detected, using local message only");
+        const localMessage: Message = {
+          id: `anon-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          role: message.role as 'user' | 'assistant',
+          content: message.content,
+          created_at: new Date().toISOString()
+        };
+        
+        // Add to local state only
+        addLocalMessage(localMessage);
+        return localMessage;
       }
       
       console.log(`Saving ${message.role} message to database: "${message.content.substring(0, 30)}${message.content.length > 30 ? '...' : ''}"`);
@@ -84,9 +98,9 @@ export const useConversation = (): UseConversationReturn => {
       
       console.log(`Created temporary message for ${message.role} due to save error`);
       setMessages(prev => [...prev, tempMessage]);
-      throw error;
+      return tempMessage;
     }
-  }, [saveMessageToDb, setMessages]);
+  }, [saveMessageToDb, setMessages, addLocalMessage, user]);
 
   return {
     conversationId,

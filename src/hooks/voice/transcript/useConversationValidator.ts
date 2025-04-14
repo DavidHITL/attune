@@ -9,27 +9,36 @@ export const useConversationValidator = () => {
   const { conversationId } = useConversation();
   
   const validateConversationContext = useCallback(() => {
-    const isValid = !!user && !!conversationId;
-    
-    if (!isValid) {
-      // Log specifics for debugging
-      console.error('⚠️ Invalid conversation context:', {
-        hasUser: !!user, 
-        hasConversationId: !!conversationId,
-        userId: user?.id,
-        conversationId,
-        timestamp: new Date().toISOString()
-      });
+    // For authenticated users, require both user and conversationId
+    if (user) {
+      const isValid = !!user && !!conversationId;
       
-      // Show error for missing user or conversation
-      if (!user) {
-        toast.error("Cannot save message - not logged in");
-      } else if (!conversationId) {
-        toast.error("Cannot save message - no active conversation");
+      if (!isValid) {
+        // Only log errors for authenticated users
+        console.error('⚠️ Invalid conversation context for authenticated user:', {
+          hasUser: !!user, 
+          hasConversationId: !!conversationId,
+          userId: user?.id,
+          conversationId,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Show error for missing conversation
+        if (!conversationId) {
+          toast.error("Cannot save message - no active conversation");
+        }
       }
+      
+      return isValid;
     }
     
-    return isValid;
+    // For anonymous users, we're more permissive - log but continue
+    if (!user) {
+      console.log('👤 Anonymous user detected - conversation validation bypassed');
+      return true; // Allow anonymous users to proceed
+    }
+    
+    return true;
   }, [user, conversationId]);
   
   return { 

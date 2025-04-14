@@ -25,9 +25,25 @@ export class RealtimeChatCore {
     statusCallback: StatusCallback,
     saveMessageCallback: SaveMessageCallback
   ) {
-    this.messageQueue = new MessageQueue(saveMessageCallback);
+    // Support for anonymous users - create a wrapper that doesn't fail on auth errors
+    const safeSaveCallback: SaveMessageCallback = async (message) => {
+      try {
+        return await saveMessageCallback(message);
+      } catch (error) {
+        console.log("Message save failed, likely anonymous user:", error);
+        // Return a simulated message object so UI flow continues
+        return {
+          id: `anon-${Date.now()}`,
+          role: message.role as 'user' | 'assistant',
+          content: message.content || '',
+          created_at: new Date().toISOString()
+        };
+      }
+    };
+
+    this.messageQueue = new MessageQueue(safeSaveCallback);
     this.responseParser = new ResponseParser();
-    this.userMessageHandler = new UserMessageHandler(saveMessageCallback);
+    this.userMessageHandler = new UserMessageHandler(safeSaveCallback);
     
     this.transcriptHandler = new TranscriptEventHandler(
       (text) => {
@@ -59,7 +75,7 @@ export class RealtimeChatCore {
           type: state === 'start' ? 'input_audio_activity_started' : 'input_audio_activity_stopped'
         });
       },
-      saveMessageCallback
+      safeSaveCallback
     );
     
     this.microphoneManager = new MicrophoneManager(this.connectionManager);

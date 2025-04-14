@@ -42,7 +42,6 @@ export class RealtimeChat {
     this.core.setMuted(muted);
   }
 
-  // Add missing flushPendingMessages method
   flushPendingMessages() {
     this.core.flushPendingMessages();
   }

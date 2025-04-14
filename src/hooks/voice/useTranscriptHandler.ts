@@ -19,8 +19,11 @@ export const useTranscriptHandler = () => {
       timestamp: new Date().toISOString()
     });
     
-    // Validate conversation context for all transcript handling
-    if (!validateConversationContext()) {
+    // IMPORTANT: Allow anonymous users to continue without validation
+    // We'll try to save the message even if there's no user or conversation ID
+    const shouldContinue = validateConversationContext() || !user;
+    
+    if (!shouldContinue) {
       console.error("❌ Cannot process transcript: Invalid conversation context", {
         userId: user?.id,
         conversationId
@@ -48,7 +51,7 @@ export const useTranscriptHandler = () => {
         duration: 3000
       });
       
-      // Save message with high priority
+      // Try to save message even for anonymous users
       saveMessage({
         role: 'user' as const,
         content: event.transcript
@@ -56,7 +59,7 @@ export const useTranscriptHandler = () => {
         if (msg?.id) {
           console.log("✅ Successfully saved direct transcript with ID:", msg.id);
         } else {
-          console.error("❌ Direct transcript save operation failed");
+          console.warn("👤 Anonymous user or message not saved to database");
         }
       }).catch(error => {
         console.error("❌ Error saving direct transcript:", error);
@@ -81,7 +84,7 @@ export const useTranscriptHandler = () => {
         duration: 3000
       });
       
-      // Actual message saving with promise handling
+      // Try to save message even for anonymous users
       saveMessage({
         role: 'user' as const,
         content: event.transcript.text
@@ -89,7 +92,7 @@ export const useTranscriptHandler = () => {
         if (msg?.id) {
           console.log("✅ Successfully saved final transcript with ID:", msg.id);
         } else {
-          console.error("❌ Final transcript save operation failed");
+          console.warn("👤 Anonymous user or message not saved to database");
         }
       }).catch(error => {
         console.error("❌ Error saving final transcript:", error);

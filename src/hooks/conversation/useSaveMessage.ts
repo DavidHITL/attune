@@ -13,7 +13,7 @@ export const useSaveMessage = (
 ) => {
 
   /**
-   * Saves a new message to the database with enhanced error handling
+   * Saves a new message to the database with enhanced error handling and anonymous mode support
    */
   const saveMessage = async (message: Partial<Message>): Promise<Message | null> => {
     console.log('useSaveMessage called with:', {
@@ -25,19 +25,28 @@ export const useSaveMessage = (
       userAuthenticated: !!supabase.auth.getSession()
     });
     
-    if (!user || !conversationId) {
-      console.error('Cannot save message: User not authenticated or conversation not initialized');
-      console.error(`User: ${user ? 'authenticated' : 'missing'}, ConversationId: ${conversationId || 'missing'}`);
-      
-      // Show explicit error toast for diagnostic purposes
-      toast.error(`Failed to save message: ${!user ? 'Not logged in' : 'No active conversation'}`);
-      return null;
-    }
-    
-    // Don't save empty messages
+    // Don't save empty messages regardless of user status
     if (!message.content || message.content.trim() === '') {
       console.warn('Skipping empty message save attempt');
       return null;
+    }
+    
+    // ANONYMOUS MODE HANDLING:
+    // If no user or conversation ID, return a simulated message object
+    // This allows the UI to function without database persistence
+    if (!user || !conversationId) {
+      console.log(`👤 Anonymous user message processing: ${message.role} - ${message.content?.substring(0, 30)}...`);
+      
+      // Create a simulated message that the UI can use
+      const simulatedMessage: Message = {
+        id: `anon-${new Date().getTime()}-${Math.random().toString(36).substring(2, 9)}`,
+        role: (message.role as 'user' | 'assistant') || 'user',
+        content: message.content,
+        created_at: new Date().toISOString()
+      };
+      
+      console.log("👤 Created simulated message for anonymous user:", simulatedMessage.id);
+      return simulatedMessage;
     }
     
     try {
@@ -141,54 +150,16 @@ export const useSaveMessage = (
         duration: 4000,
       });
       
-      // Try again after a brief delay for user messages only
-      if (message.role === 'user') {
-        try {
-          console.log('Retrying save for user message after error...');
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          const { data, error: retryError } = await supabase
-            .from('messages')
-            .insert([{
-              conversation_id: conversationId,
-              user_id: user.id,
-              role: message.role,
-              content: message.content
-            }])
-            .select('id, role, content, created_at')
-            .single();
-          
-          if (retryError) {
-            console.error('Error on retry saving message:', retryError);
-            throw retryError;
-          }
-          
-          const validatedMessage: Message = {
-            id: data.id,
-            role: validateRole(data.role),
-            content: data.content,
-            created_at: data.created_at
-          };
-          
-          console.log(`User message saved successfully on retry with ID: ${validatedMessage.id}`);
-          
-          // Show success toast for retry
-          toast.success(`User message saved on retry with ID: ${validatedMessage.id.substring(0, 8)}...`, {
-            id: `save-retry-success-${validatedMessage.id}`,
-            duration: 2000,
-          });
-          
-          return validatedMessage;
-        } catch (retryError) {
-          console.error('Failed to save message after retry:', retryError);
-          toast.error(`Failed to save ${message.role} message even after retry`, {
-            id: `save-retry-error-${Date.now()}`,
-          });
-          throw retryError;
-        }
-      } else {
-        throw error;
-      }
+      // Create a temporary message with a generated ID so UI remains consistent
+      const tempMessage: Message = {
+        id: `temp-${new Date().getTime()}`,
+        role: (message.role as 'user' | 'assistant') || 'user',
+        content: message.content || '',
+        created_at: new Date().toISOString()
+      };
+      
+      console.log(`Created temporary message for ${message.role} due to save error`);
+      return tempMessage;
     }
   };
 
