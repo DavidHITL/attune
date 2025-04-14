@@ -16,8 +16,8 @@ export class FinalTranscriptHandler {
 
     console.log(`📝 Processing final transcript: "${text.substring(0, 50)}..."`);
     
-    // Queue the message with normal priority since it's a final transcript
-    this.messageQueue.queueMessage('user', text, false);
+    // Queue the message as final transcript (high priority to ensure it's processed)
+    this.messageQueue.queueMessage('user', text, true);
     
     // Clear the accumulator after processing
     this.accumulator.reset();

@@ -2,10 +2,12 @@
 import { WebRTCConnection } from '../audio/WebRTCConnection';
 import { AudioProcessor } from '../audio/AudioProcessor';
 import { MessageCallback, SaveMessageCallback } from '../types';
+import { MessageQueue } from './messageQueue';
 
 export class ConnectionManager {
   private webRTCConnection: WebRTCConnection;
   private audioProcessor: AudioProcessor;
+  private messageQueue: MessageQueue | null = null;
   
   constructor(
     private messageHandler: (event: any) => void,
@@ -14,6 +16,20 @@ export class ConnectionManager {
   ) {
     this.webRTCConnection = new WebRTCConnection();
     this.audioProcessor = new AudioProcessor(audioActivityCallback);
+    
+    // Initialize message queue if we have a save callback
+    if (saveMessageCallback) {
+      this.messageQueue = new MessageQueue(saveMessageCallback);
+      
+      // Register the message queue globally for conversation initialization
+      if (typeof window !== 'undefined') {
+        window.attuneMessageQueue = {
+          setConversationInitialized: () => {
+            this.messageQueue?.setConversationInitialized();
+          }
+        };
+      }
+    }
   }
   
   async initialize(): Promise<boolean> {
@@ -62,8 +78,17 @@ export class ConnectionManager {
   }
   
   saveMessage(role: 'user' | 'assistant', content: string): void {
-    if (this.saveMessageCallback && content.trim() !== '') {
-      console.log(`[ConnectionManager] Saving ${role} message: ${content.substring(0, 30)}...`);
+    if (!content || content.trim() === '') {
+      console.log(`[ConnectionManager] Skipping empty ${role} message`);
+      return;
+    }
+    
+    if (this.messageQueue) {
+      console.log(`[ConnectionManager] Queueing ${role} message: ${content.substring(0, 30)}...`);
+      // Use the message queue for better handling of initialization race conditions
+      this.messageQueue.queueMessage(role, content, role === 'user');
+    } else if (this.saveMessageCallback) {
+      console.log(`[ConnectionManager] Direct saving ${role} message: ${content.substring(0, 30)}...`);
       this.saveMessageCallback({
         role,
         content
@@ -78,5 +103,10 @@ export class ConnectionManager {
     this.webRTCConnection.disconnect();
     // Clean up audio resources
     this.audioProcessor.cleanup();
+    
+    // Clean up global reference
+    if (typeof window !== 'undefined' && window.attuneMessageQueue) {
+      delete window.attuneMessageQueue;
+    }
   }
 }

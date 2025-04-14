@@ -5,7 +5,8 @@ import { useConversationHelpers } from "./conversation/useConversationHelpers";
 import { useConversationLoading } from "./conversation/useConversationLoading";
 import { useSaveMessage } from "./conversation/useSaveMessage";
 import { Message, UseConversationReturn } from "@/utils/types";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useEffect } from "react";
+import { toast } from "sonner";
 
 export type { Message };
 
@@ -23,6 +24,7 @@ export const useConversation = (): UseConversationReturn => {
   
   // Use a ref to track if initialization has been done
   const initializedRef = useRef(false);
+  const messageQueueInitializedRef = useRef(false);
   
   const { validateRole, loadMessages: loadMessagesHelper } = useConversationHelpers();
   const { saveMessage: saveMessageToDb } = useSaveMessage(user, conversationId, validateRole);
@@ -53,7 +55,21 @@ export const useConversation = (): UseConversationReturn => {
     initializedRef
   );
 
-  // Enhanced saveMessage with conversation ID handling
+  // Signal to any message queues that the conversation is initialized when ID is set
+  useEffect(() => {
+    if (conversationId && !messageQueueInitializedRef.current) {
+      console.log(`Conversation ID now available: ${conversationId}`);
+      messageQueueInitializedRef.current = true;
+      
+      // Find any existing message queue instances and notify them
+      if (window.attuneMessageQueue) {
+        console.log('Notifying global message queue that conversation is initialized');
+        window.attuneMessageQueue.setConversationInitialized();
+      }
+    }
+  }, [conversationId]);
+
+  // Enhanced saveMessage with conversation ID handling and message queuing awareness
   const saveMessage = useCallback(async (message: Partial<Message>): Promise<Message | null> => {
     try {
       if (!message.role || !message.content) {
@@ -126,3 +142,12 @@ export const useConversation = (): UseConversationReturn => {
     loadMessages
   };
 };
+
+// Add a global reference to the message queue for cross-component communication
+declare global {
+  interface Window {
+    attuneMessageQueue?: {
+      setConversationInitialized: () => void;
+    }
+  }
+}

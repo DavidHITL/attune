@@ -36,7 +36,7 @@ export class MessageEventHandler {
       timestamp: new Date().toISOString()
     });
     
-    // Use the message queue for all user message saves
+    // Queue message with high priority to ensure it's processed even if conversation is initializing
     this.messageQueue.queueMessage('user', content, true);
   }
 }
