@@ -34,8 +34,25 @@ export const useTranscriptHandler = () => {
         return;
       }
       
-      // Save user message with high priority
-      saveUserMessage(event.transcript);
+      // Explicitly save through conversation context (high priority)
+      try {
+        console.log("Saving user message via conversation context:", event.transcript.substring(0, 30));
+        saveMessage({
+          role: 'user',
+          content: event.transcript
+        }).then(savedMsg => {
+          console.log("✅ Successfully saved user transcript to database with ID:", savedMsg?.id);
+        }).catch(err => {
+          console.error("❌ Failed to save user transcript:", err);
+        });
+      } catch (error) {
+        console.error("Error while trying to save user message:", error);
+      }
+      
+      // Also use the direct save method as a fallback
+      if (saveUserMessage) {
+        saveUserMessage(event.transcript);
+      }
       
       // Log key information about conversation state
       console.log("Current conversation ID:", conversationId);
@@ -53,10 +70,27 @@ export const useTranscriptHandler = () => {
       
       if (user && conversationId) {
         // Make sure the final transcript is also saved
-        saveUserMessage(event.transcript.text);
+        try {
+          console.log("Saving final transcript via conversation context:", event.transcript.text.substring(0, 30));
+          saveMessage({
+            role: 'user', 
+            content: event.transcript.text
+          }).then(savedMsg => {
+            console.log("✅ Successfully saved final transcript to database with ID:", savedMsg?.id);
+          }).catch(err => {
+            console.error("❌ Failed to save final transcript:", err);
+          });
+        } catch (error) {
+          console.error("Error while trying to save final transcript:", error);
+        }
+        
+        // Also use the direct save method as a fallback
+        if (saveUserMessage) {
+          saveUserMessage(event.transcript.text);
+        }
       }
     }
-  }, [user, conversationId]);
+  }, [user, conversationId, saveMessage]);
 
   return {
     handleTranscriptEvent

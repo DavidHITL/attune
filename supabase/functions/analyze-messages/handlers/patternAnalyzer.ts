@@ -24,11 +24,40 @@ export async function analyzeUserPatterns(userId: string, conversationId?: strin
       console.error('Error fetching conversation summaries:', summariesError);
     }
     
-    // Get user messages for analysis - REMOVED the role='user' filter to include both user and assistant messages
+    // CRITICAL FIX: Get all messages first to debug what's in the database
+    console.log(`Fetching messages for user ${userId}, this is a critical debugging step`);
+    let allMessagesQuery = supabase
+      .from('messages')
+      .select('content, created_at, role')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(30);
+      
+    const { data: debugMessages, error: debugError } = await allMessagesQuery;
+    
+    if (debugError) {
+      console.error('Debug error fetching all messages:', debugError);
+    } else {
+      console.log(`Found ${debugMessages?.length || 0} total messages in database`);
+      if (debugMessages && debugMessages.length > 0) {
+        const userMsgs = debugMessages.filter(m => m.role === 'user');
+        const assistantMsgs = debugMessages.filter(m => m.role === 'assistant');
+        console.log(`Found ${userMsgs.length} user messages and ${assistantMsgs.length} assistant messages`);
+        
+        if (userMsgs.length > 0) {
+          console.log('Sample user message:', userMsgs[0].content.substring(0, 100));
+        } else {
+          console.error('⚠️ NO USER MESSAGES FOUND - THIS IS THE CRITICAL ISSUE');
+        }
+      }
+    }
+    
+    // Now get user messages for analysis - SPECIFICALLY filter for role='user' messages
     let messagesQuery = supabase
       .from('messages')
       .select('content, created_at, role')
       .eq('user_id', userId)
+      .eq('role', 'user') // Explicitly filter for user messages
       .order('created_at', { ascending: true });
     
     // Filter by conversation if specified
@@ -36,33 +65,19 @@ export async function analyzeUserPatterns(userId: string, conversationId?: strin
       messagesQuery = messagesQuery.eq('conversation_id', conversationId);
     }
     
-    const { data: allMessages, error: messagesError } = await messagesQuery;
+    const { data: userMessages, error: messagesError } = await messagesQuery;
     
     if (messagesError) {
-      console.error('Error fetching messages:', messagesError);
+      console.error('Error fetching user messages:', messagesError);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch messages' }),
+        JSON.stringify({ error: 'Failed to fetch user messages' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    console.log(`Retrieved ${allMessages?.length || 0} total messages for analysis`);
+    console.log(`Retrieved ${userMessages?.length || 0} user messages for analysis`);
     
-    if (!allMessages || allMessages.length === 0) {
-      console.log('No messages found for analysis in database');
-      return new Response(
-        JSON.stringify({ message: 'No messages found for analysis' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Separate user and assistant messages
-    const userMessages = allMessages.filter(msg => msg.role === 'user');
-    const assistantMessages = allMessages.filter(msg => msg.role === 'assistant');
-    
-    console.log(`Found ${userMessages.length} user messages and ${assistantMessages.length} assistant messages for analysis`);
-    
-    if (userMessages.length === 0) {
+    if (!userMessages || userMessages.length === 0) {
       console.log('No user messages found for analysis, cannot proceed');
       return new Response(
         JSON.stringify({ message: 'No user messages found for analysis' }),
@@ -70,6 +85,31 @@ export async function analyzeUserPatterns(userId: string, conversationId?: strin
       );
     }
 
+    // Also get assistant messages for context
+    let assistantMessagesQuery = supabase
+      .from('messages')
+      .select('content, created_at, role')
+      .eq('user_id', userId)
+      .eq('role', 'assistant') // Explicitly filter for assistant messages
+      .order('created_at', { ascending: true });
+      
+    if (conversationId) {
+      assistantMessagesQuery = assistantMessagesQuery.eq('conversation_id', conversationId);
+    }
+    
+    const { data: assistantMessages, error: assistantError } = await assistantMessagesQuery;
+    
+    if (assistantError) {
+      console.error('Error fetching assistant messages:', assistantError);
+    }
+    
+    // Combine user and assistant messages and sort by creation time
+    const allMessages = [...(userMessages || []), ...(assistantMessages || [])].sort((a, b) => {
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
+    
+    console.log(`Combined ${userMessages.length} user messages and ${assistantMessages?.length || 0} assistant messages for analysis`);
+    
     // Prepare summary context if available
     let summaryContext = "";
     if (summaries && summaries.length > 0) {
@@ -146,7 +186,7 @@ export async function analyzeUserPatterns(userId: string, conversationId?: strin
         analysis: savedAnalysis,
         stats: {
           userMessages: userMessages.length,
-          assistantMessages: assistantMessages.length,
+          assistantMessages: assistantMessages?.length || 0,
           totalMessages: allMessages.length,
         }
       }),
