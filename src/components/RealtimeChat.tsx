@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useConversation } from '@/hooks/useConversation';
-import { useChatClient } from './voice/useChatClient';
+import { useChatClient } from '@/hooks/voice/useChatClient';
 import { useCallControls } from '@/hooks/voice/useCallControls';
 import VoiceCallUI from './voice/VoiceCallUI';
 import { supabase } from '@/integrations/supabase/client';

@@ -7,8 +7,9 @@ import { useConnectionManager } from '@/hooks/voice/useConnectionManager';
 import { useVoiceChatLogger } from '@/hooks/voice/useVoiceChatLogger';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { useVoiceStateManagement } from './useVoiceStateManagement';
-import { useVoiceEvents } from './useVoiceEvents';
+import { useVoiceStateManagement } from '@/hooks/voice/useVoiceStateManagement';
+import { useVoiceEvents } from '@/hooks/voice/useVoiceEvents';
+import { useVoiceChatAnalysis } from '@/hooks/voice/useVoiceChatAnalysis';
 
 /**
  * Main hook for chat client functionality, refactored for improved modularity and reliability
@@ -35,6 +36,9 @@ export const useChatClient = () => {
     updateMessagesContext,
     handleSessionCreated
   } = useVoiceStateManagement();
+
+  // Set up background analysis when voice chat sessions end
+  useVoiceChatAnalysis(isConnected);
 
   // Get enhanced voice event handling with unified transcript processing
   const { handleVoiceEvent } = useVoiceEvents(chatClientRef, setVoiceActivityState);
