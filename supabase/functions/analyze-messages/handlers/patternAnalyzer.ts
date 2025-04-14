@@ -1,11 +1,10 @@
-
 import { corsHeaders } from '../utils/cors.ts';
 import { supabase } from '../index.ts';
 import { analyzeWithOpenAI } from '../services/openaiService.ts';
 
 // Function to analyze user message patterns according to Terry Real's framework
 export async function analyzeUserPatterns(userId: string, conversationId?: string) {
-  console.log(`Analyzing patterns for user ${userId}, conversation ${conversationId || 'all'}`);
+  console.log(`Starting pattern analysis for user ${userId}, conversation ${conversationId || 'all'}`);
   
   try {
     // Get conversation summaries for additional context
@@ -47,8 +46,10 @@ export async function analyzeUserPatterns(userId: string, conversationId?: strin
       );
     }
     
+    console.log(`Retrieved ${allMessages?.length || 0} total messages for analysis`);
+    
     if (!allMessages || allMessages.length === 0) {
-      console.log('No messages found for analysis');
+      console.log('No messages found for analysis in database');
       return new Response(
         JSON.stringify({ message: 'No messages found for analysis' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -68,7 +69,7 @@ export async function analyzeUserPatterns(userId: string, conversationId?: strin
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
+
     // Prepare summary context if available
     let summaryContext = "";
     if (summaries && summaries.length > 0) {
@@ -111,6 +112,7 @@ export async function analyzeUserPatterns(userId: string, conversationId?: strin
     // Combined context with summaries and conversation history
     const analysisContent = summaryContext + "\n\nCONVERSATION HISTORY:\n\n" + conversationHistory;
     
+    // Add logging for conversation content
     console.log(`Prepared analysis content with ${analysisContent.length} characters`);
     console.log(`First 200 chars of analysis content: ${analysisContent.substring(0, 200)}`);
     

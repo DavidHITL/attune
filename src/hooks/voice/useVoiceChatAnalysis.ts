@@ -19,10 +19,33 @@ export const useVoiceChatAnalysis = (isConnected: boolean) => {
     const wasConnected = isConnected === false;
     
     const runAnalysisInBackground = async () => {
-      if (!user) return;
+      if (!user) {
+        console.log("Cannot run analysis - no authenticated user");
+        return;
+      }
       
       try {
-        console.log("Running background voice chat analysis");
+        console.log("Running background voice chat analysis for user:", user.id);
+        
+        // First verify we have messages to analyze
+        const { data: messagesCheck, error: checkError } = await supabase
+          .from('messages')
+          .select('id, role')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+          
+        if (checkError) {
+          console.error("Error checking for messages:", checkError);
+          return;
+        }
+        
+        if (!messagesCheck || messagesCheck.length === 0) {
+          console.log("No messages found in database for user", user.id);
+          return;
+        }
+        
+        console.log(`Found ${messagesCheck.length} messages to analyze`);
         
         // Begin analysis in the background using the edge function
         const response = await supabase.functions.invoke('analyze-messages', {
@@ -51,8 +74,10 @@ export const useVoiceChatAnalysis = (isConnected: boolean) => {
     };
     
     if (wasConnected) {
+      console.log("Voice chat session ended, scheduling analysis");
       // Small delay to ensure all messages are saved before analysis
       analysisTimerRef = setTimeout(() => {
+        console.log("Running delayed analysis after session end");
         // Run without toast notifications since this is automatic
         runAnalysisInBackground();
       }, 3000);
