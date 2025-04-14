@@ -27,18 +27,27 @@ export async function requestOpenAIToken(instructions: string, voice: string): P
     console.log("[REALTIME-TOKEN] New instructions length:", finalInstructions.length);
   }
 
+  // Validate voice parameter against supported voices
+  const supportedVoices = ['alloy', 'echo', 'sage', 'ash', 'coral', 'shimmer', 'verse', 'ballad'];
+  const defaultVoice = 'alloy';
+  let safeVoice = supportedVoices.includes(voice) ? voice : defaultVoice;
+  
+  if (voice && voice !== safeVoice) {
+    console.log(`[REALTIME-TOKEN] Provided voice "${voice}" is not supported. Using default voice "${defaultVoice}" instead.`);
+  }
+
   try {
     console.log("[REALTIME-TOKEN] Sending request to OpenAI API with final instructions");
     console.log("[REALTIME-TOKEN] Final instructions first 200 chars:", finalInstructions.substring(0, 200));
     console.log("[REALTIME-TOKEN] Final instructions last 200 chars:", finalInstructions.substring(finalInstructions.length - 200));
-    console.log("[REALTIME-TOKEN] Using voice:", voice);
+    console.log("[REALTIME-TOKEN] Using voice:", safeVoice);
     
     // Check if final instructions contain the Terry Real prompt
     console.log(`[REALTIME-TOKEN] Final instructions contain Terry Real prompt: ${finalInstructions.includes(terryRealPrompt)}`);
     
     const requestBody = {
       model: "gpt-4o-realtime-preview-2024-12-17",
-      voice: voice,
+      voice: safeVoice,
       instructions: finalInstructions
     };
     
@@ -61,7 +70,7 @@ export async function requestOpenAIToken(instructions: string, voice: string): P
     console.log("[REALTIME-TOKEN] OpenAI session created successfully");
     console.log("[REALTIME-TOKEN] Response status:", response.status);
     console.log("[REALTIME-TOKEN] Response contains client_secret:", !!responseData?.client_secret);
-    console.log("[REALTIME-TOKEN] Voice used:", voice);
+    console.log("[REALTIME-TOKEN] Voice used:", safeVoice);
     
     return responseData;
   } catch (error) {

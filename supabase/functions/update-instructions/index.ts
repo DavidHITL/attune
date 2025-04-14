@@ -24,12 +24,21 @@ serve(async (req) => {
     console.log("Instructions excerpt:", instructions.substring(0, 100) + "...");
     console.log("Voice setting:", voice);
     
+    // Validate voice parameter against supported voices
+    const supportedVoices = ['alloy', 'echo', 'sage', 'ash', 'coral', 'shimmer', 'verse', 'ballad'];
+    const defaultVoice = 'alloy';
+    let safeVoice = voice && supportedVoices.includes(voice) ? voice : defaultVoice;
+    
+    if (voice && voice !== safeVoice) {
+      console.log(`Provided voice "${voice}" is not supported. Using default voice "${defaultVoice}" instead.`);
+    }
+    
     // Update the most recent bot config with both instructions and voice
     const { data, error } = await supabase
       .from('bot_config')
       .update({ 
         instructions: instructions,
-        voice: voice || 'alloy', // Default to 'alloy' if no voice is provided
+        voice: safeVoice,
         updated_at: new Date().toISOString()
       })
       .order('created_at', { ascending: false })
@@ -41,12 +50,12 @@ serve(async (req) => {
     }
     
     console.log("Bot config updated successfully");
-    console.log("Voice set to:", voice || 'alloy');
+    console.log("Voice set to:", safeVoice);
     
     return new Response(JSON.stringify({ 
       success: true, 
       message: "Bot configuration updated successfully",
-      voice: voice || 'alloy'
+      voice: safeVoice
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
