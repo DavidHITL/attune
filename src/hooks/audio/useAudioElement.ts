@@ -26,17 +26,28 @@ export function useAudioElement({
   const retryCountRef = useRef(0);
   const maxRetries = 3;
   const objectUrlRef = useRef<string | null>(null);
+  // Critical flag to prevent recursive creation
   const audioCreationInProgressRef = useRef(false);
+  // Add a creation attempt counter to prevent infinite loops
+  const creationAttemptsRef = useRef(0);
+  const MAX_CREATION_ATTEMPTS = 2;
   
   // Create audio element with proper initialization sequence
   const createAudio = useCallback(() => {
-    // Prevent recursive audio creation
+    // Strict prevention of recursive audio creation
     if (audioCreationInProgressRef.current) {
       console.log("Audio creation already in progress, skipping duplicate creation");
       return audioRef.current;
     }
     
-    console.log("Creating audio element with URL:", audioUrl);
+    // Hard limit on number of creation attempts
+    if (creationAttemptsRef.current >= MAX_CREATION_ATTEMPTS) {
+      console.log(`Maximum audio creation attempts (${MAX_CREATION_ATTEMPTS}) reached, using existing audio element`);
+      return audioRef.current;
+    }
+    
+    creationAttemptsRef.current++;
+    console.log(`Creating audio element attempt ${creationAttemptsRef.current}/${MAX_CREATION_ATTEMPTS} with URL:`, audioUrl);
     audioCreationInProgressRef.current = true;
     
     // Validate URL before proceeding
@@ -85,7 +96,9 @@ export function useAudioElement({
           setCurrentTime(time);
         },
         
-        onEnded: onComplete,
+        onEnded: () => {
+          if (onComplete) onComplete();
+        },
         
         onError: (e) => {
           audioCreationInProgressRef.current = false;
@@ -93,24 +106,25 @@ export function useAudioElement({
           const errorMessage = audio.error ? audio.error.message : "Unknown audio error";
           console.error(`Audio error: code=${errorCode}, message=${errorMessage}`, e);
           
-          handleAudioLoadError(audio, audioUrl, retryCountRef, {
-            maxRetries,
-            onMaxRetriesReached: onError
-          });
-        },
-        
-        initialPosition: initialProgress
+          if (retryCountRef.current < maxRetries) {
+            retryCountRef.current++;
+          } else if (onError) {
+            onError(new Error(`Failed to load audio after ${maxRetries} attempts: ${errorMessage}`));
+          }
+        }
       });
       
       // Important: Use the cache system to improve reliability
       getAudioObjectUrl(audioUrl)
         .then(objectUrl => {
+          if (!audio) return; // Audio might have been cleaned up
           objectUrlRef.current = objectUrl;
           audio.src = objectUrl;
           audio.load(); // Explicitly call load
           console.log("Setting audio source to cached/fetched object URL");
         })
         .catch(error => {
+          if (!audio) return; // Audio might have been cleaned up
           audioCreationInProgressRef.current = false;
           console.error("Failed to get object URL, falling back to direct URL:", error);
           // Fall back to direct URL with cache busting as before
@@ -131,26 +145,32 @@ export function useAudioElement({
   
   // Set up audio element with proper timing
   useEffect(() => {
+    // Reset creation attempts when URL changes
+    creationAttemptsRef.current = 0;
+    audioCreationInProgressRef.current = false;
+
     // Validate URL thoroughly before proceeding
     if (!isValidAudioUrl(audioUrl)) {
       if (onError) onError(new Error("Invalid audio URL provided"));
       return () => {};
     }
     
-    // Use setTimeout to ensure component is fully mounted before creating audio
-    const timeoutId = setTimeout(() => {
-      // Only create audio if none exists yet
-      if (!audioRef.current) {
+    // Only create audio if none exists yet - ONCE
+    if (!audioRef.current && creationAttemptsRef.current === 0) {
+      // Use requestAnimationFrame instead of setTimeout for better timing
+      const animFrameId = requestAnimationFrame(() => {
         const audio = createAudio();
         if (!audio && onError) {
           onError(new Error("Failed to create audio element"));
         }
-      }
-    }, 100);
+      });
+      
+      return () => {
+        cancelAnimationFrame(animFrameId);
+      };
+    }
     
     return () => {
-      clearTimeout(timeoutId);
-      
       // Clean up object URL if it exists
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);

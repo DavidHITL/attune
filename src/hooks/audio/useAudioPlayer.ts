@@ -1,8 +1,9 @@
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAudioElement } from './useAudioElement';
 import { useAudioProgress } from './useAudioProgress';
 import { usePlaybackControls } from './usePlaybackControls';
+import { useAudioHeartbeat } from './utils/audioHeartbeat';
 import { toast } from 'sonner';
 
 interface UseAudioPlayerProps {
@@ -20,7 +21,8 @@ export function useAudioPlayer({
 }: UseAudioPlayerProps) {
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [lastPlayAttempt, setLastPlayAttempt] = useState(0);
+  const lastProgressUpdateRef = useRef(0);
+  const lastProgressValueRef = useRef(0);
   
   // Validate the URL thoroughly before proceeding
   const isValidUrl = useCallback((url: string): boolean => {
@@ -73,18 +75,6 @@ export function useAudioPlayer({
     createAudio
   });
   
-  // Wrapper for togglePlayPause to prevent rapid repeated clicks
-  const handleTogglePlayPause = useCallback(() => {
-    const now = Date.now();
-    // Debounce play attempts with 1000ms (1 second) threshold
-    if (now - lastPlayAttempt > 1000) {
-      setLastPlayAttempt(now);
-      togglePlayPause();
-    } else {
-      console.log("Ignoring rapid play request");
-    }
-  }, [togglePlayPause, lastPlayAttempt]);
-  
   const { 
     handleSeek,
     skipBackward,
@@ -99,20 +89,29 @@ export function useAudioPlayer({
     isPlaying
   });
   
-  // Update progress periodically and keep playback alive
-  useEffect(() => {
-    if (!validatedUrl || !isPlaying || !onProgressUpdate) return;
+  // Debounced progress update to prevent excessive database calls
+  const handleProgressUpdate = useCallback((seconds: number) => {
+    const now = Date.now();
     
-    // Update progress every 5 seconds
-    const updateInterval = setInterval(() => {
-      if (audioRef.current && !audioRef.current.paused) {
-        // Ensure we're sending an integer value
-        onProgressUpdate(Math.floor(audioRef.current.currentTime));
-      }
-    }, 5000);
-    
-    return () => clearInterval(updateInterval);
-  }, [isPlaying, audioRef, validatedUrl, onProgressUpdate]);
+    // Don't update progress too frequently (at most every 3 seconds)
+    // And only when there's been an actual change in position
+    if (
+      now - lastProgressUpdateRef.current > 3000 &&
+      Math.abs(seconds - lastProgressValueRef.current) > 1
+    ) {
+      lastProgressUpdateRef.current = now;
+      lastProgressValueRef.current = seconds;
+      onProgressUpdate(Math.floor(seconds));
+    }
+  }, [onProgressUpdate]);
+  
+  // Use the standalone heartbeat hook
+  useAudioHeartbeat({
+    audioRef,
+    isPlaying,
+    currentTime,
+    onProgressUpdate: handleProgressUpdate
+  });
 
   return {
     isPlaying,
@@ -120,7 +119,7 @@ export function useAudioPlayer({
     currentTime,
     loaded,
     error: loadError,
-    togglePlayPause: handleTogglePlayPause,
+    togglePlayPause,
     handleSeek,
     skipBackward,
     skipForward,

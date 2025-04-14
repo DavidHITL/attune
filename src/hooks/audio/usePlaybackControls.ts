@@ -1,5 +1,5 @@
 
-import { useState, useCallback, RefObject, useEffect } from 'react';
+import { useState, useCallback, RefObject, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
 interface UsePlaybackControlsProps {
@@ -14,12 +14,21 @@ export function usePlaybackControls({
   createAudio
 }: UsePlaybackControlsProps) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const retryCountRef = { current: 0 };
-  const maxRetries = 3;
-  const playAttemptInProgressRef = { current: false };
+  const playAttemptInProgressRef = useRef(false);
+  const lastPlayAttemptTimeRef = useRef(0);
+  const DEBOUNCE_TIME = 1000; // 1 second debounce
   
-  // Handle play/pause
+  // Handle play/pause with strong debouncing
   const togglePlayPause = useCallback(() => {
+    // Strong debounce - ignore rapid repeated calls
+    const now = Date.now();
+    if (now - lastPlayAttemptTimeRef.current < DEBOUNCE_TIME) {
+      console.log("Ignoring rapid play attempt");
+      return;
+    }
+    
+    lastPlayAttemptTimeRef.current = now;
+    
     // Prevent multiple simultaneous play attempts
     if (playAttemptInProgressRef.current) {
       console.log("Play attempt already in progress, ignoring duplicate request");
@@ -28,21 +37,6 @@ export function usePlaybackControls({
     
     if (!audioRef.current) {
       console.warn("No audio element available for playback");
-      
-      // Try to recreate the audio element as a recovery measure
-      const audio = createAudio();
-      if (!audio) {
-        toast.error("Unable to play audio. Audio source not available.");
-        return;
-      }
-      
-      // If we got here, we have a new audio element
-      console.log("Created new audio element for playback");
-    }
-    
-    if (!audioRef.current) {
-      console.error("Failed to create audio element");
-      toast.error("Unable to play audio. Please try again later.");
       return;
     }
     
@@ -64,19 +58,8 @@ export function usePlaybackControls({
         }).catch(err => {
           console.error("Error playing audio:", err);
           playAttemptInProgressRef.current = false;
-          
-          // If playback fails, try to recreate the audio element - but only once
-          if (retryCountRef.current < 1) {
-            retryCountRef.current += 1;
-            console.log(`Recreating audio element, attempt ${retryCountRef.current}/${maxRetries}`);
-            
-            // Don't try to create a new audio immediately, just notify the user
-            toast.error("Failed to play audio. Please try again.");
-            setIsPlaying(false);
-          } else {
-            toast.error("Failed to play audio. Please try again later.");
-            setIsPlaying(false);
-          }
+          setIsPlaying(false);
+          toast.error("Failed to play audio. Please try again.");
         });
       } else {
         // For older browsers where play() doesn't return a promise
@@ -84,7 +67,7 @@ export function usePlaybackControls({
         playAttemptInProgressRef.current = false;
       }
     }
-  }, [isPlaying, audioRef, currentTime, createAudio]);
+  }, [audioRef, isPlaying]);
 
   // Event listeners for play/pause state sync
   useEffect(() => {
@@ -112,11 +95,6 @@ export function usePlaybackControls({
       console.error("Audio playback error:", e);
       setIsPlaying(false);
       playAttemptInProgressRef.current = false;
-      
-      // Only show toast for user-initiated actions to avoid spam
-      if (isPlaying) {
-        toast.error("Audio playback error. Please try again.");
-      }
     };
     
     audioRef.current.addEventListener('play', handlePlay);
@@ -132,7 +110,7 @@ export function usePlaybackControls({
         audioRef.current.removeEventListener('error', handleError);
       }
     };
-  }, [audioRef, isPlaying]);
+  }, [audioRef]);
 
   return {
     isPlaying,
