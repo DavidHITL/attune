@@ -1,16 +1,13 @@
 
-import React, { useCallback } from 'react';
-import { VoiceActivityState } from './VoiceActivityIndicator';
+import React from 'react';
 import { useConversation } from '@/hooks/useConversation';
-import { useAuth } from '@/context/AuthContext';
-import VoiceAssistantDisplay from './voice/VoiceAssistantDisplay';
 import { useChatClient } from './voice/useChatClient';
+import VoiceAssistantDisplay from './voice/VoiceAssistantDisplay';
 import { BackgroundCircles } from '@/components/ui/background-circles';
 import { Skeleton } from '@/components/ui/skeleton';
 import AttuneLogo from '@/components/AttuneLogo';
 
 const RealtimeChat: React.FC = () => {
-  const { user } = useAuth();
   const { messages, loading: conversationLoading } = useConversation();
   
   const {
@@ -26,14 +23,6 @@ const RealtimeChat: React.FC = () => {
     toggleMicrophone,
     toggleMute
   } = useChatClient();
-
-  // Prevent auto-connecting - only connect when user explicitly requests it
-  const handleStartConversation = useCallback(() => {
-    if (!isConnected) {
-      console.log("User initiated conversation start");
-      startConversation();
-    }
-  }, [isConnected, startConversation]);
 
   // Show a loading skeleton while conversation data is loading
   if (conversationLoading) {
@@ -82,7 +71,7 @@ const RealtimeChat: React.FC = () => {
           onToggleMicrophone={toggleMicrophone}
           onToggleMute={toggleMute}
           onEndConversation={endConversation}
-          onStartConversation={handleStartConversation}
+          onStartConversation={startConversation}
         />
       </div>
     </div>
