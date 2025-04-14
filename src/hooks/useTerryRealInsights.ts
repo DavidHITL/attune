@@ -4,6 +4,26 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { UserInsight } from '@/utils/types';
 
+// Extract formatStrategy as a standalone function
+export const formatStrategy = (strategy: string): string => {
+  if (!strategy) return 'Unknown';
+  
+  switch (strategy) {
+    case 'beingRight':
+      return 'Being Right';
+    case 'control':
+      return 'Control';
+    case 'unbridledExpression':
+      return 'Unbridled Self-Expression';
+    case 'retaliation':
+      return 'Retaliation';
+    case 'withdrawal':
+      return 'Withdrawal';
+    default:
+      return strategy.charAt(0).toUpperCase() + strategy.slice(1);
+  }
+};
+
 export const useTerryRealInsights = () => {
   const { user } = useAuth();
   const [insights, setInsights] = useState<UserInsight | null>(null);
@@ -157,29 +177,12 @@ export const useTerryRealInsights = () => {
     }
   };
   
-  const formatStrategy = (strategy: string): string => {
-    if (!strategy) return 'Unknown';
-    
-    switch (strategy) {
-      case 'beingRight':
-        return 'Being Right';
-      case 'control':
-        return 'Control';
-      case 'unbridledExpression':
-        return 'Unbridled Self-Expression';
-      case 'retaliation':
-        return 'Retaliation';
-      case 'withdrawal':
-        return 'Withdrawal';
-      default:
-        return strategy.charAt(0).toUpperCase() + strategy.slice(1);
-    }
-  };
+  
   
   return {
     insights,
     loading,
     refreshInsights,
-    formatStrategy
+    formatStrategy // Now explicitly returned
   };
 };
