@@ -43,11 +43,20 @@ export class MicrophoneManager {
     if (this.isMuted) {
       // When muted, completely stop the microphone at device level
       console.log("[MicrophoneManager] Completely stopping microphone (device level)");
-      this.connectionManager.completelyStopMicrophone();
+      this.completelyStopMicrophone();
     } else {
       // When not muted, just force pause
       this.connectionManager.forcePauseMicrophone();
     }
+  }
+  
+  /**
+   * Completely stop microphone at device level
+   */
+  completelyStopMicrophone(): void {
+    console.log("[MicrophoneManager] Completely stopping microphone at device level");
+    this.microphonePaused = true;
+    this.connectionManager.completelyStopMicrophone();
   }
   
   /**
@@ -73,7 +82,7 @@ export class MicrophoneManager {
     // When muting, completely stop microphone to ensure it's completely disabled at device level
     if (muted) {
       console.log("[MicrophoneManager] Mute ON: Completely stopping microphone at device level");
-      this.connectionManager.completelyStopMicrophone();
+      this.completelyStopMicrophone();
     }
     // When unmuting, the microphone state will be managed by the calling code
   }

@@ -1,5 +1,4 @@
 
-import { ConnectionManager } from '../../audio/ConnectionManager';
 import { MessageQueue } from '../messageQueue';
 import { ResponseParser } from '../ResponseParser';
 import { EventHandler } from '../EventHandler';
@@ -9,6 +8,7 @@ import { TranscriptEventHandler } from '../events/TranscriptEventHandler';
 import { MessageCallback, StatusCallback, SaveMessageCallback } from '../../types';
 import { MessageEventHandler } from '../handlers/MessageEventHandler';
 import { toast } from 'sonner';
+import { ConnectionManager } from '../../audio/ConnectionManager';
 
 export class RealtimeChatCore {
   private connectionManager: ConnectionManager;
@@ -84,6 +84,12 @@ export class RealtimeChatCore {
 
   private saveUserMessage(content: string) {
     this.messageEventHandler.saveUserMessage(content);
+  }
+
+  // Add flushPendingMessages method
+  flushPendingMessages() {
+    console.log("Flushing pending messages in RealtimeChatCore");
+    this.eventHandler.flushPendingMessages();
   }
 
   // Forward necessary methods to their respective managers

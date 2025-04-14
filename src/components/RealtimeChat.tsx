@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import { useChatClient } from '@/hooks/voice/useChatClient';
@@ -62,7 +63,7 @@ const RealtimeChat: React.FC = () => {
     <>
       {!user && (
         <div className="mb-4">
-          <Alert variant="warning" className="bg-amber-500/10 border-amber-500/50">
+          <Alert variant="default" className="bg-amber-500/10 border-amber-500/50">
             <AlertCircle className="h-4 w-4 text-amber-500" />
             <AlertTitle className="text-amber-500">Anonymous Mode</AlertTitle>
             <AlertDescription className="text-amber-400">
