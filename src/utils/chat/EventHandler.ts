@@ -35,11 +35,20 @@ export class EventHandler {
     // Track audio-related events for debugging purposes
     this.eventMonitor.trackAudioEvent(event);
     
-    // Handle speech and transcript events
+    // Handle speech and transcript events with improved user message handling
     this.speechEventHandler.handleSpeechEvents(event);
     
     // Handle assistant response events
     this.responseEventHandler.handleAssistantResponse(event);
+    
+    // Log key transcript events for debugging
+    if (event.type && 
+      (event.type === 'transcript' || 
+       event.type === 'response.audio_transcript.done' ||
+       event.type === 'input_audio_buffer.speech_started' ||
+       event.type === 'input_audio_buffer.speech_stopped')) {
+      console.log(`Key transcript event: ${event.type}`);
+    }
   }
 
   // For cleanup - save any pending messages

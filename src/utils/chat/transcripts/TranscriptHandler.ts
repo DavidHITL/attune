@@ -1,4 +1,3 @@
-
 import { MessageQueue } from '../messageQueue';
 import { toast } from 'sonner';
 
@@ -19,7 +18,7 @@ export class TranscriptHandler {
   handleTranscriptDelta(deltaText: string): void {
     if (deltaText) {
       this.userTranscript += deltaText;
-      console.log(`Accumulating user transcript (${this.userTranscript.length} chars): "${this.userTranscript}"`);
+      console.log(`Accumulating user transcript (${this.userTranscript.length} chars): "${this.userTranscript.substring(0, 50)}${this.userTranscript.length > 50 ? '...' : ''}"`);
       this.lastTranscriptTime = Date.now();
     }
   }
@@ -31,11 +30,11 @@ export class TranscriptHandler {
     if (transcript && transcript.trim()) {
       // Check for duplicates
       if (this.processedTranscripts.has(transcript)) {
-        console.log("Duplicate transcript detected, skipping:", transcript);
+        console.log("Duplicate transcript detected, skipping:", transcript.substring(0, 50));
         return;
       }
       
-      console.log("Saving direct user transcript:", transcript);
+      console.log("Saving direct user transcript:", transcript.substring(0, 50));
       this.messageQueue.queueMessage('user', transcript, true); // High priority save
       this.processedTranscripts.add(transcript);
       
@@ -56,11 +55,11 @@ export class TranscriptHandler {
     if (content && content.trim()) {
       // Check for duplicates
       if (this.processedTranscripts.has(content)) {
-        console.log("Duplicate final transcript detected, skipping:", content);
+        console.log("Duplicate final transcript detected, skipping:", content.substring(0, 50));
         return;
       }
       
-      console.log("Final user transcript received:", content);
+      console.log("Final user transcript received:", content.substring(0, 50));
       this.messageQueue.queueMessage('user', content, true); // High priority save
       this.processedTranscripts.add(content);
       
@@ -74,7 +73,7 @@ export class TranscriptHandler {
       });
     } else if (this.userTranscript && this.userTranscript.trim()) {
       // Fallback to accumulated transcript if final is missing
-      console.log("Using accumulated user transcript:", this.userTranscript);
+      console.log("Using accumulated user transcript:", this.userTranscript.substring(0, 50));
       
       // Check for duplicates
       if (!this.processedTranscripts.has(this.userTranscript)) {
@@ -93,6 +92,9 @@ export class TranscriptHandler {
       console.log("Empty user transcript, not saving");
       this.userSpeechDetected = false;
     }
+    
+    // Clean up transcript processing to prevent memory leaks
+    this.cleanupProcessedTranscripts();
   }
   
   /**
@@ -112,10 +114,10 @@ export class TranscriptHandler {
       
       // If we have transcript, save it after a small delay to allow for final transcripts
       if (this.userTranscript && this.userTranscript.trim()) {
-        console.log(`User speech stopped with transcript: "${this.userTranscript}"`);
+        console.log(`User speech stopped with transcript: "${this.userTranscript.substring(0, 50)}${this.userTranscript.length > 50 ? '...' : ''}"`);
         setTimeout(() => {
           if (this.userTranscript && this.userTranscript.trim()) {
-            console.log("Saving speech-stopped transcript:", this.userTranscript);
+            console.log("Saving speech-stopped transcript:", this.userTranscript.substring(0, 50));
             
             // Check for duplicates
             if (!this.processedTranscripts.has(this.userTranscript)) {
@@ -170,7 +172,7 @@ export class TranscriptHandler {
    */
   flushPendingTranscript(): void {
     if (this.userTranscript && this.userTranscript.trim()) {
-      console.log("Saving partial user transcript during disconnect:", this.userTranscript);
+      console.log("Saving partial user transcript during disconnect:", this.userTranscript.substring(0, 50));
       
       // Check for duplicates
       if (!this.processedTranscripts.has(this.userTranscript)) {
@@ -182,6 +184,17 @@ export class TranscriptHandler {
           duration: 2000,
         });
       }
+    }
+  }
+  
+  /**
+   * Clean up processed transcripts to prevent memory leaks
+   */
+  cleanupProcessedTranscripts(): void {
+    // Only keep the last 25 processed transcripts
+    if (this.processedTranscripts.size > 25) {
+      const toRemove = Array.from(this.processedTranscripts).slice(0, this.processedTranscripts.size - 25);
+      toRemove.forEach(transcript => this.processedTranscripts.delete(transcript));
     }
   }
   

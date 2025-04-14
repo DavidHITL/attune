@@ -1,4 +1,3 @@
-
 import { Message, SaveMessageCallback } from '../../types';
 import { toast } from 'sonner';
 
@@ -9,13 +8,14 @@ export class UserMessageHandler {
   private userTranscriptAccumulator: string = '';
   private pendingMessages: Set<string> = new Set();
   private messageCount: number = 0;
+  private processedMessages: Set<string> = new Set();
   
   constructor(
     private saveMessageCallback: SaveMessageCallback
   ) {}
   
   /**
-   * Save a user message with multiple retry attempts
+   * Save a user message with multiple retry attempts and duplicate prevention
    */
   async saveUserMessage(content: string, attempt: number = 1): Promise<void> {
     // Skip empty messages
@@ -23,6 +23,16 @@ export class UserMessageHandler {
       console.log("Skipping empty user message");
       return;
     }
+    
+    // Skip if we've already processed this message recently
+    const messageFingerprint = content.substring(0, 50);
+    if (this.processedMessages.has(messageFingerprint)) {
+      console.log(`Skipping duplicate user message: ${messageFingerprint}...`);
+      return;
+    }
+    
+    // Track this message to prevent duplicates
+    this.processedMessages.add(messageFingerprint);
     
     // Generate a unique ID for tracking this message
     const messageId = `user-${Date.now()}-${this.messageCount++}`;
@@ -130,6 +140,17 @@ export class UserMessageHandler {
       this.userTranscriptAccumulator = '';
     } else {
       console.log("No accumulated transcript to save");
+    }
+  }
+  
+  /**
+   * Clean up old processed messages to prevent memory leaks
+   */
+  cleanupProcessedMessages(): void {
+    // Only keep the last 25 processed messages
+    if (this.processedMessages.size > 25) {
+      const toRemove = Array.from(this.processedMessages).slice(0, this.processedMessages.size - 25);
+      toRemove.forEach(msg => this.processedMessages.delete(msg));
     }
   }
   

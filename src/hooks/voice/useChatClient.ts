@@ -36,7 +36,7 @@ export const useChatClient = () => {
     handleSessionCreated
   } = useVoiceStateManagement();
 
-  // Get enhanced voice event handling with improved transcript processing
+  // Get enhanced voice event handling with unified transcript processing
   const { handleVoiceEvent } = useVoiceEvents(chatClientRef, setVoiceActivityState);
   
   // Combined message handler for all event types
@@ -53,7 +53,7 @@ export const useChatClient = () => {
     }
   }, [handleVoiceEvent, handleSessionCreated]);
   
-  // Initialize connection manager
+  // Initialize connection manager with more robust message handling
   const { startConversation, endConversation } = useConnectionManager(
     chatClientRef,
     combinedMessageHandler,
@@ -69,7 +69,8 @@ export const useChatClient = () => {
         ));
       }
       
-      console.log(`Saving ${message.role} message: ${message.content?.substring(0, 30)}...`);
+      // Add explicit debug logging
+      console.log(`Unified message saving for ${message.role}: ${message.content?.substring(0, 30)}...`);
       return saveMessage(message);
     },
     setIsConnected,

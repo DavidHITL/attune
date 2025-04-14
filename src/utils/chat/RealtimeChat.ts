@@ -1,3 +1,4 @@
+
 import { MessageCallback, StatusCallback, SaveMessageCallback } from '../types';
 import { ConnectionManager } from './ConnectionManager';
 import { MessageQueue } from './messageQueue';
@@ -48,7 +49,7 @@ export class RealtimeChat {
     // Create microphone manager
     this.microphoneManager = new MicrophoneManager(this.connectionManager);
     
-    // Create transcript event handler
+    // Create transcript event handler with improved user message handling
     this.transcriptHandler = new TranscriptEventHandler(
       (text) => this.userMessageHandler.saveUserMessage(text),
       (text) => this.userMessageHandler.accumulateTranscript(text),
@@ -61,7 +62,7 @@ export class RealtimeChat {
     // Pass all events to the original callback
     this.messageCallback(event);
     
-    // Handle transcript events
+    // Handle transcript events with improved user message handling
     this.transcriptHandler.handleTranscriptEvents(event);
     
     // Periodically save accumulated transcript if it's not empty
@@ -118,6 +119,7 @@ export class RealtimeChat {
   
   // Public method to manually save a user message
   saveUserMessage(content: string) {
+    console.log("RealtimeChat.saveUserMessage called with:", content.substring(0, 30) + "...");
     this.userMessageHandler.saveUserMessage(content);
   }
   

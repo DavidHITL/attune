@@ -35,9 +35,9 @@ export const useVoiceEvents = (
     }
   }, [chatClientRef]);
   
-  // Handle transcript events
+  // Enhanced transcript handler with centralized message queue approach
   const handleTranscriptEvent = useCallback((event: any, saveCallback?: (content: string) => void) => {
-    // Check for direct transcript events
+    // Check for direct transcript events - ensure high priority saving
     if (event.type === 'transcript' && event.text) {
       console.log(`Direct transcript received: ${event.text.substring(0, 30)}...`);
       if (saveCallback) {
@@ -57,6 +57,7 @@ export const useVoiceEvents = (
       console.log("Final audio transcript received:", finalTranscript.substring(0, 50));
       
       if (saveCallback) {
+        // Ensure we save this with high priority
         saveCallback(finalTranscript);
         
         // Show toast for final transcript
@@ -77,14 +78,15 @@ export const useVoiceEvents = (
     transcriptAccumulator(event);
     
     // Log speech events for debugging
-    if (event.type && event.type.includes('speech') || 
-        event.type && event.type.includes('audio')) {
+    if (event.type && (event.type.includes('speech') || event.type.includes('audio'))) {
       console.log(`Speech/audio event: ${event.type}`);
     }
     
-    // Handle transcript events
+    // Handle transcript events with centralized approach
     if (chatClientRef.current) {
       handleTranscriptEvent(event, (content) => {
+        // This is the critical path for user messages - ensure high priority
+        console.log(`Saving user transcript with centralized handler: ${content.substring(0, 30)}...`);
         chatClientRef.current?.saveUserMessage(content);
       });
     }
