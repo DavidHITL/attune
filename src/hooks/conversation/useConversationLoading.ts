@@ -86,7 +86,8 @@ export const useConversationLoading = (
           });
         }
       } finally {
-        if (retryCount.current >= maxRetries || !error) {
+        // Fix: Remove reference to undefined 'error' variable
+        if (retryCount.current >= maxRetries) {
           setLoading(false);
           loadingRef.current = false;
         }
