@@ -23,6 +23,7 @@ type VoiceAssistantDisplayProps = {
   onToggleMute?: () => void;
   onEndConversation?: () => void;
   onStartConversation?: () => void;
+  currentVoice?: string;
 }
 
 const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({ 
@@ -31,9 +32,26 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   isMuted = false,
   onToggleMute = () => {},
   onEndConversation = () => {},
-  onStartConversation = () => {}
+  onStartConversation = () => {},
+  currentVoice = ''
 }) => {
   const { messages: hookMessages } = useConversation();
+  
+  // Get a more human-readable voice name for display
+  const getVoiceDisplayName = (voice: string) => {
+    const voiceMap: Record<string, string> = {
+      'alloy': 'Alloy (Neutral)',
+      'echo': 'Echo (Male)',
+      'sage': 'Sage (Male)',
+      'ash': 'Ash (Male)',
+      'coral': 'Coral (Female)',
+      'shimmer': 'Shimmer (Female)',
+      'verse': 'Verse (Female)',
+      'ballad': 'Ballad (Male)'
+    };
+    
+    return voiceMap[voice] || voice || 'Default';
+  };
   
   return (
     <div className="h-full flex flex-col justify-between items-center overflow-hidden">
@@ -41,6 +59,11 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
       <div className="w-full py-12 z-10">
         <div className="flex justify-center">
           <AttuneLogo />
+          {currentVoice && (
+            <div className="absolute top-2 right-2 text-xs text-white/70 bg-black/20 px-2 py-1 rounded">
+              Voice: {getVoiceDisplayName(currentVoice)}
+            </div>
+          )}
         </div>
       </div>
       

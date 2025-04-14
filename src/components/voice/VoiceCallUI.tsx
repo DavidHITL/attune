@@ -14,6 +14,7 @@ interface VoiceCallUIProps {
   onToggleMute: () => void;
   onEndConversation: () => void;
   onStartConversation: () => void;
+  currentVoice?: string;
 }
 
 const VoiceCallUI: React.FC<VoiceCallUIProps> = ({
@@ -23,7 +24,8 @@ const VoiceCallUI: React.FC<VoiceCallUIProps> = ({
   conversationLoading,
   onToggleMute,
   onEndConversation,
-  onStartConversation
+  onStartConversation,
+  currentVoice = 'default'
 }) => {
   // Show a loading skeleton while conversation data is loading
   if (conversationLoading) {
@@ -66,6 +68,7 @@ const VoiceCallUI: React.FC<VoiceCallUIProps> = ({
           onToggleMute={onToggleMute}
           onEndConversation={onEndConversation}
           onStartConversation={onStartConversation}
+          currentVoice={currentVoice}
         />
       </div>
     </div>

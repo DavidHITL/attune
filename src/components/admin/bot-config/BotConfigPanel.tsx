@@ -34,6 +34,12 @@ const BotConfigPanel = () => {
     };
   }, [fetchCurrentConfig]);
 
+  // Add logging for voice changes
+  const handleVoiceChange = (newVoice: string) => {
+    console.log(`Changing voice from ${voice} to ${newVoice}`);
+    setVoice(newVoice);
+  };
+
   return (
     <div className="space-y-4 p-4 bg-white rounded-lg shadow">
       <h2 className="text-xl font-bold text-gray-800">Bot Configuration</h2>
@@ -46,7 +52,7 @@ const BotConfigPanel = () => {
         <>
           <VoiceSelector 
             value={voice} 
-            onValueChange={setVoice} 
+            onValueChange={handleVoiceChange} 
           />
 
           <InstructionsEditor 

@@ -76,7 +76,7 @@ export function useBotConfig() {
       console.log("Sending instructions update request...");
       console.log("Instructions length:", instructions.length);
       console.log("Instructions excerpt:", instructions.substring(0, 100) + "...");
-      console.log("Voice setting:", voice);
+      console.log("Voice setting to be saved:", voice);
       
       // Use the edge function to update instructions
       const response = await supabase.functions.invoke('update-instructions', {
@@ -92,6 +92,16 @@ export function useBotConfig() {
       }
       
       console.log("Update response:", response.data);
+      
+      // Check if the voice was correctly saved
+      if (response.data?.voice && response.data.voice !== voice) {
+        console.warn(`Warning: Requested voice "${voice}" but server saved "${response.data.voice}"`);
+        setVoice(response.data.voice); // Update to what was actually saved
+        toast({
+          title: "Note",
+          description: `Voice was saved as "${response.data.voice}" (requested: "${voice}")`
+        });
+      }
       
       // Verify the update by refetching
       await fetchCurrentConfig();
