@@ -4,7 +4,6 @@ import { useConversation } from '@/hooks/useConversation';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { BookText } from 'lucide-react';
 
 type ConversationSummary = {
   id: string;
@@ -22,14 +21,10 @@ const SmartContext = () => {
   const { user } = useAuth();
   const [summaries, setSummaries] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(false);
-  const [contextActive, setContextActive] = useState(false);
   
   // Count user messages only
   const userMessageCount = messages.filter(msg => msg.role === 'user').length;
   const totalMessageCount = messages.length;
-  
-  // Determine if enhanced context is active (when we have more than ~200 messages)
-  const isEnhancedContextActive = totalMessageCount >= 195;
   
   useEffect(() => {
     const loadSummaries = async () => {
@@ -53,7 +48,6 @@ const SmartContext = () => {
         
         if (data && data.length > 0) {
           setSummaries(data as ConversationSummary[]);
-          setContextActive(data.length > 0 && totalMessageCount > 190);
         } else if (messages.length > 60) {
           // If we have many messages but no summaries, generate them
           await generateSummaries();
@@ -66,7 +60,7 @@ const SmartContext = () => {
     };
     
     loadSummaries();
-  }, [conversationId, user, messages.length, userMessageCount, totalMessageCount]);
+  }, [conversationId, user, messages.length, userMessageCount]);
   
   const generateSummaries = async () => {
     if (!conversationId || !user) return;
@@ -101,7 +95,6 @@ const SmartContext = () => {
       
       if (data) {
         setSummaries(data as ConversationSummary[]);
-        setContextActive(data.length > 0 && totalMessageCount > 190);
       }
     } catch (error) {
       console.error('Error generating summaries:', error);
@@ -113,21 +106,6 @@ const SmartContext = () => {
     return (
       <div className="p-4 bg-attune-purple/10 rounded-lg text-sm text-gray-300">
         <p>Loading conversation context...</p>
-      </div>
-    );
-  }
-  
-  // Show the enhanced context indicator when we're using summaries with recent messages
-  if (isEnhancedContextActive && summaries.length > 0) {
-    return (
-      <div className="p-4 bg-attune-purple/20 rounded-lg mb-4 border border-attune-purple/40 animate-pulse">
-        <div className="flex items-center mb-2">
-          <BookText className="w-4 h-4 mr-2 text-attune-purple" />
-          <h3 className="text-sm font-semibold">Enhanced Memory Active</h3>
-        </div>
-        <p className="text-xs text-gray-200">
-          Long-term conversation memory is active. Your AI has access to both recent messages and summaries of earlier conversations.
-        </p>
       </div>
     );
   }
