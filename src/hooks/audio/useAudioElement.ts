@@ -1,9 +1,8 @@
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { isValidAudioUrl, createCacheBustedUrl } from './utils/audioValidation';
 import { setupAudioElement, cleanupAudioElement } from './utils/audioElementSetup';
 import { handleAudioLoadError } from './utils/audioRetry';
-import { getAudioObjectUrl } from './utils/audioCache';
+import { getAudioObjectUrl } from './utils/cache';
 
 interface UseAudioElementProps {
   audioUrl: string;

@@ -8,7 +8,7 @@ import PlayerHeader from './PlayerHeader';
 import PlayerError from './PlayerError';
 import AudioProgress from './AudioProgress';
 import AudioControls from './AudioControls';
-import { audioCache } from '@/hooks/audio/utils/audioCache';
+import { audioCache } from '@/hooks/audio/utils/cache';
 
 interface AudioPlayerProps {
   title: string;

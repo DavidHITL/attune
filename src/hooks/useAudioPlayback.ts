@@ -1,9 +1,8 @@
-
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { isValidAudioUrl } from '@/hooks/audio/utils/audioValidation';
 import { checkAudioAvailability } from '@/hooks/audio/utils/audioValidation';
-import { audioCache } from '@/hooks/audio/utils/audioCache';
+import { audioCache } from '@/hooks/audio/utils/cache';
 
 export interface AudioItem {
   id: string;
