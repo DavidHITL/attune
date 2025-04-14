@@ -8,8 +8,8 @@ export const useTranscriptHandler = () => {
   const { user, conversationId } = useConversationValidator();
   const { saveTranscript } = useTranscriptSaver();
   const { saveMessage } = useConversation();
-
-  const handleTranscriptEvent = useCallback((event: any, saveUserMessage?: (content: string) => void) => {
+  
+  const handleTranscriptEvent = useCallback((event: any) => {
     console.log('🎯 Transcript Handler - Processing event:', {
       type: event.type,
       hasTranscript: !!event.transcript || !!(event.transcript?.text),
@@ -18,48 +18,33 @@ export const useTranscriptHandler = () => {
       timestamp: new Date().toISOString()
     });
     
-    // Handle transcript events for user messages
+    // Handle direct transcripts
     if (event.type === 'transcript' && event.transcript && event.transcript.trim()) {
-      console.log("📝 Processing direct transcript event:", {
-        timestamp: new Date().toISOString(),
+      console.log("📝 Processing direct transcript:", {
         contentPreview: event.transcript.substring(0, 50),
         conversationId,
         userId: user?.id
       });
       
-      // Direct save approach to ensure transcript is saved
-      if (saveUserMessage) {
-        console.log("💾 Using direct saveUserMessage for transcript");
-        saveUserMessage(event.transcript);
-      }
-      
-      // Also try the secondary save approach
-      saveTranscript(event.transcript, (msg) => saveMessage({
+      saveMessage({
         role: 'user' as const,
-        content: msg.content
-      }));
+        content: event.transcript
+      });
     }
     
-    // Handle response.audio_transcript.done events
+    // Handle final transcripts
     if (event.type === 'response.audio_transcript.done' && event.transcript?.text && event.transcript.text.trim()) {
       console.log("📝 Processing final transcript:", {
         preview: event.transcript.text.substring(0, 50),
         timestamp: new Date().toISOString()
       });
       
-      // Direct save approach to ensure transcript is saved
-      if (saveUserMessage) {
-        console.log("💾 Using direct saveUserMessage for final transcript");
-        saveUserMessage(event.transcript.text);
-      }
-      
-      // Also try the secondary save approach
-      saveTranscript(event.transcript.text, (msg) => saveMessage({
+      saveMessage({
         role: 'user' as const,
-        content: msg.content
-      }));
+        content: event.transcript.text
+      });
     }
-  }, [user, conversationId, saveTranscript, saveMessage]);
+  }, [user, conversationId, saveMessage]);
 
   return {
     handleTranscriptEvent

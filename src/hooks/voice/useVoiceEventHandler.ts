@@ -1,12 +1,9 @@
 
 import { useCallback } from 'react';
-import { useVoiceActivityState } from '@/hooks/voice/useVoiceActivityState';
-import { useVoiceChatLogger } from '@/hooks/voice/useVoiceChatLogger';
+import { useVoiceActivityState } from './useVoiceActivityState';
+import { useVoiceChatLogger } from './useVoiceChatLogger';
 import { useTranscriptHandler } from './useTranscriptHandler';
 
-/**
- * Hook for handling voice and transcript events with enhanced debugging
- */
 export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>) => {
   const { voiceActivityState, handleMessageEvent: handleVoiceActivityEvent } = useVoiceActivityState();
   const { logSpeechEvents } = useVoiceChatLogger();
@@ -44,23 +41,9 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
       }
     }
     
-    // Enhanced message saving debug logging
-    if (chatClientRef.current) {
-      console.log('💾 Processing transcript via chatClientRef');
-      
-      // Pass direct save function to ensure transcript gets saved
-      handleTranscriptEvent(event, (content) => {
-        if (content && content.trim()) {
-          console.log(`💾 Directly saving user message: "${content.substring(0, 50)}..."`);
-          chatClientRef.current.saveUserMessage(content);
-        } else {
-          console.log(`⚠️ Empty content, not saving user message`);
-        }
-      });
-    } else {
-      console.warn('⚠️ chatClientRef not available for saving transcript');
-    }
-  }, [handleVoiceActivityEvent, logSpeechEvents, handleTranscriptEvent, chatClientRef]);
+    // Handle transcript events with single save path
+    handleTranscriptEvent(event);
+  }, [handleVoiceActivityEvent, logSpeechEvents, handleTranscriptEvent]);
 
   return {
     voiceActivityState,

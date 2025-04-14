@@ -10,8 +10,7 @@ export const useTranscriptSaver = () => {
 
   const saveTranscript = useCallback(async (
     transcript: string, 
-    saveMessage: (msg: { role: 'user' | 'assistant'; content: string }) => Promise<Message | undefined>,
-    saveUserMessage?: (content: string) => void
+    saveMessage: (msg: { role: 'user' | 'assistant'; content: string }) => Promise<Message | undefined>
   ) => {
     if (!validateConversationContext()) {
       console.warn("⚠️ Cannot save transcript: Invalid conversation context");
@@ -26,45 +25,25 @@ export const useTranscriptSaver = () => {
     notifyTranscriptReceived(transcript);
     
     try {
-      console.log("💾 Initiating transcript save:", {
+      console.log("💾 Saving transcript:", {
         preview: transcript.substring(0, 30),
-        timestamp: new Date().toISOString(),
-        hasDirectSaver: !!saveUserMessage
+        timestamp: new Date().toISOString()
       });
       
-      // Important: Try both save methods for redundancy
-      
-      // Method 1: Use the conversation context save method
       const savedMsg = await saveMessage({
         role: 'user',
         content: transcript
       });
       
       if (savedMsg && savedMsg.id) {
-        console.log("✅ Successfully saved transcript via context with ID:", savedMsg.id);
+        console.log("✅ Successfully saved transcript with ID:", savedMsg.id);
         notifyTranscriptSaved(savedMsg?.id);
       } else {
-        console.warn("⚠️ Save via context returned no valid message ID");
-        
-        // Method 2: Fallback to direct save method if available
-        if (saveUserMessage) {
-          console.log("📎 Using fallback direct save method");
-          saveUserMessage(transcript);
-        }
+        console.warn("⚠️ Save returned no valid message ID");
       }
     } catch (error) {
       console.error("❌ Failed to save transcript:", error);
       notifyTranscriptError(error);
-      
-      // Last resort: Try direct save method if available
-      if (saveUserMessage) {
-        console.log("🆘 Using direct save method after error");
-        try {
-          saveUserMessage(transcript);
-        } catch (directError) {
-          console.error("❌ Direct save method also failed:", directError);
-        }
-      }
     }
   }, [validateConversationContext, notifyTranscriptReceived, notifyTranscriptSaved, notifyTranscriptError]);
 
