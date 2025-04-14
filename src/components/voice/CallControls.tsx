@@ -41,7 +41,7 @@ const CallControls: React.FC<CallControlsProps> = ({
   };
 
   return (
-    <div className="fixed left-0 right-0 bottom-24 flex justify-center space-x-6">
+    <div className="flex justify-center space-x-6">
       {/* Call/End Call Button */}
       <button
         onClick={handleCallButton}

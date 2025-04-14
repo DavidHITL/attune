@@ -73,7 +73,7 @@ const RealtimeChat: React.FC = () => {
   };
 
   return (
-    <div className="relative h-full">
+    <div className="relative h-full overflow-hidden">
       {/* Background animation - only show when connected */}
       {isConnected && (
         <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden">
@@ -82,7 +82,6 @@ const RealtimeChat: React.FC = () => {
             description=""
             variant="septenary"
             className="absolute inset-0"
-            style={{ marginTop: '50px' }}
           />
         </div>
       )}

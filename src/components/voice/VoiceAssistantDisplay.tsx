@@ -46,20 +46,22 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   const messages = propMessages || hookMessages;
   
   return (
-    <div className="relative flex flex-col justify-start items-center pt-4 w-full h-full overflow-hidden">
-      {/* Status indicator at the top - status text removed */}
-      <StatusIndicator 
-        status={status} 
-        isConnected={isConnected} 
-        voiceActivityState={voiceActivityState} 
-      />
+    <div className="h-full flex flex-col justify-between items-center overflow-hidden">
+      {/* Status indicator at the top */}
+      <div className="w-full pt-2">
+        <StatusIndicator 
+          status={status} 
+          isConnected={isConnected} 
+          voiceActivityState={voiceActivityState} 
+        />
+      </div>
       
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {isConnected && <RippleCirclesCompact />}
       </div>
       
       {/* Content changes based on connection state */}
-      <div className="flex-1 w-full flex flex-col items-center justify-center z-10">
+      <div className="flex-1 w-full flex flex-col items-center justify-center z-10 pointer-events-none">
         {isConnected ? (
           <ConnectedStateContent minutesLeft={30} />
         ) : (
@@ -68,13 +70,15 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
       </div>
       
       {/* Call controls at the bottom */}
-      <CallControls
-        isConnected={isConnected}
-        isMuted={isMuted}
-        onToggleMute={onToggleMute}
-        onEndConversation={onEndConversation}
-        onStartConversation={onStartConversation}
-      />
+      <div className="w-full pb-8 z-10 pointer-events-auto">
+        <CallControls
+          isConnected={isConnected}
+          isMuted={isMuted}
+          onToggleMute={onToggleMute}
+          onEndConversation={onEndConversation}
+          onStartConversation={onStartConversation}
+        />
+      </div>
     </div>
   );
 };

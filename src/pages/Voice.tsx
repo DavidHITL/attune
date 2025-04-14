@@ -16,9 +16,9 @@ const Voice = () => {
   }, [setBackgroundColor]);
 
   return (
-    <div className="min-h-screen relative bg-[#1B4965]">
-      <div className="relative z-10 min-h-screen flex flex-col items-center py-12 px-4 pt-20 pb-32">
-        <div className="w-full max-w-[390px] h-[calc(100vh-150px)] max-h-[calc(100vh-150px)]">
+    <div className="min-h-screen h-screen overflow-hidden relative bg-[#1B4965]">
+      <div className="relative z-10 h-full flex flex-col items-center py-6 px-4">
+        <div className="w-full max-w-[390px] h-[calc(100vh-120px)] max-h-[calc(100vh-120px)]">
           {loading ? (
             <div className="h-full flex flex-col items-center">
               <AttuneLogo />
