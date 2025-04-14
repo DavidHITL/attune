@@ -111,10 +111,15 @@ export const useChatClient = () => {
       if (chatClientRef.current) {
         // Ensure any pending messages are flushed before disconnecting
         try {
-          chatClientRef.current.flushPendingMessages?.();
-          setTimeout(() => {
-            chatClientRef.current?.disconnect();
-          }, 300);
+          if (typeof chatClientRef.current.flushPendingMessages === 'function') {
+            chatClientRef.current.flushPendingMessages();
+            setTimeout(() => {
+              chatClientRef.current?.disconnect();
+            }, 300);
+          } else {
+            console.warn("flushPendingMessages method not available, falling back to direct disconnect");
+            chatClientRef.current.disconnect();
+          }
         } catch (e) {
           console.error("Error during cleanup:", e);
           chatClientRef.current.disconnect();

@@ -1,4 +1,3 @@
-
 import { MessageCallback, StatusCallback, SaveMessageCallback } from '../types';
 import { ConnectionManager } from './ConnectionManager';
 import { MessageQueue } from './messageQueue';
@@ -120,6 +119,21 @@ export class RealtimeChat {
   // Public method to manually save a user message
   saveUserMessage(content: string) {
     this.userMessageHandler.saveUserMessage(content);
+  }
+  
+  // Added method to flush pending messages
+  flushPendingMessages() {
+    console.log("Flushing pending messages in RealtimeChat");
+    // Forward to event handler which manages message processing
+    this.eventHandler.flushPendingMessages();
+    
+    // Also attempt to save any accumulated transcript
+    this.userMessageHandler.saveTranscriptIfNotEmpty();
+  }
+
+  // Added method to accumulate transcript
+  accumulateTranscript(text: string) {
+    this.userMessageHandler.accumulateTranscript(text);
   }
 
   async disconnect() {
