@@ -36,6 +36,7 @@ export class MessageEventHandler {
       timestamp: new Date().toISOString()
     });
     
-    this.userMessageHandler.saveUserMessage(content);
+    // Use the message queue for all user message saves
+    this.messageQueue.queueMessage('user', content, true);
   }
 }

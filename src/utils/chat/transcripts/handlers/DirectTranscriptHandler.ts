@@ -1,30 +1,18 @@
 
 import { MessageQueue } from '../../messageQueue';
-import { DuplicateTracker } from './DuplicateTracker';
-import { TranscriptNotifier } from './TranscriptNotifier';
 
 export class DirectTranscriptHandler {
-  private duplicateTracker: DuplicateTracker;
-  private notifier: TranscriptNotifier;
-
-  constructor(private messageQueue: MessageQueue) {
-    this.duplicateTracker = new DuplicateTracker();
-    this.notifier = new TranscriptNotifier();
-  }
+  constructor(private messageQueue: MessageQueue) {}
 
   handleDirectTranscript(transcript: string): void {
-    if (transcript && transcript.trim()) {
-      if (this.duplicateTracker.isDuplicate(transcript)) {
-        console.log("Duplicate transcript detected, skipping:", transcript.substring(0, 50));
-        return;
-      }
-
-      console.log("🔴 DIRECT TRANSCRIPT DETECTED:", transcript.substring(0, 100));
-      
-      this.messageQueue.queueMessage('user', transcript, true);
-      this.duplicateTracker.markAsProcessed(transcript);
-      
-      this.notifier.notifyTranscriptCaptured(transcript);
+    if (!transcript || transcript.trim() === '') {
+      console.log("⚠️ Empty direct transcript received, skipping");
+      return;
     }
+
+    console.log(`📝 Processing direct transcript: "${transcript.substring(0, 50)}..."`);
+    
+    // Queue the message with high priority
+    this.messageQueue.queueMessage('user', transcript, true);
   }
 }

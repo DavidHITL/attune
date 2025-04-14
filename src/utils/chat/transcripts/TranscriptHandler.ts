@@ -1,4 +1,3 @@
-
 import { MessageQueue } from '../messageQueue';
 import { DirectTranscriptHandler } from './handlers/DirectTranscriptHandler';
 import { FinalTranscriptHandler } from './handlers/FinalTranscriptHandler';
@@ -73,7 +72,6 @@ export class TranscriptHandler {
   flushPendingTranscript(): void {
     if (this.hasAccumulatedTranscript()) {
       const accumulatedText = this.accumulator.getAccumulatedText();
-      console.log("🔴 SAVING FINAL TRANSCRIPT DURING DISCONNECT:", accumulatedText);
       this.finalHandler.handleFinalTranscript(accumulatedText);
     }
   }
