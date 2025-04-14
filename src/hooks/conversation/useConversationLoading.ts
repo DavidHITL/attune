@@ -84,10 +84,8 @@ export const useConversationLoading = (
             description: "Please try refreshing the page",
             duration: 8000
           });
-        }
-      } finally {
-        // Fix: Remove reference to undefined 'error' variable
-        if (retryCount.current >= maxRetries) {
+          
+          // Clean up loading state after max retries
           setLoading(false);
           loadingRef.current = false;
         }
