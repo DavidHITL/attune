@@ -2,7 +2,7 @@
 project_id = "pixnanztazgzrtwzdpfi"
 
 [functions.analyze-messages]
-verify_jwt = true
+verify_jwt = false
 
 [functions.analyze-scheduler]
 verify_jwt = false

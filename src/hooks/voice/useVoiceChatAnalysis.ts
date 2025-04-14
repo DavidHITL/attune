@@ -37,11 +37,10 @@ export const useVoiceChatAnalysis = (isConnected: boolean) => {
           return;
         }
         
-        console.log("Background voice chat analysis completed");
+        console.log("Background voice chat analysis completed", response.data);
       } catch (error) {
         console.error("Error in background analysis:", error);
         // We don't show errors to the user since this is a background task
-        // No toast notification here as it would be confusing for users
       }
     };
     

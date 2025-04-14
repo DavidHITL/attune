@@ -49,9 +49,10 @@ export async function analyzeUserPatterns(userId: string, conversationId?: strin
     }
     
     if (!userMessages || userMessages.length === 0) {
+      console.log('No user messages found for analysis');
       return new Response(
         JSON.stringify({ message: 'No user messages found for analysis' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
