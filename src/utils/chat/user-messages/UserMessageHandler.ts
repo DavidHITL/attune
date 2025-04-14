@@ -1,143 +1,84 @@
+
 import { Message, SaveMessageCallback } from '../../types';
 import { toast } from 'sonner';
+import { MessageValidator } from './validators/MessageValidator';
+import { MessageSaver } from './savers/MessageSaver';
+import { TranscriptAccumulator } from './accumulators/TranscriptAccumulator';
 
 /**
  * Handler for managing user messages with improved reliability
  */
 export class UserMessageHandler {
-  private userTranscriptAccumulator: string = '';
-  private pendingMessages: Set<string> = new Set();
   private messageCount: number = 0;
-  private processedMessages: Set<string> = new Set();
+  private validator: MessageValidator;
+  private saver: MessageSaver;
+  private accumulator: TranscriptAccumulator;
   
   constructor(
     private saveMessageCallback: SaveMessageCallback
-  ) {}
+  ) {
+    this.validator = new MessageValidator();
+    this.saver = new MessageSaver(saveMessageCallback);
+    this.accumulator = new TranscriptAccumulator();
+  }
   
   /**
    * Save a user message with multiple retry attempts and duplicate prevention
    */
-  async saveUserMessage(content: string, attempt: number = 1): Promise<void> {
+  async saveUserMessage(content: string): Promise<void> {
     // Skip empty messages
-    if (!content || content.trim() === '') {
+    if (!this.validator.isValidMessage(content)) {
       console.log("Skipping empty user message");
       return;
     }
     
     // Skip if we've already processed this message recently
-    const messageFingerprint = content.substring(0, 50);
-    if (this.processedMessages.has(messageFingerprint)) {
-      console.log(`Skipping duplicate user message: ${messageFingerprint}...`);
+    if (this.validator.isDuplicate(content)) {
+      console.log(`Skipping duplicate user message: ${content.substring(0, 50)}...`);
       return;
     }
     
     // Track this message to prevent duplicates
-    this.processedMessages.add(messageFingerprint);
+    this.validator.markAsProcessed(content);
     
     // Generate a unique ID for tracking this message
     const messageId = `user-${Date.now()}-${this.messageCount++}`;
-    this.pendingMessages.add(messageId);
+    this.saver.trackPendingMessage(messageId);
     
-    console.log(`[UserMessageHandler] Saving user message ${messageId} (attempt ${attempt}): ${content.substring(0, 30)}...`);
-    const maxAttempts = 3;
-    
-    try {
-      // Show toast for message processing
-      toast.loading(`Saving user message...`, {
-        id: messageId,
-        duration: 5000
-      });
-      
-      // Directly save the message via the callback
-      const savedMsg = await this.saveMessageCallback({
-        role: 'user',
-        content: content
-      });
-      
-      if (savedMsg && savedMsg.id) {
-        console.log(`[UserMessageHandler] Message ${messageId} saved successfully with ID: ${savedMsg.id}`);
-        this.pendingMessages.delete(messageId);
-        
-        // Update toast to success
-        toast.success(`Message saved`, {
-          id: messageId,
-          description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
-          duration: 3000
-        });
-        
-        return;
-      } else {
-        throw new Error("Save returned null or missing ID");
-      }
-    } catch (err) {
-      console.error(`[UserMessageHandler] Save failed for message ${messageId} (attempt ${attempt}):`, err);
-      
-      if (attempt < maxAttempts) {
-        // Try again with exponential backoff
-        const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-        console.log(`[UserMessageHandler] Will retry message ${messageId} in ${delayMs}ms...`);
-        
-        // Update toast to retry state
-        toast.loading(`Retrying save...`, {
-          id: messageId,
-          duration: delayMs + 3000
-        });
-        
-        setTimeout(() => {
-          this.saveUserMessage(content, attempt + 1);
-        }, delayMs);
-      } else {
-        console.error(`[UserMessageHandler] All ${maxAttempts} attempts failed for message ${messageId}`);
-        this.pendingMessages.delete(messageId);
-        
-        // Update toast to error
-        toast.error("Failed to save message", {
-          id: messageId,
-          description: err instanceof Error ? err.message : "Database error",
-          duration: 4000
-        });
-      }
-    }
+    // Save the message with retry logic
+    await this.saver.saveUserMessage(content, messageId);
   }
   
   /**
    * Add content to transcript accumulator
    */
   accumulateTranscript(text: string): void {
-    if (text === '') {
-      // Reset accumulator
-      this.userTranscriptAccumulator = '';
-      return;
-    }
-    
-    if (text && text.trim()) {
-      this.userTranscriptAccumulator += text;
-      console.log(`Accumulating user transcript (${this.userTranscriptAccumulator.length} chars): "${this.userTranscriptAccumulator.substring(0, 30)}${this.userTranscriptAccumulator.length > 30 ? "..." : ""}"`);
-    }
+    this.accumulator.accumulateTranscript(text);
   }
   
   /**
    * Get accumulated transcript
    */
   getAccumulatedTranscript(): string {
-    return this.userTranscriptAccumulator;
+    return this.accumulator.getAccumulatedTranscript();
   }
   
   /**
    * Clear accumulated transcript
    */
   clearAccumulatedTranscript(): void {
-    this.userTranscriptAccumulator = '';
+    this.accumulator.clearAccumulatedTranscript();
   }
   
   /**
    * Save transcript if it's not empty
    */
   saveTranscriptIfNotEmpty(): void {
-    if (this.userTranscriptAccumulator && this.userTranscriptAccumulator.trim()) {
-      console.log(`Saving accumulated transcript (${this.userTranscriptAccumulator.length} chars): "${this.userTranscriptAccumulator.substring(0, 30)}${this.userTranscriptAccumulator.length > 30 ? "..." : ""}"`);
-      this.saveUserMessage(this.userTranscriptAccumulator);
-      this.userTranscriptAccumulator = '';
+    if (this.accumulator.hasContent()) {
+      const transcript = this.accumulator.getAccumulatedTranscript();
+      console.log(`Saving accumulated transcript (${transcript.length} chars): "${transcript.substring(0, 30)}${transcript.length > 30 ? "..." : ""}"`);
+      this.saveUserMessage(transcript);
+      this.accumulator.clearAccumulatedTranscript();
     } else {
       console.log("No accumulated transcript to save");
     }
@@ -147,17 +88,13 @@ export class UserMessageHandler {
    * Clean up old processed messages to prevent memory leaks
    */
   cleanupProcessedMessages(): void {
-    // Only keep the last 25 processed messages
-    if (this.processedMessages.size > 25) {
-      const toRemove = Array.from(this.processedMessages).slice(0, this.processedMessages.size - 25);
-      toRemove.forEach(msg => this.processedMessages.delete(msg));
-    }
+    this.validator.cleanup();
   }
   
   /**
    * Get pending message count
    */
   getPendingMessageCount(): number {
-    return this.pendingMessages.size;
+    return this.saver.getPendingMessageCount();
   }
 }
