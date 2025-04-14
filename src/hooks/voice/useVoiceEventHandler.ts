@@ -9,6 +9,8 @@ import { useVoiceChatLogger } from '@/hooks/voice/useVoiceChatLogger';
 export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>) => {
   const { voiceActivityState, handleMessageEvent: handleVoiceActivityEvent } = useVoiceActivityState();
   const { logSpeechEvents } = useVoiceChatLogger();
+  
+  // Directly import the function to avoid circular dependencies
   const { handleTranscriptEvent } = useTranscriptHandler();
   
   const handleVoiceEvent = useCallback((event: any) => {
@@ -32,5 +34,5 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
   };
 };
 
-// Import this here to avoid circular dependencies
+// Import this at the end to avoid circular dependencies
 import { useTranscriptHandler } from '@/hooks/voice/useTranscriptHandler';

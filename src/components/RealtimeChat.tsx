@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import { useChatClient } from './voice/useChatClient';
 import VoiceAssistantDisplay from './voice/VoiceAssistantDisplay';
@@ -10,6 +10,7 @@ import AttuneLogo from '@/components/AttuneLogo';
 const RealtimeChat: React.FC = () => {
   const { messages, loading: conversationLoading } = useConversation();
   
+  // Get chat client functionality
   const {
     status,
     isConnected,
@@ -23,6 +24,12 @@ const RealtimeChat: React.FC = () => {
     toggleMicrophone,
     toggleMute
   } = useChatClient();
+
+  // Log mount for debugging
+  useEffect(() => {
+    console.log("RealtimeChat component mounted");
+    return () => console.log("RealtimeChat component unmounted");
+  }, []);
 
   // Show a loading skeleton while conversation data is loading
   if (conversationLoading) {

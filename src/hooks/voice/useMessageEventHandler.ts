@@ -7,7 +7,7 @@ import { useSessionHandler } from '@/hooks/voice/useSessionHandler';
  * Hook for combining different message event handlers
  */
 export const useMessageEventHandler = (chatClientRef: React.MutableRefObject<any>) => {
-  // Use our custom hooks
+  // Use our custom hooks - pass chatClientRef to avoid circular dependencies
   const { voiceActivityState, handleVoiceEvent } = useVoiceEventHandler(chatClientRef);
   const { 
     status, setStatus, 

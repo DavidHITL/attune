@@ -14,6 +14,7 @@ import { useAuth } from '@/context/AuthContext';
  * Main hook for chat client functionality, refactored for modularity
  */
 export const useChatClient = () => {
+  // Initialize refs and states first
   const chatClientRef = useRef<RealtimeChatClient | null>(null);
   const { user } = useAuth();
   const { saveMessage, messages, conversationId } = useConversation();
@@ -21,7 +22,7 @@ export const useChatClient = () => {
   // Set up logging
   useVoiceChatLogger();
   
-  // Set up message event handling
+  // Set up message event handling - initialize in a way that avoids race conditions
   const {
     voiceActivityState,
     status,
@@ -77,10 +78,11 @@ export const useChatClient = () => {
   
   // Update context info when messages change
   useEffect(() => {
-    updateMessagesContext(messages.length);
-    
-    // Log message count changes for debugging
-    console.log(`Messages updated, now ${messages.length} messages in state`);
+    if (updateMessagesContext && messages) {
+      updateMessagesContext(messages.length);
+      // Log message count changes for debugging
+      console.log(`Messages updated, now ${messages.length} messages in state`);
+    }
   }, [messages, updateMessagesContext]);
   
   // Cleanup effect on unmount
