@@ -1,5 +1,5 @@
 
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
 import { VoiceActivityState } from '../VoiceActivityIndicator';
@@ -70,12 +70,14 @@ export const useChatClient = () => {
     startConversation
   );
 
-  // Direct access to start conversation function - bypassing the conversation controls hook
-  const directStartConversation = useCallback(async (): Promise<void> => {
+  // Direct access to start conversation function
+  const handleStartConversation = useCallback(async () => {
     console.log("Direct start conversation called");
     if (!isConnected) {
       try {
+        // Call the startConversation from the connection manager directly
         await startConversation();
+        console.log("Conversation started successfully");
       } catch (error) {
         console.error("Failed to start conversation:", error);
         toast.error("Connection failed. Please check your internet and try again.");
@@ -85,12 +87,21 @@ export const useChatClient = () => {
     }
   }, [startConversation, isConnected]);
   
-  // Set up conversation controls with the direct start function
-  const { handleStartConversation, cleanupChatClient } = useConversationControls(
-    chatClientRef,
-    isConnected,
-    directStartConversation
-  );
+  // Handle conversation end
+  const handleEndConversation = useCallback(() => {
+    console.log("Ending conversation via user action");
+    endConversation();
+  }, [endConversation]);
+  
+  // Cleanup effect on unmount
+  useEffect(() => {
+    return () => {
+      console.log("Cleaning up chat client");
+      if (chatClientRef.current) {
+        chatClientRef.current.disconnect();
+      }
+    };
+  }, []);
   
   // Update context info when messages change
   useEffect(() => {
@@ -101,11 +112,6 @@ export const useChatClient = () => {
     }
   }, [messages, updateMessagesContext]);
   
-  // Cleanup effect on unmount
-  useEffect(() => {
-    return cleanupChatClient;
-  }, [cleanupChatClient]);
-  
   return {
     status,
     isConnected,
@@ -115,7 +121,7 @@ export const useChatClient = () => {
     hasContext,
     messageCount,
     startConversation: handleStartConversation,
-    endConversation,
+    endConversation: handleEndConversation,
     toggleMicrophone,
     toggleMute
   };

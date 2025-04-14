@@ -33,7 +33,6 @@ const RealtimeChat: React.FC = () => {
     // Check if conversation ID is available
     if (!conversationId) {
       console.warn("Warning: No active conversation ID available on mount");
-      toast.warning("No active conversation ID detected. Messages may not be saved properly.");
     } else {
       console.log("Conversation ID available:", conversationId);
     }
@@ -57,6 +56,21 @@ const RealtimeChat: React.FC = () => {
       </div>
     );
   }
+
+  const handleStartCall = async () => {
+    console.log("Start call button clicked");
+    try {
+      await startConversation();
+    } catch (error) {
+      console.error("Error starting call:", error);
+      toast.error("Failed to start call. Please try again.");
+    }
+  };
+
+  const handleEndCall = () => {
+    console.log("End call button clicked");
+    endConversation();
+  };
 
   return (
     <div className="relative h-full">
@@ -87,8 +101,8 @@ const RealtimeChat: React.FC = () => {
           conversationLoading={conversationLoading}
           onToggleMicrophone={toggleMicrophone}
           onToggleMute={toggleMute}
-          onEndConversation={endConversation}
-          onStartConversation={startConversation}
+          onEndConversation={handleEndCall}
+          onStartConversation={handleStartCall}
         />
       </div>
     </div>
