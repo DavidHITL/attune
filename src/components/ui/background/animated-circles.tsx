@@ -1,3 +1,4 @@
+
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { COLOR_VARIANTS, ColorVariant } from "./color-variants";
@@ -47,8 +48,8 @@ export const AnimatedCircles = ({ variant }: AnimatedCirclesProps) => {
                               }
                             : isGrayVariant
                             ? {
-                                  scale: [1, 1.01 + i * 0.005, 1],
-                                  opacity: [0.6, 0.75, 0.6],
+                                  scale: [1, 1.03 + i * 0.01, 1],
+                                  opacity: [0.2, 0.4, 0.2],
                               }
                             : {
                                   rotate: 360,
