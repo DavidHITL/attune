@@ -1,9 +1,7 @@
-
 import React from 'react';
 import { useEffect } from 'react';
 import { useTerryRealInsights } from '@/hooks/useTerryRealInsights';
-import { Button } from '@/components/ui/button';
-import { RefreshCcw, AlertTriangle, BrainCircuit, Sparkles, Calendar } from 'lucide-react';
+import { RefreshCcw, BrainCircuit, AlertTriangle, Sparkles, Calendar } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import InsightCard from './InsightCard';
 import TriggersList from './TriggersList';
@@ -48,24 +46,18 @@ const GrowthInsights = () => {
           ))}
         </div>
       ) : !hasInsights ? (
-        // Empty state
+        // Empty state with updated messaging
         <InsightCard 
-          title="Start Your Growth Journey"
-          description="Chat with Attune to receive personalized insights"
+          title="Insights in Progress"
+          description="We're still thinking about our last conversation"
         >
           <div className="text-center space-y-4 py-4">
             <BrainCircuit className="h-12 w-12 mx-auto text-primary/60 animate-pulse" />
             <p className="text-gray-300">
-              As you interact with Attune, we'll analyze your communication patterns 
-              and provide personalized insights based on Terry Real's relational framework.
+              Your personalized insights are being generated based on our recent dialogue. 
+              These insights help you understand your communication patterns 
+              through the lens of Terry Real's relational framework.
             </p>
-            <Button 
-              onClick={refreshInsights} 
-              className="mt-4 bg-attune-purple hover:bg-attune-purple/80 text-white"
-            >
-              <RefreshCcw className="mr-2 h-4 w-4" />
-              Analyze My Conversations
-            </Button>
           </div>
         </InsightCard>
       ) : (
@@ -118,15 +110,6 @@ const GrowthInsights = () => {
             <div className="flex items-center justify-end text-xs text-gray-400 mt-2">
               <Calendar className="h-3 w-3 mr-1" />
               Last updated: {formatDate(insights.updated_at)}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={refreshInsights} 
-                className="ml-2 h-7 text-xs hover:bg-white/5"
-              >
-                <RefreshCcw className="h-3 w-3 mr-1" />
-                Refresh
-              </Button>
             </div>
           )}
         </div>
