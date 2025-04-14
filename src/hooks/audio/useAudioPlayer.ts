@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from 'react';
 import { useAudioElement } from './useAudioElement';
 import { useAudioProgress } from './useAudioProgress';
@@ -19,6 +20,7 @@ export function useAudioPlayer({
 }: UseAudioPlayerProps) {
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [lastPlayAttempt, setLastPlayAttempt] = useState(0);
   
   // Validate the URL thoroughly before proceeding
   const isValidUrl = useCallback((url: string): boolean => {
@@ -71,6 +73,18 @@ export function useAudioPlayer({
     createAudio
   });
   
+  // Wrapper for togglePlayPause to prevent rapid repeated clicks
+  const handleTogglePlayPause = useCallback(() => {
+    const now = Date.now();
+    // Debounce play attempts with 1000ms (1 second) threshold
+    if (now - lastPlayAttempt > 1000) {
+      setLastPlayAttempt(now);
+      togglePlayPause();
+    } else {
+      console.log("Ignoring rapid play request");
+    }
+  }, [togglePlayPause, lastPlayAttempt]);
+  
   const { 
     handleSeek,
     skipBackward,
@@ -106,7 +120,7 @@ export function useAudioPlayer({
     currentTime,
     loaded,
     error: loadError,
-    togglePlayPause,
+    togglePlayPause: handleTogglePlayPause,
     handleSeek,
     skipBackward,
     skipForward,

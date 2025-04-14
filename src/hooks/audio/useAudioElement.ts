@@ -26,13 +26,22 @@ export function useAudioElement({
   const retryCountRef = useRef(0);
   const maxRetries = 3;
   const objectUrlRef = useRef<string | null>(null);
+  const audioCreationInProgressRef = useRef(false);
   
   // Create audio element with proper initialization sequence
   const createAudio = useCallback(() => {
+    // Prevent recursive audio creation
+    if (audioCreationInProgressRef.current) {
+      console.log("Audio creation already in progress, skipping duplicate creation");
+      return audioRef.current;
+    }
+    
     console.log("Creating audio element with URL:", audioUrl);
+    audioCreationInProgressRef.current = true;
     
     // Validate URL before proceeding
     if (!isValidAudioUrl(audioUrl)) {
+      audioCreationInProgressRef.current = false;
       if (onError) onError(new Error("Invalid audio URL provided"));
       return null;
     }
@@ -63,6 +72,7 @@ export function useAudioElement({
           setDuration(audioDuration);
           setLoaded(true);
           retryCountRef.current = 0; // Reset retry counter on successful load
+          audioCreationInProgressRef.current = false;
           
           // Set initial position if provided (only after metadata is loaded)
           if (initialProgress > 0) {
@@ -78,6 +88,7 @@ export function useAudioElement({
         onEnded: onComplete,
         
         onError: (e) => {
+          audioCreationInProgressRef.current = false;
           const errorCode = audio.error ? audio.error.code : 'unknown';
           const errorMessage = audio.error ? audio.error.message : "Unknown audio error";
           console.error(`Audio error: code=${errorCode}, message=${errorMessage}`, e);
@@ -100,6 +111,7 @@ export function useAudioElement({
           console.log("Setting audio source to cached/fetched object URL");
         })
         .catch(error => {
+          audioCreationInProgressRef.current = false;
           console.error("Failed to get object URL, falling back to direct URL:", error);
           // Fall back to direct URL with cache busting as before
           const urlWithCache = createCacheBustedUrl(audioUrl);
@@ -110,6 +122,7 @@ export function useAudioElement({
       audioRef.current = audio;
       return audio;
     } catch (err) {
+      audioCreationInProgressRef.current = false;
       console.error("Error creating audio element:", err);
       if (onError) onError(new Error("Failed to create audio element"));
       return null;
@@ -126,9 +139,12 @@ export function useAudioElement({
     
     // Use setTimeout to ensure component is fully mounted before creating audio
     const timeoutId = setTimeout(() => {
-      const audio = createAudio();
-      if (!audio && onError) {
-        onError(new Error("Failed to create audio element"));
+      // Only create audio if none exists yet
+      if (!audioRef.current) {
+        const audio = createAudio();
+        if (!audio && onError) {
+          onError(new Error("Failed to create audio element"));
+        }
       }
     }, 100);
     
@@ -145,6 +161,9 @@ export function useAudioElement({
         cleanupAudioElement(audioRef.current);
         audioRef.current = null;
       }
+      
+      // Make sure we reset the flag to prevent blocking future audio creation
+      audioCreationInProgressRef.current = false;
     };
   }, [audioUrl, createAudio, onError]);
 

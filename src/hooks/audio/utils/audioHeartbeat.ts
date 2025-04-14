@@ -23,7 +23,7 @@ export function useAudioHeartbeat({
     if (!isPlaying || !onProgressUpdate || !createAudio) return;
     
     const retryCountRef = { current: 0 };
-    const maxRetries = 3;
+    const maxRetries = 1; // Reduced from 3 to 1 to prevent cascading recreation
     
     // Update progress every 5 seconds
     const updateInterval = setInterval(() => {
@@ -33,45 +33,21 @@ export function useAudioHeartbeat({
       }
     }, 5000);
     
-    // Add heartbeat to ensure continuous playback
+    // Add heartbeat to ensure continuous playback - less aggressive now
     const heartbeatInterval = setInterval(() => {
       if (audioRef.current) {
-        if (isPlaying && audioRef.current.paused) {
-          console.log("Detected paused state when should be playing, resuming...");
+        if (isPlaying && audioRef.current.paused && retryCountRef.current < maxRetries) {
+          console.log("Detected paused state when should be playing, attempting to resume...");
+          retryCountRef.current += 1;
           
-          // If we're supposed to be playing but the audio is paused, resume
-          audioRef.current.play().catch(err => {
-            console.error("Error resuming playback:", err);
-            
-            // If playback fails, try to recreate the audio element
-            if (retryCountRef.current < maxRetries) {
-              retryCountRef.current += 1;
-              console.log(`Recreating audio element, attempt ${retryCountRef.current}/${maxRetries}`);
-              
-              const audio = createAudio();
-              if (audio) {
-                audio.currentTime = currentTime;
-                audio.play().catch(e => console.error("Error playing after recreation:", e));
-              }
-            }
+          // Don't recreate, just try to play once more
+          audioRef.current.play().catch(e => {
+            console.error("Error resuming playback:", e);
+            // We won't try to recreate audio anymore to prevent infinite loops
           });
         }
-        
-        // Check if audio position is stuck
-        if (isPlaying && !audioRef.current.paused) {
-          const lastTime = currentTime;
-          setTimeout(() => {
-            if (isPlaying && Math.abs(currentTime - lastTime) < 0.1) {
-              console.log("Audio position appears stuck, nudging playback");
-              // Nudge playback position slightly to unstick it
-              if (audioRef.current) {
-                audioRef.current.currentTime += 0.1;
-              }
-            }
-          }, 500);
-        }
       }
-    }, 1000); // Check every second
+    }, 3000); // Changed from 1000ms to 3000ms to be less aggressive
     
     return () => {
       clearInterval(updateInterval);

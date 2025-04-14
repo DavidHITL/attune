@@ -16,9 +16,16 @@ export function usePlaybackControls({
   const [isPlaying, setIsPlaying] = useState(false);
   const retryCountRef = { current: 0 };
   const maxRetries = 3;
+  const playAttemptInProgressRef = { current: false };
   
   // Handle play/pause
   const togglePlayPause = useCallback(() => {
+    // Prevent multiple simultaneous play attempts
+    if (playAttemptInProgressRef.current) {
+      console.log("Play attempt already in progress, ignoring duplicate request");
+      return;
+    }
+    
     if (!audioRef.current) {
       console.warn("No audio element available for playback");
       
@@ -45,6 +52,7 @@ export function usePlaybackControls({
     } else {
       // Important: Log the play attempt to help with debugging
       console.log("Attempting to play audio...");
+      playAttemptInProgressRef.current = true;
       
       const playPromise = audioRef.current.play();
       
@@ -52,38 +60,19 @@ export function usePlaybackControls({
         playPromise.then(() => {
           console.log("Audio playback started successfully");
           setIsPlaying(true);
+          playAttemptInProgressRef.current = false;
         }).catch(err => {
           console.error("Error playing audio:", err);
+          playAttemptInProgressRef.current = false;
           
-          // If playback fails, try to recreate the audio element
-          if (retryCountRef.current < maxRetries) {
+          // If playback fails, try to recreate the audio element - but only once
+          if (retryCountRef.current < 1) {
             retryCountRef.current += 1;
             console.log(`Recreating audio element, attempt ${retryCountRef.current}/${maxRetries}`);
             
-            const audio = createAudio();
-            if (audio) {
-              // Make sure to set the current time before playing
-              audio.currentTime = currentTime;
-              // Add a small delay before attempting playback again
-              setTimeout(() => {
-                console.log("Attempting playback after recreation");
-                audio.play().then(() => {
-                  console.log("Playback successful after recreation");
-                  setIsPlaying(true);
-                }).catch(e => {
-                  console.error("Error playing after recreation:", e);
-                  setIsPlaying(false);
-                  
-                  if (e.name === 'NotSupportedError') {
-                    toast.error("This audio format is not supported by your browser.");
-                  } else if (e.name === 'NotAllowedError') {
-                    toast.error("Playback was blocked. Please interact with the page first.");
-                  } else {
-                    toast.error("Failed to play audio. Please try again later.");
-                  }
-                });
-              }, 300);
-            }
+            // Don't try to create a new audio immediately, just notify the user
+            toast.error("Failed to play audio. Please try again.");
+            setIsPlaying(false);
           } else {
             toast.error("Failed to play audio. Please try again later.");
             setIsPlaying(false);
@@ -92,6 +81,7 @@ export function usePlaybackControls({
       } else {
         // For older browsers where play() doesn't return a promise
         setIsPlaying(true);
+        playAttemptInProgressRef.current = false;
       }
     }
   }, [isPlaying, audioRef, currentTime, createAudio]);
@@ -103,21 +93,25 @@ export function usePlaybackControls({
     const handlePlay = () => {
       console.log("Play event triggered");
       setIsPlaying(true);
+      playAttemptInProgressRef.current = false;
     };
     
     const handlePause = () => {
       console.log("Pause event triggered");
       setIsPlaying(false);
+      playAttemptInProgressRef.current = false;
     };
     
     const handleEnded = () => {
       console.log("Audio ended");
       setIsPlaying(false);
+      playAttemptInProgressRef.current = false;
     };
     
     const handleError = (e: Event) => {
       console.error("Audio playback error:", e);
       setIsPlaying(false);
+      playAttemptInProgressRef.current = false;
       
       // Only show toast for user-initiated actions to avoid spam
       if (isPlaying) {
