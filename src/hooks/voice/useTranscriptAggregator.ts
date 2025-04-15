@@ -12,17 +12,20 @@ export const useTranscriptAggregator = () => {
   const handleTranscriptEvent = useCallback(async (event: any) => {
     // Handle transcript delta events for accumulation
     if (event.type === 'response.audio_transcript.delta' && event.delta?.text) {
+      const deltaText = event.delta.text;
       setAccumulatedTranscript(prev => {
-        const newText = prev + event.delta.text;
-        console.log(`Accumulating delta transcript: "${newText.substring(0, 50)}..."`);
+        const newText = prev + deltaText;
+        console.log(`[TranscriptAggregator] Delta received, new text (${newText.length} chars): "${newText.substring(0, 50)}${newText.length > 50 ? '...' : ''}"`);
         return newText;
       });
     }
     
-    // Handle interim transcripts
+    // Handle interim transcripts (these are complete transcripts that come in)
     else if (event.type === 'transcript' && event.transcript && event.transcript.trim()) {
+      const newTranscript = event.transcript;
+      console.log(`[TranscriptAggregator] Full transcript received (${newTranscript.length} chars): "${newTranscript}"`);
+      
       setAccumulatedTranscript(prev => {
-        const newTranscript = event.transcript;
         if (prev !== newTranscript) {
           toast.info("Speech detected", {
             description: newTranscript.substring(0, 50) + (newTranscript.length > 50 ? "..." : ""),
@@ -34,24 +37,18 @@ export const useTranscriptAggregator = () => {
       });
     }
 
-    // Handle final transcript
+    // Handle final transcript and save accumulated text
     else if (event.type === 'response.audio_transcript.done') {
-      if (!accumulatedTranscript.trim()) {
-        console.log('No accumulated transcript to save');
+      console.log(`[TranscriptAggregator] Final transcript event received, accumulated text: ${accumulatedTranscript.length} chars`);
+      
+      if (!accumulatedTranscript || !accumulatedTranscript.trim()) {
+        console.log('[TranscriptAggregator] No accumulated transcript to save');
         return;
       }
 
-      console.log(`Processing final transcript: "${accumulatedTranscript.substring(0, 50)}..."`);
-
       try {
-        // For authenticated users, wait for conversation to be initialized
-        const isConversationReady = await waitForConversation();
+        console.log(`[TranscriptAggregator] Saving transcript: "${accumulatedTranscript.substring(0, 50)}..."`);
         
-        if (!isConversationReady) {
-          console.warn('Conversation not ready, but proceeding with message save');
-        }
-        
-        // Save the accumulated transcript
         const savedMessage = await saveMessage({
           role: 'user',
           content: accumulatedTranscript,
@@ -62,23 +59,23 @@ export const useTranscriptAggregator = () => {
             description: accumulatedTranscript.substring(0, 50) + (accumulatedTranscript.length > 50 ? "..." : ""),
             duration: 2000
           });
-          console.log('Transcript saved successfully:', savedMessage);
+          console.log('[TranscriptAggregator] Transcript saved successfully:', savedMessage);
         } else {
-          console.warn('Transcript could not be saved (likely anonymous mode)');
+          console.log('[TranscriptAggregator] Anonymous mode - transcript processed locally');
           toast.success("Speech processed", {
             description: accumulatedTranscript.substring(0, 50) + (accumulatedTranscript.length > 50 ? "..." : ""),
             duration: 2000
           });
         }
         
-        // Reset accumulator after successful save
+        // Reset accumulator after successful processing
         setAccumulatedTranscript('');
       } catch (error) {
-        console.error('Failed to save transcript:', error);
+        console.error('[TranscriptAggregator] Failed to save transcript:', error);
         toast.error("Failed to save transcript");
       }
     }
-  }, [accumulatedTranscript, saveMessage, waitForConversation]);
+  }, [accumulatedTranscript, saveMessage]);
 
   return {
     handleTranscriptEvent,
