@@ -62,10 +62,11 @@ export const useConnectionManager = (
     }
   }, [chatClientRef, handleMessageEvent, saveMessage, setStatus, setIsConnected, setIsMicOn, setConnectionError, user]);
 
-  const endConversation = useCallback(() => {
+  const endConversation = useCallback(async () => {
     console.log("Ending conversation");
     if (chatClientRef.current) {
       // Make sure we properly disconnect and clean up resources
+      await chatClientRef.current.flushPendingMessages();
       chatClientRef.current.disconnect();
       chatClientRef.current = null;
     }
