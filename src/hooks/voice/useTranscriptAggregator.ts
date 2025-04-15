@@ -47,15 +47,18 @@ export const useTranscriptAggregator = () => {
       if (messageContent.trim()) {
         console.log('Saving final transcript');
         try {
-          await saveMessage({
+          // Use the same message structure as assistant messages
+          const savedMessage = await saveMessage({
             role: 'user',
-            content: messageContent
+            content: messageContent,
           });
           
-          toast.success("Speech transcribed", {
-            description: messageContent.substring(0, 50) + (messageContent.length > 50 ? "..." : ""),
-            duration: 2000
-          });
+          if (savedMessage) {
+            toast.success("Speech transcribed", {
+              description: messageContent.substring(0, 50) + (messageContent.length > 50 ? "..." : ""),
+              duration: 2000
+            });
+          }
         } catch (error) {
           console.error('Failed to save transcript:', error);
           toast.error("Failed to save transcript");
