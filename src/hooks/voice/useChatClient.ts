@@ -1,4 +1,3 @@
-
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
@@ -64,17 +63,8 @@ export const useChatClient = () => {
     combinedMessageHandler,
     setStatus,
     (message) => {
-      // Enhanced save message logic with better error handling
-      if (!user && message.role === 'user') {
-        console.log("User not authenticated but continuing with anonymous session");
-      }
-      
-      if (!conversationId && message.role === 'user') {
-        console.error("No conversation ID available for saving message");
-        return Promise.reject(new Error("No conversation ID available"));
-      }
-      
-      // Add explicit debug logging
+      // Removed the conversationId guard
+      // Now all messages will go through the unified saveMessage path
       console.log(`Unified message saving for ${message.role}: ${message.content?.substring(0, 30)}...`);
       return saveMessage(message);
     },
