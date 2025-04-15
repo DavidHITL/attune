@@ -5,7 +5,7 @@ import { useVoiceActivityState } from '@/hooks/voice/useVoiceActivityState';
 import { toast } from 'sonner';
 
 /**
- * Hook for handling voice events and transcripts with enhanced reliability
+ * Hook for handling voice events and transcripts with enhanced reliability and logging
  */
 export const useVoiceEvents = (
   chatClientRef: React.MutableRefObject<any>,
@@ -14,59 +14,80 @@ export const useVoiceEvents = (
   // Get voice activity tracking functions
   const { handleMessageEvent: handleVoiceActivityEvent } = useVoiceActivityState();
   
-  // Track transcript accumulation between speech events
+  // Track transcript accumulation between speech events with improved logging
   const transcriptAccumulator = useCallback((event: any) => {
     // Handle audio transcript delta events for accumulation only
     if (event.type === "response.audio_transcript.delta" && event.delta?.text) {
-      console.log(`[Transcript Delta] Received: "${event.delta.text}"`);
+      console.log(`[Transcript Delta] Processing: "${event.delta.text}"`, {
+        timestamp: new Date().toISOString(),
+        eventType: event.type
+      });
+      
       if (chatClientRef.current) {
         chatClientRef.current.accumulateTranscript?.(event.delta.text);
       }
     }
     
-    // Handle audio buffer events - ensure we save any pending transcript
+    // Handle audio buffer events with better error tracking
     if (event.type === "output_audio_buffer.stopped") {
-      console.log("[Audio Buffer] Stopped - ensuring transcript is complete");
+      console.log("[Audio Buffer] Stopped - Processing pending messages", {
+        timestamp: new Date().toISOString(),
+        hasClient: !!chatClientRef.current
+      });
+      
       setTimeout(() => {
         if (chatClientRef.current) {
-          console.log("[Audio Buffer] Processing any pending messages...");
+          console.log("[Audio Buffer] Flushing message queue");
           chatClientRef.current.flushPendingMessages?.();
         }
       }, 500);
     }
   }, [chatClientRef]);
   
-  // Enhanced transcript handler that only saves final transcripts
+  // Enhanced transcript handler that only saves final transcripts with detailed logging
   const handleTranscriptEvent = useCallback((event: any, saveCallback?: (content: string) => void) => {
-    // Only log intermediate transcripts without saving
+    // Log intermediate transcripts for debugging without saving
     if (event.type === 'transcript' && event.text) {
-      console.log(`[Intermediate Transcript] Received (not saving): ${event.text.substring(0, 30)}...`);
+      console.log(`[Intermediate Transcript] Received:`, {
+        textPreview: event.text.substring(0, 30),
+        timestamp: new Date().toISOString(),
+        type: 'intermediate'
+      });
     }
     
-    // Handle final transcript completion (highest reliability)
+    // Handle final transcript completion with comprehensive logging
     if (event.type === "response.audio_transcript.done" && event.transcript?.text) {
       const finalTranscript = event.transcript.text;
       console.log("[Final Transcript] Processing:", {
-        text: finalTranscript.substring(0, 50),
+        textPreview: finalTranscript.substring(0, 50),
         timestamp: new Date().toISOString(),
-        hasCallback: !!saveCallback
+        hasCallback: !!saveCallback,
+        length: finalTranscript.length
       });
       
       if (saveCallback && finalTranscript.trim() !== '') {
-        console.log("[Final Transcript] Initiating save...");
-        // Save only final transcript
-        saveCallback(finalTranscript);
+        console.log("[Final Transcript] Initiating save process");
         
-        // Show toast for final transcript
-        toast.success("Speech transcribed", { 
-          description: finalTranscript.substring(0, 50) + (finalTranscript.length > 50 ? "..." : ""),
-          duration: 2000
-        });
+        try {
+          // Save only final transcript with error handling
+          saveCallback(finalTranscript);
+          
+          // Show success toast
+          toast.success("Speech transcribed", { 
+            description: finalTranscript.substring(0, 50) + (finalTranscript.length > 50 ? "..." : ""),
+            duration: 2000
+          });
+          
+          console.log("[Final Transcript] Successfully initiated save");
+        } catch (error) {
+          console.error("[Final Transcript] Save error:", error);
+          toast.error("Failed to save transcript");
+        }
       }
     }
   }, []);
 
-  // Combined voice event handler
+  // Combined voice event handler with enhanced logging
   const handleVoiceEvent = useCallback((event: any) => {
     // Process voice activity state changes
     handleVoiceActivityEvent(event);
@@ -74,26 +95,38 @@ export const useVoiceEvents = (
     // Track transcript accumulation
     transcriptAccumulator(event);
     
-    // Log speech events for debugging
+    // Enhanced logging for speech events
     if (event.type && (event.type.includes('speech') || event.type.includes('audio'))) {
-      console.log(`[Speech Event] Type: ${event.type}, Timestamp: ${new Date().toISOString()}`);
+      console.log(`[Speech Event] Processing:`, {
+        type: event.type,
+        timestamp: new Date().toISOString(),
+        hasTranscript: !!event.transcript,
+        hasAudioData: !!event.audio
+      });
     }
     
-    // Handle transcript events with centralized approach - only save finals
+    // Handle transcript events with centralized approach and error tracking
     if (chatClientRef.current) {
       handleTranscriptEvent(event, (content) => {
-        console.log("[Save Transcript] Attempting to save:", {
+        console.log("[Save Transcript] Attempting save:", {
           contentPreview: content.substring(0, 30),
           timestamp: new Date().toISOString(),
           hasClient: !!chatClientRef.current?.saveUserMessage
         });
-        chatClientRef.current?.saveUserMessage(content);
+        
+        try {
+          chatClientRef.current?.saveUserMessage(content);
+          console.log("[Save Transcript] Save initiated successfully");
+        } catch (error) {
+          console.error("[Save Transcript] Error:", error);
+          toast.error("Failed to save message");
+        }
       });
     }
     
-    // Handle audio stopped events to ensure complete messages
+    // Handle audio stopped events with state reset
     if (event.type === 'output_audio_buffer.stopped') {
-      console.log("[Voice Event] Audio buffer stopped - resetting voice state");
+      console.log("[Voice Event] Audio buffer stopped - resetting state");
       setVoiceActivityState(VoiceActivityState.Idle);
     }
   }, [handleVoiceActivityEvent, transcriptAccumulator, handleTranscriptEvent, chatClientRef, setVoiceActivityState]);
