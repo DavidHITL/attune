@@ -16,7 +16,7 @@ export const useVoiceEvents = (
   
   // Track transcript accumulation between speech events
   const transcriptAccumulator = useCallback((event: any) => {
-    // Handle audio transcript delta events
+    // Handle audio transcript delta events for accumulation only
     if (event.type === "response.audio_transcript.delta" && event.delta?.text) {
       console.log(`Transcript delta received: "${event.delta.text}"`);
       if (chatClientRef.current) {
@@ -35,12 +35,11 @@ export const useVoiceEvents = (
     }
   }, [chatClientRef]);
   
-  // Enhanced transcript handler with centralized message queue approach
+  // Enhanced transcript handler that only saves final transcripts
   const handleTranscriptEvent = useCallback((event: any, saveCallback?: (content: string) => void) => {
-    // Removed intermediate transcript saving
+    // Only log intermediate transcripts without saving
     if (event.type === 'transcript' && event.text) {
-      console.log(`Direct transcript received: ${event.text.substring(0, 30)}...`);
-      // Log only - no saving or toast for intermediate transcripts
+      console.log(`Intermediate transcript received (not saving): ${event.text.substring(0, 30)}...`);
     }
     
     // Handle final transcript completion (highest reliability)
@@ -48,8 +47,8 @@ export const useVoiceEvents = (
       const finalTranscript = event.transcript.text;
       console.log("Final audio transcript received:", finalTranscript.substring(0, 50));
       
-      if (saveCallback) {
-        // Save final transcript with high priority
+      if (saveCallback && finalTranscript.trim() !== '') {
+        // Save only final transcript
         saveCallback(finalTranscript);
         
         // Show toast for final transcript
@@ -74,11 +73,10 @@ export const useVoiceEvents = (
       console.log(`Speech/audio event: ${event.type}`);
     }
     
-    // Handle transcript events with centralized approach
+    // Handle transcript events with centralized approach - only save finals
     if (chatClientRef.current) {
       handleTranscriptEvent(event, (content) => {
-        // This is the critical path for user messages - ensure high priority
-        console.log(`Saving user transcript with centralized handler: ${content.substring(0, 30)}...`);
+        console.log(`Saving final transcript: ${content.substring(0, 30)}...`);
         chatClientRef.current?.saveUserMessage(content);
       });
     }
