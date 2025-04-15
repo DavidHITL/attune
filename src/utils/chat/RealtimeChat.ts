@@ -45,7 +45,7 @@ export class RealtimeChat {
     const start = Date.now();
     
     while (Date.now() - start < timeout) {
-      if (this.messageQueue?.isConversationInitialized()) {
+      if (this.messageQueue?.isInitialized()) {
         console.log("Message queue is ready with conversation ID");
         return true;
       }
