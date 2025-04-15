@@ -25,6 +25,7 @@ interface ConversationContext {
   messageCount: number;
 }
 
+// This properly augments the Window interface
 declare global {
   interface Window {
     attuneMessageQueue?: AttuneMessageQueue;
@@ -32,3 +33,5 @@ declare global {
   }
 }
 
+// This export empty object ensures the file is treated as a module
+export {};
