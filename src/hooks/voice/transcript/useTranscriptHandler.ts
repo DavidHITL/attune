@@ -35,7 +35,7 @@ export const useTranscriptHandler = () => {
     
     try {
       // SAVING STRATEGY 1: Try message queue first (highest priority)
-      if (window.attuneMessageQueue) {
+      if (typeof window !== 'undefined' && window.attuneMessageQueue) {
         console.log("🔄 Using message queue for transcript");
         window.attuneMessageQueue.queueMessage('user', transcript, true);
         

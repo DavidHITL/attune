@@ -1,3 +1,4 @@
+
 import { ConnectionManager } from './ConnectionManager';
 import { MessageQueue } from './messageQueue';
 import { ResponseParser } from './ResponseParser';
@@ -90,7 +91,7 @@ export class RealtimeChat {
         
         // Check if conversation ID is available in window context
         // This is a backup check in case the conversation ID is available but not yet set in the message queue
-        if (window.conversationContext && window.conversationContext.conversationId) {
+        if (typeof window !== 'undefined' && window.conversationContext && window.conversationContext.conversationId) {
           console.log("Found conversation ID in global context, marking queue as initialized");
           window.attuneMessageQueue.setConversationInitialized();
           this.conversationInitialized = true;

@@ -19,7 +19,7 @@ export const useTranscriptHandler = () => {
 
     // Only process transcript events when conversation context is valid or we have a message queue
     const hasValidContext = validateConversationContext();
-    const hasMessageQueue = !!window.attuneMessageQueue;
+    const hasMessageQueue = typeof window !== 'undefined' && !!window.attuneMessageQueue;
     
     if (!hasValidContext && !hasMessageQueue) {
       console.log('⚠️ No valid conversation context or message queue, skipping transcript processing');
@@ -36,7 +36,7 @@ export const useTranscriptHandler = () => {
         userId: user?.id
       });
       
-      if (hasMessageQueue && !hasValidContext) {
+      if (hasMessageQueue && !hasValidContext && typeof window !== 'undefined') {
         console.log('🔄 Queueing transcript message until conversation is initialized');
         // Use optional chaining to safely access the queueMessage method
         window.attuneMessageQueue?.queueMessage('user', transcriptContent, true);
@@ -72,7 +72,7 @@ export const useTranscriptHandler = () => {
         timestamp: new Date().toISOString()
       });
       
-      if (hasMessageQueue && !hasValidContext) {
+      if (hasMessageQueue && !hasValidContext && typeof window !== 'undefined') {
         console.log('🔄 Queueing final transcript message until conversation is initialized');
         // Use optional chaining to safely access the queueMessage method
         window.attuneMessageQueue?.queueMessage('user', finalTranscript, true);

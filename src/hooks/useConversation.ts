@@ -80,7 +80,7 @@ export const useConversation = (): UseConversationReturn => {
       messageQueueInitializedRef.current = true;
       
       // Find any existing message queue instances and notify them
-      if (window.attuneMessageQueue) {
+      if (typeof window !== 'undefined' && window.attuneMessageQueue) {
         console.log('Notifying global message queue that conversation is initialized');
         window.attuneMessageQueue.setConversationInitialized();
       }
@@ -136,7 +136,7 @@ export const useConversation = (): UseConversationReturn => {
           }
           
           // Also notify message queue if it exists
-          if (window.attuneMessageQueue && !window.attuneMessageQueue.isInitialized()) {
+          if (typeof window !== 'undefined' && window.attuneMessageQueue && !window.attuneMessageQueue.isInitialized()) {
             window.attuneMessageQueue.setConversationInitialized();
           }
         }

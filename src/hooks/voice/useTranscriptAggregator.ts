@@ -60,7 +60,7 @@ export const useTranscriptAggregator = () => {
       ]);
       
       // First priority: global message queue
-      if (window.attuneMessageQueue) {
+      if (typeof window !== 'undefined' && window.attuneMessageQueue) {
         console.log('[TranscriptAggregator] Using global message queue for transcript');
         window.attuneMessageQueue.queueMessage('user', finalTranscript, true);
         
@@ -69,7 +69,7 @@ export const useTranscriptAggregator = () => {
           window.attuneMessageQueue.forceFlushQueue().catch(err => {
             console.error('Error forcing queue flush:', err);
           });
-        } else if (window.conversationContext?.conversationId) {
+        } else if (typeof window !== 'undefined' && window.conversationContext?.conversationId) {
           console.log('[TranscriptAggregator] Setting conversation as initialized from transcript aggregator');
           window.attuneMessageQueue.setConversationInitialized();
         }
@@ -134,7 +134,7 @@ export const useTranscriptAggregator = () => {
       console.error('[TranscriptAggregator] Failed to save transcript:', error);
       
       // Try global message queue as fallback
-      if (window.attuneMessageQueue) {
+      if (typeof window !== 'undefined' && window.attuneMessageQueue) {
         window.attuneMessageQueue.queueMessage('user', finalTranscript, true);
       }
       
