@@ -90,35 +90,25 @@ export const useConversation = (): UseConversationReturn => {
         return localMessage;
       }
       
-      // For authenticated users, ensure conversationId exists
-      let targetConversationId = conversationId;
-      
-      if (!targetConversationId && message.role === 'user') {
-        console.log('No conversation ID found, creating new conversation...');
-        const savedMessage = await saveMessageToDb(message as Message);
-        
-        if (savedMessage) {
-          console.log(`Successfully saved ${message.role} message with new conversation`);
-          setMessages(prev => [...prev, savedMessage]);
-          return savedMessage;
-        }
-        return null;
-      }
-      
-      // Standard message save with existing conversation
-      console.log(`Saving ${message.role} message to database with conversation ID: ${targetConversationId}`);
       const savedMessage = await saveMessageToDb(message as Message);
       
       if (savedMessage) {
-        console.log(`Successfully saved ${message.role} message to database with ID: ${savedMessage.id}`);
+        console.log(`Successfully saved ${message.role} message with conversation:`, savedMessage.conversation_id);
+        
+        // Update conversation ID if a new one was created
+        if (!conversationId && savedMessage.conversation_id) {
+          console.log('Setting new conversation ID:', savedMessage.conversation_id);
+          setConversationId(savedMessage.conversation_id);
+        }
+        
         setMessages(prev => [...prev, savedMessage]);
         return savedMessage;
       }
       return null;
+      
     } catch (error) {
       console.error('Error in saveMessage:', error);
       
-      // Create a temporary message for UI consistency
       const tempMessage: Message = {
         id: `temp-${Date.now()}`,
         role: message.role as 'user' | 'assistant',
@@ -130,7 +120,7 @@ export const useConversation = (): UseConversationReturn => {
       setMessages(prev => [...prev, tempMessage]);
       return tempMessage;
     }
-  }, [saveMessageToDb, setMessages, addLocalMessage, user, conversationId]);
+  }, [saveMessageToDb, setMessages, addLocalMessage, user, conversationId, setConversationId]);
 
   return {
     conversationId,

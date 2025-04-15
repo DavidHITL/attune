@@ -38,7 +38,7 @@ export const useSaveMessage = (
   conversationId: string | null,
   validateRole: (role: string) => 'user' | 'assistant'
 ) => {
-  const saveMessage = async (message: Partial<Message>): Promise<Message | null> => {
+  const saveMessage = async (message: Partial<Message>): Promise<(Message & { conversation_id: string }) | null> => {
     const normalizedMessage = ensureValidMessageRole(message);
     
     console.log('useSaveMessage called with:', {
@@ -50,19 +50,16 @@ export const useSaveMessage = (
       content: normalizedMessage.content?.substring(0, 50)
     });
     
-    // Skip empty messages
     if (!isValidMessageContent(normalizedMessage.content)) {
       console.warn('Skipping empty message save attempt');
       return null;
     }
     
-    // Handle anonymous mode
     if (!user) {
       console.log(`👤 Anonymous user message processing: ${normalizedMessage.role}`);
-      return createAnonymousMessage(normalizedMessage.role, normalizedMessage.content);
+      return { ...createAnonymousMessage(normalizedMessage.role, normalizedMessage.content), conversation_id: 'anonymous' };
     }
     
-    // Ensure we have a valid conversation ID for authenticated users
     let targetConversationId = conversationId;
     
     if (!targetConversationId && normalizedMessage.role === 'user') {
@@ -72,7 +69,7 @@ export const useSaveMessage = (
       if (!targetConversationId) {
         console.error('Failed to create conversation');
         toast.error('Unable to start conversation. Please try again.');
-        return createAnonymousMessage(normalizedMessage.role, normalizedMessage.content);
+        return { ...createAnonymousMessage(normalizedMessage.role, normalizedMessage.content), conversation_id: 'anonymous' };
       }
       
       console.log('Created new conversation:', targetConversationId);
@@ -91,7 +88,7 @@ export const useSaveMessage = (
       const { data, error } = await supabase
         .from('messages')
         .insert([insertData])
-        .select('id, role, content, created_at')
+        .select('id, role, content, created_at, conversation_id')
         .single();
         
       if (error) {
@@ -101,14 +98,14 @@ export const useSaveMessage = (
       
       console.log('Message saved successfully:', data);
       
-      const savedMessage: Message = {
+      const savedMessage = {
         id: data.id,
         role: validateRole(data.role),
         content: data.content,
-        created_at: data.created_at
+        created_at: data.created_at,
+        conversation_id: data.conversation_id
       };
       
-      // Show success toast for user messages
       if (normalizedMessage.role === 'user') {
         toast.success('Message saved', {
           description: getMessagePreview(savedMessage.content),
@@ -125,8 +122,7 @@ export const useSaveMessage = (
         duration: 4000,
       });
       
-      // Return a temporary message to maintain UI consistency
-      return createAnonymousMessage(normalizedMessage.role, normalizedMessage.content);
+      return { ...createAnonymousMessage(normalizedMessage.role, normalizedMessage.content), conversation_id: 'anonymous' };
     }
   };
 
