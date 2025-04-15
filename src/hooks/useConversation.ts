@@ -129,9 +129,10 @@ export const useConversation = (): UseConversationReturn => {
           // Update global context
           if (typeof window !== 'undefined') {
             window.conversationContext = {
-              ...(window.conversationContext || {}),
               conversationId: savedMessage.conversation_id,
-              isInitialized: true
+              userId: user?.id || null,
+              isInitialized: true,
+              messageCount: window.conversationContext?.messageCount || 0
             };
           }
           
