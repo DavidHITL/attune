@@ -5,7 +5,6 @@ import { useConversation } from '@/hooks/useConversation';
 import { useConversationReady } from '@/hooks/conversation/useConversationReady';
 import { TranscriptAccumulator } from '@/utils/chat/transcripts/handlers/TranscriptAccumulator';
 import { useAuth } from '@/context/AuthContext';
-import { Message } from '@/utils/types';
 
 export const useTranscriptAggregator = () => {
   const [accumulatedTranscript, setAccumulatedTranscript] = useState('');
@@ -56,7 +55,7 @@ export const useTranscriptAggregator = () => {
       // Wait for conversation to be ready (with timeout)
       const conversationReady = await Promise.race([
         waitForConversation(),
-        new Promise<boolean>(resolve => setTimeout(() => resolve(false), 5000)) // 5 second timeout
+        new Promise(resolve => setTimeout(() => resolve(false), 5000)) // 5 second timeout
       ]);
       
       // First priority: global message queue
@@ -147,6 +146,9 @@ export const useTranscriptAggregator = () => {
   }, [saveMessage, waitForConversation, conversationId, user]);
 
   const handleTranscriptEvent = useCallback(async (event: any) => {
+    // CRITICAL FIX: Better handling of various transcript formats
+    let transcriptText = '';
+    
     // Handle transcript delta events for accumulation
     if (event.type === 'response.audio_transcript.delta' && event.delta?.text) {
       const deltaText = event.delta.text;
@@ -155,7 +157,7 @@ export const useTranscriptAggregator = () => {
     }
     
     // Handle interim transcripts
-    else if (event.type === 'transcript' && event.transcript && event.transcript.trim()) {
+    else if (event.type === 'transcript' && typeof event.transcript === 'string' && event.transcript.trim()) {
       const newTranscript = event.transcript;
       transcriptAccumulator.setTranscript(newTranscript);
       setAccumulatedTranscript(newTranscript);
@@ -167,13 +169,38 @@ export const useTranscriptAggregator = () => {
     }
 
     // Handle final transcript and save message
-    else if (event.type === 'response.audio_transcript.done' && event.transcript?.text) {
-      console.log('[TranscriptAggregator] Received final transcript event:', {
-        textPreview: event.transcript.text.substring(0, 50),
-        timestamp: new Date().toISOString()
-      });
-      const finalTranscript = event.transcript.text;
-      await handleFinalTranscript(finalTranscript);
+    else if (event.type === 'response.audio_transcript.done') {
+      console.log('[TranscriptAggregator] Received final transcript event:', event);
+      
+      // Try multiple ways of extracting the transcript
+      if (event.transcript?.text) {
+        transcriptText = event.transcript.text;
+      } else if (event.delta?.text) {
+        transcriptText = event.delta.text;
+      } else if (typeof event.transcript === 'string') {
+        transcriptText = event.transcript;
+      } else {
+        // Use accumulated transcript if available
+        transcriptText = transcriptAccumulator.getAccumulatedText();
+      }
+      
+      if (transcriptText && transcriptText.trim()) {
+        console.log('[TranscriptAggregator] Found final transcript:', transcriptText.substring(0, 50));
+        await handleFinalTranscript(transcriptText);
+      } else {
+        console.log('[TranscriptAggregator] No usable transcript found in final event');
+      }
+    }
+    
+    // Also check for response.done event which might contain a transcript
+    else if (event.type === 'response.done' && 
+             event.response?.output?.[0]?.content?.[0]?.transcript) {
+      const transcriptFromResponse = event.response.output[0].content[0].transcript;
+      if (transcriptFromResponse && transcriptFromResponse.trim()) {
+        console.log('[TranscriptAggregator] Found transcript in response.done:', 
+                   transcriptFromResponse.substring(0, 50));
+        await handleFinalTranscript(transcriptFromResponse);
+      }
     }
   }, [handleFinalTranscript]);
 

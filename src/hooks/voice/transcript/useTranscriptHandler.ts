@@ -11,7 +11,7 @@ export const useTranscriptHandler = () => {
 
   const saveTranscript = useCallback(async (
     transcript: string, 
-    saveMessage: (msg: { role: 'user' | 'assistant'; content: string }) => Promise<Message | undefined>
+    saveMessage: (msg: { role: 'user' | 'assistant'; content: string }) => Promise<Message | null>
   ) => {
     // CRITICAL FIX: Validate transcript content first
     if (!transcript || transcript.trim() === '') {
@@ -59,6 +59,7 @@ export const useTranscriptHandler = () => {
           description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
           duration: 2000
         });
+        return;
       }
       
       // SAVING STRATEGY 2: Direct save if context is valid (backup)

@@ -68,7 +68,7 @@ export const useConversation = (): UseConversationReturn => {
       
       console.log(`[useConversation] Updated global conversation context:`, {
         conversationId,
-        userId: user?.id,
+        userId: user?.id || null,
         hasMessages: messages.length > 0,
         timestamp: new Date().toISOString()
       });
