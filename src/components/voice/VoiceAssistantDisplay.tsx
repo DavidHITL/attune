@@ -26,6 +26,7 @@ type VoiceAssistantDisplayProps = {
   onEndConversation?: () => void;
   onStartConversation?: () => void;
   currentVoice?: string;
+  isStartDisabled?: boolean;
 }
 
 const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({ 
@@ -36,7 +37,8 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
   onToggleMute = () => {},
   onEndConversation = () => {},
   onStartConversation = () => {},
-  currentVoice = ''
+  currentVoice = '',
+  isStartDisabled = false
 }) => {
   const { messages: hookMessages } = useConversation();
   
@@ -77,7 +79,7 @@ const VoiceAssistantDisplay: React.FC<VoiceAssistantDisplayProps> = ({
           onToggleMute={onToggleMute}
           onEndConversation={onEndConversation}
           onStartConversation={onStartConversation}
-          disabled={!!connectionError}
+          disabled={!!connectionError || isStartDisabled}
         />
       </div>
     </div>

@@ -15,7 +15,7 @@ export class TranscriptEventHandler {
       if (this.lastTranscriptContent !== event.transcript) {
         this.lastTranscriptContent = event.transcript;
         
-        // Only show toast for interim feedback
+        // Only show toast for interim feedback, don't save messages
         toast.info("Speech detected", { 
           description: event.transcript.substring(0, 50) + (event.transcript.length > 50 ? "..." : ""),
           duration: 2000

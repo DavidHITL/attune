@@ -18,6 +18,7 @@ interface VoiceCallUIProps {
   onStartConversation: () => void;
   currentVoice?: string;
   connectionError?: string | null;
+  isStartDisabled?: boolean;
 }
 
 const VoiceCallUI: React.FC<VoiceCallUIProps> = ({
@@ -29,7 +30,8 @@ const VoiceCallUI: React.FC<VoiceCallUIProps> = ({
   onEndConversation,
   onStartConversation,
   currentVoice = 'default',
-  connectionError
+  connectionError,
+  isStartDisabled = false
 }) => {
   // Show a loading skeleton while conversation data is loading
   if (conversationLoading) {
@@ -87,6 +89,7 @@ const VoiceCallUI: React.FC<VoiceCallUIProps> = ({
           onStartConversation={onStartConversation}
           currentVoice={currentVoice}
           connectionError={connectionError}
+          isStartDisabled={isStartDisabled}
         />
       </div>
     </div>
