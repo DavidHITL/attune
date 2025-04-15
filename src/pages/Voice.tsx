@@ -12,18 +12,18 @@ import { toast } from 'sonner';
 const Voice = () => {
   const { user, loading: authLoading } = useAuth();
   const { setBackgroundColor } = useBackground();
-  const { loading: conversationLoading, conversationId, saveMessage } = useConversation();
+  const { loading: conversationLoading, conversationId } = useConversation();
 
   // Set background color
   useEffect(() => {
     setBackgroundColor(BACKGROUND_COLORS.VOICE_BLUE);
   }, [setBackgroundColor]);
 
-  // Early conversation initialization
+  // Early conversation initialization for authenticated users
   useEffect(() => {
     const initializeVoiceChat = async () => {
       if (!user) {
-        console.log('No user available for conversation initialization');
+        console.log('No authenticated user available for conversation initialization');
         return;
       }
 
@@ -32,18 +32,13 @@ const Voice = () => {
         hasConversationId: !!conversationId
       });
 
-      try {
-        if (conversationLoading) {
-          console.log('Waiting for conversation initialization...');
-        } else {
-          console.log('Conversation initialization complete:', {
-            conversationId,
-            ready: !conversationLoading && !!conversationId
-          });
-        }
-      } catch (error) {
-        console.error('Failed to initialize voice chat:', error);
-        toast.error('Failed to initialize voice chat. Please try again.');
+      if (conversationLoading) {
+        console.log('Waiting for conversation initialization...');
+      } else {
+        console.log('Conversation initialization complete:', {
+          conversationId,
+          ready: !conversationLoading && !!conversationId
+        });
       }
     };
 
@@ -54,7 +49,7 @@ const Voice = () => {
     <div className="min-h-screen h-screen overflow-hidden relative bg-[#1B4965]">
       <div className="relative z-10 h-full flex flex-col items-center py-6 px-4">
         <div className="w-full max-w-[390px] h-[calc(100vh-120px)] max-h-[calc(100vh-120px)]">
-          {authLoading || conversationLoading ? (
+          {authLoading ? (
             <div className="h-full flex flex-col items-center">
               <AttuneLogo />
               <div className="flex-1 w-full flex flex-col items-center justify-center mt-8 space-y-4">
@@ -67,12 +62,9 @@ const Voice = () => {
               </div>
             </div>
           ) : (
-            <RealtimeChat isDisabled={conversationLoading || !conversationId} />
+            <RealtimeChat />
           )}
         </div>
       </div>
     </div>
   );
-};
-
-export default Voice;

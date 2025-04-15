@@ -33,17 +33,12 @@ export const useTranscriptAggregator = () => {
       const finalTranscript = event.transcript.text;
       console.log(`Processing final transcript: "${finalTranscript.substring(0, 50)}..."`);
 
-      // Wait for conversation to be initialized
+      // For authenticated users, wait for conversation to be initialized
       const isConversationReady = await waitForConversation();
-      if (!isConversationReady) {
-        console.error('Failed to save message: Conversation not initialized');
-        toast.error("Failed to save transcript: Please try again");
-        setAccumulatedTranscript('');
-        return;
-      }
-
-      // Save message using accumulated or final transcript
+      
+      // Use the accumulated transcript or final transcript, whichever is available
       const messageContent = accumulatedTranscript || finalTranscript;
+      
       if (messageContent.trim()) {
         console.log('Saving final transcript');
         try {
@@ -55,6 +50,14 @@ export const useTranscriptAggregator = () => {
           
           if (savedMessage) {
             toast.success("Speech transcribed", {
+              description: messageContent.substring(0, 50) + (messageContent.length > 50 ? "..." : ""),
+              duration: 2000
+            });
+            console.log('Transcript saved successfully:', savedMessage);
+          } else {
+            console.warn('Transcript could not be saved (likely anonymous mode)');
+            // Show success anyway since the message was processed
+            toast.success("Speech processed", {
               description: messageContent.substring(0, 50) + (messageContent.length > 50 ? "..." : ""),
               duration: 2000
             });

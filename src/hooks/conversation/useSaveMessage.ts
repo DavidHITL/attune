@@ -58,13 +58,17 @@ export const useSaveMessage = (
       return null;
     }
     
+    // For anonymous users, always return a local message without database saving
     if (!user) {
       console.log(`👤 [Save Message] Anonymous user message processing: ${normalizedMessage.role}`);
-      return { ...createAnonymousMessage(normalizedMessage.role, normalizedMessage.content), conversation_id: 'anonymous' };
+      const anonymousMessage = createAnonymousMessage(normalizedMessage.role, normalizedMessage.content);
+      console.log('Anonymous message created (not saved to database):', anonymousMessage);
+      return { ...anonymousMessage, conversation_id: 'anonymous' };
     }
     
     let targetConversationId = conversationId;
     
+    // For authenticated users without an active conversation, create one
     if (!targetConversationId && normalizedMessage.role === 'user') {
       console.log('🆕 [Save Message] No conversation ID found, creating new conversation...');
       targetConversationId = await createNewConversation(user.id);
