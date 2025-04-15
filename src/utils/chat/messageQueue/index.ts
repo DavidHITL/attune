@@ -46,6 +46,11 @@ export class MessageQueue {
     }
   }
   
+  // Add public getter method to check initialization status
+  isInitialized(): boolean {
+    return this.isConversationInitialized;
+  }
+  
   async flushQueue(): Promise<void> {
     if (!this.isConversationInitialized && this.pendingPreInitMessages.length > 0) {
       console.log(`Forcing processing of pending pre-init messages during flush`);
