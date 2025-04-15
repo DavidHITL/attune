@@ -11,6 +11,7 @@ import { isValidMessageContent, getMessagePreview } from '@/utils/chat/message/m
  */
 const createNewConversation = async (userId: string): Promise<string | null> => {
   try {
+    console.log('Creating new conversation for user:', userId);
     const { data, error } = await supabase
       .rpc('get_or_create_conversation', {
         p_user_id: userId
@@ -21,6 +22,7 @@ const createNewConversation = async (userId: string): Promise<string | null> => 
       throw error;
     }
 
+    console.log('Successfully created/retrieved conversation:', data);
     return data;
   } catch (error) {
     console.error('Failed to create conversation:', error);
@@ -44,7 +46,8 @@ export const useSaveMessage = (
       userId: user?.id,
       conversationId,
       messageRole: normalizedMessage.role,
-      messageContentLength: normalizedMessage.content?.length
+      messageContentLength: normalizedMessage.content?.length,
+      content: normalizedMessage.content?.substring(0, 50)
     });
     
     // Skip empty messages
@@ -82,6 +85,8 @@ export const useSaveMessage = (
       content: normalizedMessage.content
     };
     
+    console.log('Attempting to insert message:', insertData);
+    
     try {
       const { data, error } = await supabase
         .from('messages')
@@ -89,7 +94,12 @@ export const useSaveMessage = (
         .select('id, role, content, created_at')
         .single();
         
-      if (error) throw error;
+      if (error) {
+        console.error('Database error during message insert:', error);
+        throw error;
+      }
+      
+      console.log('Message saved successfully:', data);
       
       const savedMessage: Message = {
         id: data.id,

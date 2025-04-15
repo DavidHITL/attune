@@ -34,6 +34,10 @@ export const useTranscriptHandler = () => {
       saveMessage({
         role: 'user' as const,
         content: event.transcript
+      }).then(savedMessage => {
+        console.log('Message save result:', savedMessage ? 'Success' : 'Failed');
+      }).catch(error => {
+        console.error('Error saving transcript:', error);
       });
       return;
     }
@@ -54,6 +58,10 @@ export const useTranscriptHandler = () => {
       saveMessage({
         role: 'user' as const,
         content: event.transcript.text
+      }).then(savedMessage => {
+        console.log('Final transcript save result:', savedMessage ? 'Success' : 'Failed');
+      }).catch(error => {
+        console.error('Error saving final transcript:', error);
       });
     }
     
