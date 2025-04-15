@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Message } from '@/utils/types';
 import { toast } from 'sonner';
