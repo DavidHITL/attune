@@ -1,4 +1,3 @@
-
 import { Message, SaveMessageCallback } from '../../types';
 import { QueueProcessor } from './QueueProcessor';
 import { QueueStatus } from './types';
@@ -28,16 +27,29 @@ export class MessageQueue {
   }
   
   setConversationInitialized(): void {
+    console.log("[MessageQueue] Setting conversation as initialized", {
+      wasInitialized: this.isConversationInitialized,
+      pendingMessageCount: this.pendingPreInitMessages.length,
+      timestamp: new Date().toISOString()
+    });
+    
     if (this.isConversationInitialized) return;
     
     this.isConversationInitialized = true;
     
     if (this.pendingPreInitMessages.length > 0) {
-      console.log(`Processing ${this.pendingPreInitMessages.length} pending messages`);
+      console.log(`[MessageQueue] Processing ${this.pendingPreInitMessages.length} pending messages:`, {
+        messageTypes: this.pendingPreInitMessages.map(m => m.role).join(', '),
+        priorities: this.pendingPreInitMessages.map(m => m.priority).join(', ')
+      });
       
       this.pendingPreInitMessages.forEach((msg, index) => {
         setTimeout(() => {
-          console.log(`Processing pre-init message ${index + 1}/${this.pendingPreInitMessages.length}`);
+          console.log(`[MessageQueue] Processing pre-init message ${index + 1}/${this.pendingPreInitMessages.length}:`, {
+            role: msg.role,
+            priority: msg.priority,
+            contentPreview: msg.content.substring(0, 30)
+          });
           this.queueProcessor.queueMessage(msg.role, msg.content, msg.priority);
         }, index * 200);
       });
