@@ -1,74 +1,68 @@
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
-
-const POLL_INTERVAL = 100; // ms
-const MAX_WAIT_TIME = 5000; // 5 seconds
+import { useState, useCallback, useEffect } from 'react';
+import { toast } from 'sonner';
 
 export const useConversationReady = (conversationId: string | null) => {
-  const [isReady, setIsReady] = useState(false);
-  const timeoutRef = useRef<number>();
-  const { user } = useAuth();
+  const [isReady, setIsReady] = useState(!!conversationId);
+  const [retryCount, setRetryCount] = useState(0);
+  const maxRetries = 10;
+  const retryDelay = 300;
 
   useEffect(() => {
-    // Consider anonymous mode as "ready" since no conversation is needed
-    const isAnonymousReady = !user;
-    
-    // Consider authenticated mode as "ready" when conversationId is available
-    const isAuthenticatedReady = !!user && !!conversationId;
-    
-    // Set ready if either anonymous or authenticated is ready
-    setIsReady(isAnonymousReady || isAuthenticatedReady);
-    
-    console.log(`Conversation ready state: ${isAnonymousReady || isAuthenticatedReady}`, {
-      isAnonymous: !user, 
-      hasConversationId: !!conversationId
-    });
-    
-    return () => {
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [conversationId, user]);
-
-  const waitForConversation = useCallback(async (): Promise<boolean> => {
-    // For anonymous users, always return true since we don't need a conversation
-    if (!user) {
-      console.log('Anonymous user - no need to wait for conversation');
-      return true;
+    if (conversationId) {
+      console.log('[ConversationReady] Conversation ID available:', conversationId);
+      setIsReady(true);
+    } else {
+      console.log('[ConversationReady] No conversation ID yet');
+      setIsReady(false);
     }
+  }, [conversationId]);
+
+  /**
+   * Wait until the conversation is ready (has a valid ID)
+   */
+  const waitForConversation = useCallback(async (): Promise<void> => {
+    if (isReady && conversationId) {
+      console.log('[ConversationReady] Conversation already ready:', conversationId);
+      return Promise.resolve();
+    }
+
+    console.log('[ConversationReady] Waiting for conversation to be ready...');
+    setRetryCount(0);
     
-    // For authenticated users, check if ready
-    if (isReady) return true;
-
-    console.log('Waiting for conversation to be initialized...');
-    return new Promise((resolve) => {
-      let elapsedTime = 0;
-
-      const checkConversation = () => {
-        if (isReady) {
-          console.log('Conversation is now ready');
-          resolve(true);
+    return new Promise((resolve, reject) => {
+      let currentRetries = 0;
+      
+      const checkIfReady = () => {
+        if (conversationId) {
+          console.log('[ConversationReady] Conversation now ready:', conversationId);
+          setIsReady(true);
+          resolve();
           return;
         }
 
-        elapsedTime += POLL_INTERVAL;
-        if (elapsedTime >= MAX_WAIT_TIME) {
-          console.warn('Conversation initialization timed out');
-          resolve(false);
+        currentRetries++;
+        setRetryCount(currentRetries);
+        
+        if (currentRetries >= maxRetries) {
+          const error = new Error(`Timed out waiting for conversation after ${maxRetries} attempts`);
+          console.error('[ConversationReady] Timeout waiting for conversation:', error);
+          toast.error("Failed to initialize conversation");
+          reject(error);
           return;
         }
 
-        timeoutRef.current = window.setTimeout(checkConversation, POLL_INTERVAL);
+        console.log(`[ConversationReady] Not ready yet, retry ${currentRetries}/${maxRetries}`);
+        setTimeout(checkIfReady, retryDelay);
       };
 
-      checkConversation();
+      checkIfReady();
     });
-  }, [isReady, user]);
+  }, [conversationId, isReady]);
 
   return {
-    isReady,
-    waitForConversation
+    isConversationReady: isReady,
+    waitForConversation,
+    retryCount
   };
 };

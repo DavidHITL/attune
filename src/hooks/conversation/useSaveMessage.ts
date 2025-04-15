@@ -100,6 +100,11 @@ export const useSaveMessage = (
     });
     
     try {
+      // Add additional debugging for insert operation
+      console.log(`[Save Message] Starting database insert with SQL: 
+        INSERT INTO messages (conversation_id, user_id, role, content)
+        VALUES ('${targetConversationId}', '${user.id}', '${normalizedMessage.role}', '${normalizedMessage.content?.substring(0, 20)}...')`);
+      
       const { data, error } = await supabase
         .from('messages')
         .insert([insertData])
@@ -109,6 +114,10 @@ export const useSaveMessage = (
       if (error) {
         console.error('❌ [Save Message] Database error during message insert:', {
           error,
+          errorMessage: error.message,
+          errorCode: error.code,
+          details: error.details,
+          hint: error.hint,
           payload: insertData,
           timestamp: new Date().toISOString()
         });
@@ -143,6 +152,7 @@ export const useSaveMessage = (
     } catch (error) {
       console.error('❌ [Save Message] Error saving message:', {
         error: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
         timestamp: new Date().toISOString(),
         context: {
           conversationId: targetConversationId,

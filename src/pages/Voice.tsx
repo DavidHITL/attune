@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import RealtimeChat from '@/components/RealtimeChat';
 import { useAuth } from '@/context/AuthContext';
@@ -8,11 +8,13 @@ import AttuneLogo from '@/components/AttuneLogo';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConversation } from '@/hooks/useConversation';
 import { toast } from 'sonner';
+import { useTranscriptAggregator } from '@/hooks/voice/useTranscriptAggregator';
 
 const Voice = () => {
   const { user, loading: authLoading } = useAuth();
   const { setBackgroundColor } = useBackground();
   const { loading: conversationLoading, conversationId } = useConversation();
+  const transcriptAggregatorRef = useRef<any>(null);
 
   // Set background color
   useEffect(() => {
@@ -45,6 +47,35 @@ const Voice = () => {
     initializeVoiceChat();
   }, [user, conversationId, conversationLoading]);
 
+  // Handle page unload to save any pending transcripts
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Save any pending transcript when navigating away
+      if (transcriptAggregatorRef.current?.saveCurrentTranscript) {
+        console.log('Voice page unloading - saving pending transcript');
+        transcriptAggregatorRef.current.saveCurrentTranscript();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Also try to save transcript when component unmounts
+      if (transcriptAggregatorRef.current?.saveCurrentTranscript) {
+        console.log('Voice component unmounting - saving pending transcript');
+        transcriptAggregatorRef.current.saveCurrentTranscript();
+      }
+    };
+  }, []);
+
+  // Get access to transcript functions from the RealtimeChat component
+  const handleTranscriptAggregatorRef = (api: any) => {
+    if (api?.saveCurrentTranscript) {
+      transcriptAggregatorRef.current = api;
+    }
+  };
+
   return (
     <div className="min-h-screen h-screen overflow-hidden relative bg-[#1B4965]">
       <div className="relative z-10 h-full flex flex-col items-center py-6 px-4">
@@ -62,7 +93,7 @@ const Voice = () => {
               </div>
             </div>
           ) : (
-            <RealtimeChat />
+            <RealtimeChat onTranscriptAggregatorReady={handleTranscriptAggregatorRef} />
           )}
         </div>
       </div>

@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import { useChatClient } from '@/hooks/voice/useChatClient';
 import { useCallControls } from '@/hooks/voice/useCallControls';
@@ -8,12 +8,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
+import { useTranscriptAggregator } from '@/hooks/voice/useTranscriptAggregator';
 
 interface RealtimeChatProps {
   isDisabled?: boolean;
+  onTranscriptAggregatorReady?: (api: any) => void;
 }
 
-const RealtimeChat: React.FC<RealtimeChatProps> = ({ isDisabled = false }) => {
+const RealtimeChat: React.FC<RealtimeChatProps> = ({ 
+  isDisabled = false, 
+  onTranscriptAggregatorReady 
+}) => {
   const [currentVoice, setCurrentVoice] = useState<string>('');
   const { user } = useAuth();
   
@@ -35,10 +40,22 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({ isDisabled = false }) => {
     endConversation
   );
   
-  // Fetch the current voice setting
+  // Get transcript aggregator for saving transcripts
+  const transcriptAggregator = useTranscriptAggregator();
+  
+  // Expose transcript API to parent component
+  useEffect(() => {
+    if (onTranscriptAggregatorReady) {
+      console.log('Providing transcript aggregator API to parent');
+      onTranscriptAggregatorReady(transcriptAggregator);
+    }
+  }, [onTranscriptAggregatorReady, transcriptAggregator]);
+  
+  // Get voice setting
   useEffect(() => {
     const fetchVoiceSetting = async () => {
       try {
+        console.log('Fetching voice setting from database');
         const { data, error } = await supabase
           .from('bot_config')
           .select('voice')
@@ -46,7 +63,10 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({ isDisabled = false }) => {
           .limit(1)
           .single();
           
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching voice setting:', error);
+          throw error;
+        }
         
         if (data && data.voice) {
           console.log("Current voice setting:", data.voice);
@@ -59,6 +79,18 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({ isDisabled = false }) => {
     
     fetchVoiceSetting();
   }, []);
+
+  // Custom end call handler that saves transcript before ending call
+  const handleEndCallWithTranscriptSave = async () => {
+    console.log('Ending call with transcript save');
+    // First save any pending transcript
+    if (transcriptAggregator.currentTranscript) {
+      console.log('Saving pending transcript before ending call');
+      await transcriptAggregator.saveCurrentTranscript();
+    }
+    // Then end the call
+    handleEndCall();
+  };
 
   return (
     <>
@@ -81,7 +113,7 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({ isDisabled = false }) => {
         connectionError={connectionError}
         conversationLoading={conversationLoading}
         onToggleMute={toggleMute}
-        onEndConversation={handleEndCall}
+        onEndConversation={handleEndCallWithTranscriptSave}
         onStartConversation={isDisabled ? undefined : handleStartCall}
         currentVoice={currentVoice}
         isStartDisabled={isDisabled}
