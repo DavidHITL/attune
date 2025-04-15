@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { useConversationValidator } from './transcript/useConversationValidator';
 import { useConversation } from '../useConversation';
@@ -37,7 +38,8 @@ export const useTranscriptHandler = () => {
       
       if (hasMessageQueue && !hasValidContext) {
         console.log('🔄 Queueing transcript message until conversation is initialized');
-        window.attuneMessageQueue.queueMessage('user', transcriptContent, true);
+        // Use optional chaining to safely access the queueMessage method
+        window.attuneMessageQueue?.queueMessage('user', transcriptContent, true);
         
         toast.success("Speech detected", {
           description: transcriptContent.substring(0, 50) + (transcriptContent.length > 50 ? "..." : ""),
@@ -72,7 +74,8 @@ export const useTranscriptHandler = () => {
       
       if (hasMessageQueue && !hasValidContext) {
         console.log('🔄 Queueing final transcript message until conversation is initialized');
-        window.attuneMessageQueue.queueMessage('user', finalTranscript, true);
+        // Use optional chaining to safely access the queueMessage method
+        window.attuneMessageQueue?.queueMessage('user', finalTranscript, true);
         
         toast.success("Speech transcribed", {
           description: finalTranscript.substring(0, 50) + (finalTranscript.length > 50 ? "..." : ""),

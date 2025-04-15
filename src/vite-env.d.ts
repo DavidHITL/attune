@@ -13,5 +13,6 @@ interface ImportMeta {
 interface Window {
   attuneMessageQueue?: {
     setConversationInitialized: () => void;
+    queueMessage: (role: 'user' | 'assistant', content: string, priority?: boolean) => void;
   };
 }
