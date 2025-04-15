@@ -6,20 +6,57 @@ import { useAuth } from '@/context/AuthContext';
 import { useBackground, BACKGROUND_COLORS } from '@/context/BackgroundContext';
 import AttuneLogo from '@/components/AttuneLogo';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useConversation } from '@/hooks/useConversation';
+import { toast } from 'sonner';
 
 const Voice = () => {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { setBackgroundColor } = useBackground();
+  const { loading: conversationLoading, conversationId, saveMessage } = useConversation();
 
+  // Set background color
   useEffect(() => {
     setBackgroundColor(BACKGROUND_COLORS.VOICE_BLUE);
   }, [setBackgroundColor]);
+
+  // Early conversation initialization
+  useEffect(() => {
+    const initializeVoiceChat = async () => {
+      if (!user) {
+        console.log('No user available for conversation initialization');
+        return;
+      }
+
+      console.log('Voice chat initialization started', {
+        userId: user.id,
+        hasConversationId: !!conversationId
+      });
+
+      try {
+        // The conversation will be automatically initialized by the useConversation hook
+        // We just need to wait for it to complete
+        if (conversationLoading) {
+          console.log('Waiting for conversation initialization...');
+        } else {
+          console.log('Conversation initialization complete:', {
+            conversationId,
+            ready: !conversationLoading && !!conversationId
+          });
+        }
+      } catch (error) {
+        console.error('Failed to initialize voice chat:', error);
+        toast.error('Failed to initialize voice chat. Please try again.');
+      }
+    };
+
+    initializeVoiceChat();
+  }, [user, conversationId, conversationLoading]);
 
   return (
     <div className="min-h-screen h-screen overflow-hidden relative bg-[#1B4965]">
       <div className="relative z-10 h-full flex flex-col items-center py-6 px-4">
         <div className="w-full max-w-[390px] h-[calc(100vh-120px)] max-h-[calc(100vh-120px)]">
-          {loading ? (
+          {authLoading || conversationLoading ? (
             <div className="h-full flex flex-col items-center">
               <AttuneLogo />
               <div className="flex-1 w-full flex flex-col items-center justify-center mt-8 space-y-4">
