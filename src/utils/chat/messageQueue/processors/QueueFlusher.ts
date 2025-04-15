@@ -15,19 +15,36 @@ export class QueueFlusher {
   ) {}
   
   /**
-   * Process any remaining messages
+   * Process any remaining messages with improved timing
    */
   async flushQueue(): Promise<void> {
-    console.log(`Flushing message queue with ${this.messageQueue.length} messages and ${this.messageSaver.getActiveMessageSaves()} active saves`);
+    const initialQueueLength = this.messageQueue.length;
+    const initialActiveSaves = this.messageSaver.getActiveMessageSaves();
     
-    // Wait for any in-progress saves to complete first
+    console.log(`Starting queue flush with ${initialQueueLength} messages and ${initialActiveSaves} active saves`);
+    
+    // If no immediate messages but active saves, wait briefly
+    if (initialQueueLength === 0 && initialActiveSaves > 0) {
+      console.log(`No queued messages but ${initialActiveSaves} active saves - waiting briefly...`);
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    // Wait for any in-progress saves to complete
     if (this.messageSaver.getActiveMessageSaves() > 0) {
       console.log(`Waiting for ${this.messageSaver.getActiveMessageSaves()} active saves to complete...`);
       await new Promise(resolve => setTimeout(resolve, 1500));
     }
     
+    // Additional wait if queue is empty to catch any last-minute additions
+    if (this.messageQueue.length === 0) {
+      console.log('Queue empty, allowing extra time for pending messages...');
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
     const remainingMessages = [...this.messageQueue];
     this.messageQueue.length = 0; // Clear the queue
+    
+    console.log(`Processing final flush with ${remainingMessages.length} messages`);
     
     for (const msg of remainingMessages) {
       try {
@@ -39,7 +56,6 @@ export class QueueFlusher {
         
         console.log(`Successfully saved message during flush with ID: ${savedMessage?.id || 'unknown'}`);
         
-        // Show toast for user messages
         if (msg.role === 'user') {
           toast.success("User message saved during cleanup", {
             description: msg.content.substring(0, 50) + (msg.content.length > 50 ? "..." : ""),
@@ -49,7 +65,6 @@ export class QueueFlusher {
       } catch (error) {
         console.error("Error saving message during flush:", error);
         
-        // Show error toast
         toast.error("Failed to save message during cleanup", {
           description: error instanceof Error ? error.message : "Database error",
           duration: 3000,
@@ -57,7 +72,15 @@ export class QueueFlusher {
       }
     }
     
+    // Final check for any messages that might have been added during processing
+    const finalCheck = this.messageQueue.length;
+    if (finalCheck > 0) {
+      console.log(`Found ${finalCheck} additional messages during flush - processing them...`);
+      await this.flushQueue(); // Recursively process any new messages
+    }
+    
     // Report on any pending user messages that never completed
     this.messageSaver.reportPendingMessages();
   }
 }
+
