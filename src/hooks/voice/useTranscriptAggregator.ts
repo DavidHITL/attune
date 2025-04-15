@@ -5,6 +5,7 @@ import { useConversation } from '@/hooks/useConversation';
 import { useConversationReady } from '@/hooks/conversation/useConversationReady';
 import { TranscriptAccumulator } from '@/utils/chat/transcripts/handlers/TranscriptAccumulator';
 import { useAuth } from '@/context/AuthContext';
+import { Message } from '@/utils/types';
 
 export const useTranscriptAggregator = () => {
   const [accumulatedTranscript, setAccumulatedTranscript] = useState('');
@@ -74,7 +75,9 @@ export const useTranscriptAggregator = () => {
       if (savedMessage) {
         console.log('[TranscriptAggregator] Message saved successfully:', {
           messageId: savedMessage.id,
-          conversationId: savedMessage.conversation_id
+          // Fixed: Access the conversation ID from savedMessage correctly
+          // The Message type doesn't have conversation_id, use conversationId from hook instead
+          conversationId: conversationId
         });
         
         savedMessagesRef.current.add(transcriptHash);
