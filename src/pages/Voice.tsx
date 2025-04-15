@@ -68,3 +68,6 @@ const Voice = () => {
       </div>
     </div>
   );
+};
+
+export default Voice;
