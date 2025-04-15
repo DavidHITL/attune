@@ -126,13 +126,13 @@ export const useConversation = (): UseConversationReturn => {
           console.log('Setting new conversation ID:', savedMessage.conversation_id);
           setConversationId(savedMessage.conversation_id);
           
-          // Update global context
+          // Update global context with all required properties
           if (typeof window !== 'undefined') {
             window.conversationContext = {
               conversationId: savedMessage.conversation_id,
-              userId: user?.id || null,
+              userId: user?.id || null, // Ensure userId is always provided (can be null)
               isInitialized: true,
-              messageCount: window.conversationContext?.messageCount || 0
+              messageCount: messages.length // Use current message count
             };
           }
           
@@ -161,7 +161,7 @@ export const useConversation = (): UseConversationReturn => {
       setMessages(prev => [...prev, tempMessage]);
       return tempMessage;
     }
-  }, [saveMessageToDb, setMessages, addLocalMessage, user, conversationId, setConversationId]);
+  }, [saveMessageToDb, setMessages, addLocalMessage, user, conversationId, setConversationId, messages.length]);
 
   return {
     conversationId,

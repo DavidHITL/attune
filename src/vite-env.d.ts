@@ -20,7 +20,7 @@ interface AttuneMessageQueue {
 
 interface ConversationContext {
   conversationId: string | null;
-  userId: string | null;
+  userId: string | null;  // Making sure this is not optional but allowing null
   isInitialized: boolean;
   messageCount: number;
 }
