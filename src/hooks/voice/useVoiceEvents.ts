@@ -37,18 +37,10 @@ export const useVoiceEvents = (
   
   // Enhanced transcript handler with centralized message queue approach
   const handleTranscriptEvent = useCallback((event: any, saveCallback?: (content: string) => void) => {
-    // Check for direct transcript events - ensure high priority saving
+    // Removed intermediate transcript saving
     if (event.type === 'transcript' && event.text) {
       console.log(`Direct transcript received: ${event.text.substring(0, 30)}...`);
-      if (saveCallback) {
-        saveCallback(event.text);
-        
-        // Show a toast notification for transcript received
-        toast.info("Speech transcribed", {
-          description: event.text.substring(0, 50) + (event.text.length > 50 ? "..." : ""),
-          duration: 2000
-        });
-      }
+      // Log only - no saving or toast for intermediate transcripts
     }
     
     // Handle final transcript completion (highest reliability)
@@ -57,11 +49,11 @@ export const useVoiceEvents = (
       console.log("Final audio transcript received:", finalTranscript.substring(0, 50));
       
       if (saveCallback) {
-        // Ensure we save this with high priority
+        // Save final transcript with high priority
         saveCallback(finalTranscript);
         
         // Show toast for final transcript
-        toast.success("Full transcript processed", { 
+        toast.success("Speech transcribed", { 
           description: finalTranscript.substring(0, 50) + (finalTranscript.length > 50 ? "..." : ""),
           duration: 2000
         });
