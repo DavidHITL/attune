@@ -37,6 +37,25 @@ export class RealtimeChat {
     );
   }
 
+  /**
+   * Wait for the message queue to be ready with a conversation ID
+   */
+  private async waitForMessageQueue(timeout = 3000): Promise<boolean> {
+    console.log("Waiting for message queue to be ready...");
+    const start = Date.now();
+    
+    while (Date.now() - start < timeout) {
+      if (this.messageQueue?.isConversationInitialized()) {
+        console.log("Message queue is ready with conversation ID");
+        return true;
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    console.warn("Timeout waiting for message queue initialization");
+    return false;
+  }
+
   async init(): Promise<boolean> {
     try {
       // Initialize the connection manager
@@ -74,14 +93,29 @@ export class RealtimeChat {
     }
   }
 
-  saveUserMessage(content: string): void {
+  async saveUserMessage(content: string): Promise<void> {
     if (!content || content.trim() === '') {
       console.log("Skipping empty user message");
       return;
     }
     
-    console.log(`Queueing user message: "${content.substring(0, 30)}..."`);
-    this.messageQueue?.queueMessage('user', content, true);
+    console.log(`Attempting to save user message: "${content.substring(0, 30)}..."`);
+    
+    try {
+      // Wait for message queue to be ready with conversation ID
+      const isReady = await this.waitForMessageQueue();
+      
+      if (!isReady) {
+        console.error("Failed to save message: Message queue not ready");
+        throw new Error("Message queue not initialized");
+      }
+      
+      console.log(`Queueing user message with conversation: "${content.substring(0, 30)}..."`);
+      this.messageQueue?.queueMessage('user', content, true);
+    } catch (error) {
+      console.error("Error saving user message:", error);
+      throw error;
+    }
   }
 
   saveAssistantMessage(content: string): void {
