@@ -26,6 +26,9 @@ export class ConnectionManager {
         window.attuneMessageQueue = {
           setConversationInitialized: () => {
             this.messageQueue?.setConversationInitialized();
+          },
+          queueMessage: (role: 'user' | 'assistant', content: string, priority: boolean = false) => {
+            this.messageQueue?.queueMessage(role, content, priority);
           }
         };
       }

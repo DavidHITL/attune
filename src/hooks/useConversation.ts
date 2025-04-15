@@ -1,3 +1,4 @@
+
 import { useAuth } from "@/context/AuthContext";
 import { useConversationState } from "./conversation/useConversationState";
 import { useConversationHelpers } from "./conversation/useConversationHelpers";
@@ -132,11 +133,4 @@ export const useConversation = (): UseConversationReturn => {
   };
 };
 
-// Add a global reference to the message queue for cross-component communication
-declare global {
-  interface Window {
-    attuneMessageQueue?: {
-      setConversationInitialized: () => void;
-    }
-  }
-}
+// Remove any declaration of window.attuneMessageQueue type here as it's now defined in vite-env.d.ts
