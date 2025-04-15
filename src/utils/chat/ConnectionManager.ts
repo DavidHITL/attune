@@ -29,6 +29,9 @@ export class ConnectionManager {
           },
           queueMessage: (role: 'user' | 'assistant', content: string, priority: boolean = false) => {
             this.messageQueue?.queueMessage(role, content, priority);
+          },
+          isInitialized: () => {
+            return this.messageQueue ? this.messageQueue.isInitialized() : false;
           }
         };
       }
