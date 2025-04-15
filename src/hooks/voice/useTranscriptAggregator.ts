@@ -10,13 +10,19 @@ export const useTranscriptAggregator = () => {
   const { waitForConversation } = useConversationReady(conversationId);
 
   const handleTranscriptEvent = useCallback(async (event: any) => {
+    // Handle transcript delta events for accumulation
+    if (event.type === 'response.audio_transcript.delta' && event.delta?.text) {
+      setAccumulatedTranscript(prev => {
+        const newText = prev + event.delta.text;
+        console.log(`Accumulating delta transcript: "${newText.substring(0, 50)}..."`);
+        return newText;
+      });
+    }
+    
     // Handle interim transcripts
-    if (event.type === 'transcript' && event.transcript && event.transcript.trim()) {
+    else if (event.type === 'transcript' && event.transcript && event.transcript.trim()) {
       setAccumulatedTranscript(prev => {
         const newTranscript = event.transcript;
-        console.log(`Accumulating transcript: "${newTranscript.substring(0, 50)}..."`);
-        
-        // Only update and show toast if different from previous
         if (prev !== newTranscript) {
           toast.info("Speech detected", {
             description: newTranscript.substring(0, 50) + (newTranscript.length > 50 ? "..." : ""),
@@ -29,46 +35,47 @@ export const useTranscriptAggregator = () => {
     }
 
     // Handle final transcript
-    if (event.type === 'response.audio_transcript.done' && event.transcript?.text) {
-      const finalTranscript = event.transcript.text;
-      console.log(`Processing final transcript: "${finalTranscript.substring(0, 50)}..."`);
+    else if (event.type === 'response.audio_transcript.done') {
+      if (!accumulatedTranscript.trim()) {
+        console.log('No accumulated transcript to save');
+        return;
+      }
 
-      // For authenticated users, wait for conversation to be initialized
-      const isConversationReady = await waitForConversation();
-      
-      // Use the accumulated transcript or final transcript, whichever is available
-      const messageContent = accumulatedTranscript || finalTranscript;
-      
-      if (messageContent.trim()) {
-        console.log('Saving final transcript');
-        try {
-          // Use the same message structure as assistant messages
-          const savedMessage = await saveMessage({
-            role: 'user',
-            content: messageContent,
-          });
-          
-          if (savedMessage) {
-            toast.success("Speech transcribed", {
-              description: messageContent.substring(0, 50) + (messageContent.length > 50 ? "..." : ""),
-              duration: 2000
-            });
-            console.log('Transcript saved successfully:', savedMessage);
-          } else {
-            console.warn('Transcript could not be saved (likely anonymous mode)');
-            // Show success anyway since the message was processed
-            toast.success("Speech processed", {
-              description: messageContent.substring(0, 50) + (messageContent.length > 50 ? "..." : ""),
-              duration: 2000
-            });
-          }
-        } catch (error) {
-          console.error('Failed to save transcript:', error);
-          toast.error("Failed to save transcript");
+      console.log(`Processing final transcript: "${accumulatedTranscript.substring(0, 50)}..."`);
+
+      try {
+        // For authenticated users, wait for conversation to be initialized
+        const isConversationReady = await waitForConversation();
+        
+        if (!isConversationReady) {
+          console.warn('Conversation not ready, but proceeding with message save');
         }
-
-        // Reset accumulator
+        
+        // Save the accumulated transcript
+        const savedMessage = await saveMessage({
+          role: 'user',
+          content: accumulatedTranscript,
+        });
+        
+        if (savedMessage) {
+          toast.success("Speech transcribed", {
+            description: accumulatedTranscript.substring(0, 50) + (accumulatedTranscript.length > 50 ? "..." : ""),
+            duration: 2000
+          });
+          console.log('Transcript saved successfully:', savedMessage);
+        } else {
+          console.warn('Transcript could not be saved (likely anonymous mode)');
+          toast.success("Speech processed", {
+            description: accumulatedTranscript.substring(0, 50) + (accumulatedTranscript.length > 50 ? "..." : ""),
+            duration: 2000
+          });
+        }
+        
+        // Reset accumulator after successful save
         setAccumulatedTranscript('');
+      } catch (error) {
+        console.error('Failed to save transcript:', error);
+        toast.error("Failed to save transcript");
       }
     }
   }, [accumulatedTranscript, saveMessage, waitForConversation]);
