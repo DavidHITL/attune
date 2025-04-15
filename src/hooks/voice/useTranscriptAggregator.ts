@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useConversation } from '@/hooks/useConversation';
@@ -52,20 +51,20 @@ export const useTranscriptAggregator = () => {
     
     try {
       console.log('[TranscriptAggregator] Waiting for conversation before saving...');
-      console.log('[TranscriptAggregator] User auth status:', { 
-        isAuthenticated: !!user, 
-        userId: user?.id, 
-        conversationId 
-      });
       
       await waitForConversation();
       
-      console.log('[TranscriptAggregator] Saving message with params:', { 
+      console.log('[TranscriptAggregator] Saving message:', {
         role: 'user',
         contentLength: finalTranscript.length,
         conversationId,
         preview: finalTranscript.substring(0, 50)
       });
+      
+      // CRITICAL FIX: Try message queue first
+      if (window.attuneMessageQueue) {
+        window.attuneMessageQueue.queueMessage('user', finalTranscript, true);
+      }
       
       const savedMessage = await saveMessage({
         role: 'user',
@@ -75,20 +74,12 @@ export const useTranscriptAggregator = () => {
       if (savedMessage) {
         console.log('[TranscriptAggregator] Message saved successfully:', {
           messageId: savedMessage.id,
-          // Fixed: Access the conversation ID from savedMessage correctly
-          // The Message type doesn't have conversation_id, use conversationId from hook instead
-          conversationId: conversationId
+          conversationId
         });
         
         savedMessagesRef.current.add(transcriptHash);
         
         toast.success("Speech transcribed", {
-          description: finalTranscript.substring(0, 50) + (finalTranscript.length > 50 ? "..." : ""),
-          duration: 2000
-        });
-      } else {
-        console.log('[TranscriptAggregator] Anonymous mode or save returned null - transcript processed locally');
-        toast.success("Speech processed", {
           description: finalTranscript.substring(0, 50) + (finalTranscript.length > 50 ? "..." : ""),
           duration: 2000
         });
@@ -99,14 +90,17 @@ export const useTranscriptAggregator = () => {
       setAccumulatedTranscript('');
     } catch (error) {
       console.error('[TranscriptAggregator] Failed to save transcript:', error);
+      // CRITICAL FIX: Try message queue as fallback
+      if (window.attuneMessageQueue) {
+        window.attuneMessageQueue.queueMessage('user', finalTranscript, true);
+      }
       toast.error("Failed to save transcript", {
         description: error.message || "Database error"
       });
     } finally {
-      // Allow processing again
       processingRef.current = false;
     }
-  }, [saveMessage, waitForConversation, user, conversationId]);
+  }, [saveMessage, waitForConversation, conversationId]);
 
   const handleTranscriptEvent = useCallback(async (event: any) => {
     // Handle transcript delta events for accumulation

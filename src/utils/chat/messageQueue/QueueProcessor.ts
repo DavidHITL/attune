@@ -77,16 +77,23 @@ export class QueueProcessor {
    * Process message queue to ensure sequential saving
    */
   async processMessageQueue(): Promise<void> {
-    if (this.queueMonitor.isProcessing() || this.messageQueue.length === 0) return;
+    if (this.queueMonitor.isProcessing() || this.messageQueue.length === 0) {
+      console.log("Queue processing skipped - already processing or empty queue");
+      return;
+    }
     
     this.queueMonitor.setProcessingState(true);
+    console.log(`Processing message queue with ${this.messageQueue.length} messages`);
     
     try {
-      const message = this.messageQueue.shift();
-      if (message) {
+      while (this.messageQueue.length > 0) {
+        const message = this.messageQueue.shift();
+        if (!message) continue;
+        
         this.queueMonitor.trackProcessedMessage(message);
         
         try {
+          console.log(`Processing ${message.role} message from queue:`, message.content.substring(0, 50));
           const result = await this.processingLogic.processMessageDirectly(
             message.role, 
             message.content,
@@ -94,21 +101,16 @@ export class QueueProcessor {
           );
             
           if (!result.success) {
-            // Put back in queue for retry (at the beginning)
             console.log(`Re-queuing ${message.role} message after save failure`);
             this.messageQueue.unshift(message);
-            
-            // Wait a bit before retrying
-            setTimeout(() => this.processMessageQueue(), 2000);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          } else {
+            console.log(`Successfully processed ${message.role} message from queue`);
           }
         } catch (error) {
           console.error(`Failed to save ${message.role} message from queue:`, error);
-          
-          // Put back in queue for retry (at the beginning)
           this.messageQueue.unshift(message);
-          
-          // Wait a bit before retrying
-          setTimeout(() => this.processMessageQueue(), 2000);
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
     } catch (error) {
@@ -116,9 +118,10 @@ export class QueueProcessor {
     } finally {
       this.queueMonitor.setProcessingState(false);
       
-      // Process next message if any
+      // Check for any new messages that might have been added
       if (this.messageQueue.length > 0) {
-        setTimeout(() => this.processMessageQueue(), 100); // Small delay between processing items
+        console.log(`Found ${this.messageQueue.length} new messages, continuing processing`);
+        setTimeout(() => this.processMessageQueue(), 100);
       }
     }
   }
