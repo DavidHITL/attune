@@ -1,4 +1,3 @@
-
 import { WebRTCConnection } from '../audio/WebRTCConnection';
 import { AudioProcessor } from '../audio/AudioProcessor';
 import { MessageCallback, SaveMessageCallback } from '../types';
@@ -17,17 +16,32 @@ export class ConnectionManager {
     this.webRTCConnection = new WebRTCConnection();
     this.audioProcessor = new AudioProcessor(audioActivityCallback);
     
-    // Initialize message queue if we have a save callback
+    // Only initialize message queue if we have a save callback
     if (saveMessageCallback) {
       this.messageQueue = new MessageQueue(saveMessageCallback);
+    }
+  }
+  
+  async initialize(): Promise<boolean> {
+    try {
+      console.log("Setting up audio...");
+      const microphone = await this.audioProcessor.initMicrophone();
       
-      // Register the message queue globally for conversation initialization
-      if (typeof window !== 'undefined') {
+      console.log("Initializing WebRTC connection...");
+      await this.webRTCConnection.init(this.messageHandler);
+      
+      this.webRTCConnection.addAudioTrack(microphone);
+      
+      // Make message queue available globally for conversation initialization
+      if (this.messageQueue && typeof window !== 'undefined') {
+        console.log("Registering global message queue");
         window.attuneMessageQueue = {
           setConversationInitialized: () => {
+            console.log("[ConnectionManager] Marking conversation as initialized");
             this.messageQueue?.setConversationInitialized();
           },
           queueMessage: (role: 'user' | 'assistant', content: string, priority: boolean = false) => {
+            console.log(`[ConnectionManager] Queueing ${role} message (priority: ${priority})`);
             this.messageQueue?.queueMessage(role, content, priority);
           },
           isInitialized: () => {
@@ -35,21 +49,6 @@ export class ConnectionManager {
           }
         };
       }
-    }
-  }
-  
-  async initialize(): Promise<boolean> {
-    try {
-      // First, initialize microphone to ensure we have audio tracks
-      console.log("Setting up audio...");
-      const microphone = await this.audioProcessor.initMicrophone();
-      
-      console.log("Initializing WebRTC connection...");
-      // Pass the message handler to the WebRTC connection
-      await this.webRTCConnection.init(this.messageHandler);
-      
-      // Now that connection is established, add audio track
-      this.webRTCConnection.addAudioTrack(microphone);
       
       return true;
     } catch (error) {
@@ -57,7 +56,7 @@ export class ConnectionManager {
       throw error;
     }
   }
-  
+
   pauseMicrophone(): void {
     this.audioProcessor.pauseMicrophone();
   }

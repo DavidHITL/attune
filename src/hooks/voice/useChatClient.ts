@@ -62,9 +62,7 @@ export const useChatClient = () => {
     chatClientRef,
     combinedMessageHandler,
     setStatus,
-    (message) => {
-      // Removed the conversationId guard
-      // Now all messages will go through the unified saveMessage path
+    async (message) => {
       console.log(`Unified message saving for ${message.role}: ${message.content?.substring(0, 30)}...`);
       return saveMessage(message);
     },

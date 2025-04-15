@@ -6,9 +6,6 @@ import { TranscriptEventHandler } from './events/TranscriptEventHandler';
 import { MessageEventHandler } from './handlers/MessageEventHandler';
 import { StatusCallback, MessageCallback, SaveMessageCallback } from '../types';
 
-/**
- * Main class for handling realtime chat with voice capabilities
- */
 export class RealtimeChat {
   private connectionManager: ConnectionManager | null = null;
   private messageQueue: MessageQueue | null = null;
@@ -37,28 +34,8 @@ export class RealtimeChat {
     );
   }
 
-  /**
-   * Wait for the message queue to be ready with a conversation ID
-   */
-  private async waitForMessageQueue(timeout = 3000): Promise<boolean> {
-    console.log("Waiting for message queue to be ready...");
-    const start = Date.now();
-    
-    while (Date.now() - start < timeout) {
-      if (this.messageQueue?.isInitialized()) {
-        console.log("Message queue is ready with conversation ID");
-        return true;
-      }
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    console.warn("Timeout waiting for message queue initialization");
-    return false;
-  }
-
   async init(): Promise<boolean> {
     try {
-      // Initialize the connection manager
       this.connectionManager = new ConnectionManager(
         this.messageEventHandler.handleMessageEvent,
         (state: 'start' | 'stop') => {
@@ -67,22 +44,21 @@ export class RealtimeChat {
         this.saveMessageCallback
       );
       
-      // Initialize the connection
       const initSuccess = await this.connectionManager.initialize();
       
       if (initSuccess) {
         this.statusCallback('Connected');
+        
+        // Signal to message queue that we're ready for messages once connection is successful
+        if (this.connectionManager && this.messageQueue) {
+          console.log('Conversation initialization complete, processing any pending messages');
+          setTimeout(() => {
+            this.messageQueue?.setConversationInitialized();
+          }, 500);
+        }
       } else {
         this.statusCallback('Connection Failed');
         return false;
-      }
-
-      // Signal to message queue that we're ready for messages once connection is successful
-      if (this.connectionManager && this.messageQueue) {
-        setTimeout(() => {
-          console.log('Conversation initialization complete, processing any pending messages');
-          this.messageQueue?.setConversationInitialized();
-        }, 500); // Small delay to ensure connection is stable
       }
 
       return true;
@@ -100,22 +76,7 @@ export class RealtimeChat {
     }
     
     console.log(`Attempting to save user message: "${content.substring(0, 30)}..."`);
-    
-    try {
-      // Wait for message queue to be ready with conversation ID
-      const isReady = await this.waitForMessageQueue();
-      
-      if (!isReady) {
-        console.error("Failed to save message: Message queue not ready");
-        throw new Error("Message queue not initialized");
-      }
-      
-      console.log(`Queueing user message with conversation: "${content.substring(0, 30)}..."`);
-      this.messageQueue?.queueMessage('user', content, true);
-    } catch (error) {
-      console.error("Error saving user message:", error);
-      throw error;
-    }
+    this.messageQueue?.queueMessage('user', content, true);
   }
 
   saveAssistantMessage(content: string): void {
