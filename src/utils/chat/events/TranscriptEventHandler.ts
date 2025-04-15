@@ -10,21 +10,20 @@ export class TranscriptEventHandler {
   ) {}
   
   handleTranscriptEvents(event: any): void {
-    // Handle direct transcript events
+    // Handle direct transcript events - show feedback but don't save
     if (event.type === "transcript" && event.transcript && event.transcript.trim()) {
       if (this.lastTranscriptContent !== event.transcript) {
         this.lastTranscriptContent = event.transcript;
         
+        // Only show toast for interim feedback
         toast.info("Speech detected", { 
           description: event.transcript.substring(0, 50) + (event.transcript.length > 50 ? "..." : ""),
           duration: 2000
         });
-        
-        this.saveUserMessage(event.transcript);
       }
     }
     
-    // Handle final transcript completion
+    // Handle final transcript completion - this is where we save
     if (event.type === "response.audio_transcript.done" && event.transcript?.text) {
       const finalTranscript = event.transcript.text;
       if (this.lastTranscriptContent !== finalTranscript && finalTranscript.trim() !== '') {
@@ -35,6 +34,7 @@ export class TranscriptEventHandler {
           duration: 2000
         });
         
+        // Only save message on final transcript
         this.saveUserMessage(finalTranscript);
       }
     }
