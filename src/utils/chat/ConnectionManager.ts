@@ -1,3 +1,4 @@
+
 import { WebRTCConnection } from '../audio/WebRTCConnection';
 import { AudioProcessor } from '../audio/AudioProcessor';
 import { MessageCallback, SaveMessageCallback } from '../types';
@@ -41,11 +42,18 @@ export class ConnectionManager {
             this.messageQueue?.setConversationInitialized();
           },
           queueMessage: (role: 'user' | 'assistant', content: string, priority: boolean = false) => {
-            console.log(`[ConnectionManager] Queueing ${role} message (priority: ${priority})`);
+            console.log(`[ConnectionManager] Queueing ${role} message (priority: ${priority}):`, {
+              contentPreview: content.substring(0, 30) + (content.length > 30 ? '...' : ''),
+              timestamp: new Date().toISOString()
+            });
             this.messageQueue?.queueMessage(role, content, priority);
           },
           isInitialized: () => {
             return this.messageQueue ? this.messageQueue.isInitialized() : false;
+          },
+          forceFlushQueue: () => {
+            console.log("[ConnectionManager] Force flushing message queue");
+            return this.messageQueue ? this.messageQueue.flushQueue() : Promise.resolve();
           }
         };
       }
@@ -104,6 +112,14 @@ export class ConnectionManager {
   }
   
   disconnect(): void {
+    // First flush any pending messages before disconnection
+    if (this.messageQueue) {
+      console.log("[ConnectionManager] Flushing message queue before disconnection");
+      this.messageQueue.flushQueue().catch(err => {
+        console.error("[ConnectionManager] Error flushing message queue:", err);
+      });
+    }
+    
     // Clean up WebRTC resources
     this.webRTCConnection.disconnect();
     // Clean up audio resources
@@ -111,6 +127,7 @@ export class ConnectionManager {
     
     // Clean up global reference
     if (typeof window !== 'undefined' && window.attuneMessageQueue) {
+      console.log("[ConnectionManager] Removing global message queue reference");
       delete window.attuneMessageQueue;
     }
   }

@@ -27,24 +27,41 @@ export const useTranscriptHandler = () => {
     });
     
     notifyTranscriptReceived(transcript);
+
+    // Check if we have a global context with conversationId
+    const hasConversationContext = typeof window !== 'undefined' && 
+      window.conversationContext && 
+      window.conversationContext.conversationId;
     
     try {
-      // CRITICAL FIX: Try queue first, then direct save if context is valid
+      // SAVING STRATEGY 1: Try message queue first (highest priority)
       if (window.attuneMessageQueue) {
         console.log("🔄 Using message queue for transcript");
         window.attuneMessageQueue.queueMessage('user', transcript, true);
         
-        // CRITICAL FIX: Force queue processing after short delay
-        setTimeout(() => {
-          if (window.attuneMessageQueue?.isInitialized()) {
-            console.log("🔄 Forcing queue processing after delay");
-            // This will process any queued messages if the conversation is ready
+        // Force queue processing if conversation is initialized
+        if (window.attuneMessageQueue.isInitialized()) {
+          console.log("🔄 Queue is initialized, forcing processing");
+          window.attuneMessageQueue.forceFlushQueue().catch(err => {
+            console.error("Error flushing queue:", err);
+          });
+        } else {
+          console.log("⏳ Queue not yet initialized, message will be processed when ready");
+          
+          // Store conversation ID in global context if available
+          if (hasConversationContext && !window.attuneMessageQueue.isInitialized()) {
+            console.log("🔄 Setting conversation as initialized from transcript handler");
             window.attuneMessageQueue.setConversationInitialized();
           }
-        }, 1000);
+        }
+        
+        toast.success("Message queued", {
+          description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
+          duration: 2000
+        });
       }
       
-      // If context is valid, also try direct save
+      // SAVING STRATEGY 2: Direct save if context is valid (backup)
       if (validateConversationContext()) {
         console.log("💾 Context valid, attempting direct save");
         const savedMsg = await saveMessage({
@@ -59,6 +76,8 @@ export const useTranscriptHandler = () => {
             description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
           });
         }
+      } else {
+        console.log("⚠️ Conversation context not valid for direct save, relying on queue");
       }
     } catch (error) {
       console.error("❌ Failed to save transcript:", error);

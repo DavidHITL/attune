@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useConversation } from '@/hooks/useConversation';
@@ -52,55 +53,98 @@ export const useTranscriptAggregator = () => {
     try {
       console.log('[TranscriptAggregator] Waiting for conversation before saving...');
       
-      await waitForConversation();
+      // Wait for conversation to be ready (with timeout)
+      const conversationReady = await Promise.race([
+        waitForConversation(),
+        new Promise<boolean>(resolve => setTimeout(() => resolve(false), 5000)) // 5 second timeout
+      ]);
       
-      console.log('[TranscriptAggregator] Saving message:', {
-        role: 'user',
-        contentLength: finalTranscript.length,
-        conversationId,
-        preview: finalTranscript.substring(0, 50)
-      });
-      
-      // CRITICAL FIX: Try message queue first
+      // First priority: global message queue
       if (window.attuneMessageQueue) {
+        console.log('[TranscriptAggregator] Using global message queue for transcript');
         window.attuneMessageQueue.queueMessage('user', finalTranscript, true);
-      }
-      
-      const savedMessage = await saveMessage({
-        role: 'user',
-        content: finalTranscript,
-      });
-      
-      if (savedMessage) {
-        console.log('[TranscriptAggregator] Message saved successfully:', {
-          messageId: savedMessage.id,
-          conversationId
-        });
+        
+        // If the queue is initialized, force processing
+        if (window.attuneMessageQueue.isInitialized()) {
+          window.attuneMessageQueue.forceFlushQueue().catch(err => {
+            console.error('Error forcing queue flush:', err);
+          });
+        } else if (window.conversationContext?.conversationId) {
+          console.log('[TranscriptAggregator] Setting conversation as initialized from transcript aggregator');
+          window.attuneMessageQueue.setConversationInitialized();
+        }
         
         savedMessagesRef.current.add(transcriptHash);
-        
-        toast.success("Speech transcribed", {
+        toast.success("Message queued", {
           description: finalTranscript.substring(0, 50) + (finalTranscript.length > 50 ? "..." : ""),
           duration: 2000
         });
+      } 
+      // Second priority: direct save if conversation is ready
+      else if (conversationReady) {
+        console.log('[TranscriptAggregator] Saving message via direct save:', {
+          role: 'user',
+          contentLength: finalTranscript.length,
+          conversationId,
+          preview: finalTranscript.substring(0, 50)
+        });
+        
+        const savedMessage = await saveMessage({
+          role: 'user',
+          content: finalTranscript,
+        });
+        
+        if (savedMessage) {
+          console.log('[TranscriptAggregator] Message saved successfully:', {
+            messageId: savedMessage.id,
+            conversationId
+          });
+          
+          savedMessagesRef.current.add(transcriptHash);
+          
+          toast.success("Speech transcribed", {
+            description: finalTranscript.substring(0, 50) + (finalTranscript.length > 50 ? "..." : ""),
+            duration: 2000
+          });
+        }
+      } else {
+        // Last resort: store in local storage for retry later
+        console.log('[TranscriptAggregator] Conversation not ready, storing for retry');
+        
+        if (typeof localStorage !== 'undefined') {
+          const pendingTranscripts = JSON.parse(localStorage.getItem('pendingTranscripts') || '[]');
+          pendingTranscripts.push({
+            timestamp: Date.now(),
+            content: finalTranscript,
+            userId: user?.id
+          });
+          localStorage.setItem('pendingTranscripts', JSON.stringify(pendingTranscripts));
+          
+          toast.warning("Message will be saved when connection is restored", {
+            description: finalTranscript.substring(0, 50) + (finalTranscript.length > 50 ? "..." : ""),
+            duration: 4000
+          });
+        }
       }
       
-      // Reset accumulator after successful save
+      // Reset accumulator after successful handling
       transcriptAccumulator.reset();
       setAccumulatedTranscript('');
     } catch (error) {
       console.error('[TranscriptAggregator] Failed to save transcript:', error);
-      // CRITICAL FIX: Try message queue as fallback
+      
+      // Try global message queue as fallback
       if (window.attuneMessageQueue) {
         window.attuneMessageQueue.queueMessage('user', finalTranscript, true);
       }
+      
       toast.error("Failed to save transcript", {
         description: error.message || "Database error"
       });
     } finally {
       processingRef.current = false;
     }
-  }, [saveMessage, waitForConversation, conversationId]);
+  }, [saveMessage, waitForConversation, conversationId, user]);
 
   const handleTranscriptEvent = useCallback(async (event: any) => {
     // Handle transcript delta events for accumulation
@@ -123,9 +167,12 @@ export const useTranscriptAggregator = () => {
     }
 
     // Handle final transcript and save message
-    else if (event.type === 'response.audio_transcript.done') {
-      console.log('[TranscriptAggregator] Received final transcript event');
-      const finalTranscript = transcriptAccumulator.getAccumulatedText();
+    else if (event.type === 'response.audio_transcript.done' && event.transcript?.text) {
+      console.log('[TranscriptAggregator] Received final transcript event:', {
+        textPreview: event.transcript.text.substring(0, 50),
+        timestamp: new Date().toISOString()
+      });
+      const finalTranscript = event.transcript.text;
       await handleFinalTranscript(finalTranscript);
     }
   }, [handleFinalTranscript]);

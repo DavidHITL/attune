@@ -55,8 +55,26 @@ export const useConversation = (): UseConversationReturn => {
     initializedRef
   );
 
-  // Signal to any message queues that the conversation is initialized when ID is set
+  // Track conversation state globally
   useEffect(() => {
+    // Create or update the global conversation context
+    if (typeof window !== 'undefined') {
+      window.conversationContext = {
+        conversationId,
+        userId: user?.id || null,
+        isInitialized: !!conversationId,
+        messageCount: messages.length
+      };
+      
+      console.log(`[useConversation] Updated global conversation context:`, {
+        conversationId,
+        userId: user?.id,
+        hasMessages: messages.length > 0,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Signal to any message queues that the conversation is initialized when ID is set
     if (conversationId && !messageQueueInitializedRef.current) {
       console.log(`Conversation ID now available: ${conversationId}`);
       messageQueueInitializedRef.current = true;
@@ -67,7 +85,7 @@ export const useConversation = (): UseConversationReturn => {
         window.attuneMessageQueue.setConversationInitialized();
       }
     }
-  }, [conversationId]);
+  }, [conversationId, user, messages]);
 
   // Enhanced saveMessage with conversation ID handling and message queuing awareness
   const saveMessage = useCallback(async (message: Partial<Message>): Promise<Message | null> => {
@@ -76,6 +94,13 @@ export const useConversation = (): UseConversationReturn => {
         console.error('Cannot save message: Missing role or content');
         return null;
       }
+      
+      console.log(`[useConversation] Saving ${message.role} message:`, {
+        contentPreview: message.content.substring(0, 30) + '...',
+        hasConversationId: !!conversationId,
+        hasUser: !!user,
+        timestamp: new Date().toISOString()
+      });
       
       // For anonymous users, handle locally
       if (!user) {
@@ -100,6 +125,20 @@ export const useConversation = (): UseConversationReturn => {
         if (!conversationId && savedMessage.conversation_id) {
           console.log('Setting new conversation ID:', savedMessage.conversation_id);
           setConversationId(savedMessage.conversation_id);
+          
+          // Update global context
+          if (typeof window !== 'undefined') {
+            window.conversationContext = {
+              ...(window.conversationContext || {}),
+              conversationId: savedMessage.conversation_id,
+              isInitialized: true
+            };
+          }
+          
+          // Also notify message queue if it exists
+          if (window.attuneMessageQueue && !window.attuneMessageQueue.isInitialized()) {
+            window.attuneMessageQueue.setConversationInitialized();
+          }
         }
         
         setMessages(prev => [...prev, savedMessage]);
@@ -132,5 +171,3 @@ export const useConversation = (): UseConversationReturn => {
     loadMessages
   };
 };
-
-// Remove any declaration of window.attuneMessageQueue type here as it's now defined in vite-env.d.ts

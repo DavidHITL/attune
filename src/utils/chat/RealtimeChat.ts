@@ -13,6 +13,8 @@ export class RealtimeChat {
   private userMessageHandler: UserMessageHandler;
   private transcriptHandler: TranscriptEventHandler;
   private messageEventHandler: MessageEventHandler;
+  private conversationInitialized: boolean = false;
+  private retryInitTimerId: number | null = null;
   
   constructor(
     private messageCallback: MessageCallback,
@@ -37,7 +39,7 @@ export class RealtimeChat {
   async init(): Promise<boolean> {
     try {
       this.connectionManager = new ConnectionManager(
-        this.messageEventHandler.handleMessageEvent,
+        (event) => this.messageEventHandler.handleMessageEvent(event),
         (state: 'start' | 'stop') => {
           this.statusCallback(`Audio ${state}`);
         },
@@ -50,12 +52,10 @@ export class RealtimeChat {
         this.statusCallback('Connected');
         
         // Signal to message queue that we're ready for messages once connection is successful
-        if (this.connectionManager && this.messageQueue) {
-          console.log('Conversation initialization complete, processing any pending messages');
-          setTimeout(() => {
-            this.messageQueue?.setConversationInitialized();
-          }, 500);
-        }
+        console.log('Connection successful, scheduling conversation initialization check');
+        
+        // Schedule a conversation initialization check with retry logic
+        this.scheduleConversationInitializationCheck();
       } else {
         this.statusCallback('Connection Failed');
         return false;
@@ -68,6 +68,47 @@ export class RealtimeChat {
       return false;
     }
   }
+  
+  // Add a new method to check and retry conversation initialization
+  private scheduleConversationInitializationCheck() {
+    // Clear any existing timer
+    if (this.retryInitTimerId !== null) {
+      clearTimeout(this.retryInitTimerId);
+    }
+    
+    const checkAndProcess = () => {
+      console.log("Checking conversation initialization status");
+      
+      // First check if global message queue is accessible
+      if (typeof window !== 'undefined' && window.attuneMessageQueue) {
+        // Check if the queue is already initialized
+        if (window.attuneMessageQueue.isInitialized()) {
+          console.log("Message queue already initialized, no action needed");
+          this.conversationInitialized = true;
+          return;
+        }
+        
+        // Check if conversation ID is available in window context
+        // This is a backup check in case the conversation ID is available but not yet set in the message queue
+        if (window.conversationContext && window.conversationContext.conversationId) {
+          console.log("Found conversation ID in global context, marking queue as initialized");
+          window.attuneMessageQueue.setConversationInitialized();
+          this.conversationInitialized = true;
+          return;
+        }
+        
+        // If still not initialized, schedule another check
+        console.log("Conversation not yet initialized, scheduling retry");
+        this.retryInitTimerId = window.setTimeout(checkAndProcess, 1000);
+      } else {
+        console.log("Message queue not available, waiting for initialization");
+        this.retryInitTimerId = window.setTimeout(checkAndProcess, 1000);
+      }
+    };
+    
+    // Start the first check
+    checkAndProcess();
+  }
 
   async saveUserMessage(content: string): Promise<void> {
     if (!content || content.trim() === '') {
@@ -76,7 +117,29 @@ export class RealtimeChat {
     }
     
     console.log(`Attempting to save user message: "${content.substring(0, 30)}..."`);
-    this.messageQueue?.queueMessage('user', content, true);
+    
+    // Try to use our message queue if possible
+    if (typeof window !== 'undefined' && window.attuneMessageQueue) {
+      console.log("Using global message queue for user message");
+      window.attuneMessageQueue.queueMessage('user', content, true);
+    } else if (this.connectionManager) {
+      // Fallback to connection manager
+      console.log("Using connection manager for user message");
+      this.connectionManager.saveMessage('user', content);
+    } else if (this.messageQueue) {
+      // Last resort - direct queue
+      console.log("Using direct message queue for user message");
+      this.messageQueue.queueMessage('user', content, true);
+    } else {
+      // Final fallback if all else fails - direct DB save
+      console.log("Direct saving user message to database");
+      this.saveMessageCallback({
+        role: 'user',
+        content
+      }).catch(error => {
+        console.error("Failed to save user message:", error);
+      });
+    }
   }
 
   saveAssistantMessage(content: string): void {
@@ -86,7 +149,17 @@ export class RealtimeChat {
     }
     
     console.log(`Queueing assistant message: "${content.substring(0, 30)}..."`);
-    this.messageQueue?.queueMessage('assistant', content, false);
+    
+    // Try to use our message queue if possible
+    if (typeof window !== 'undefined' && window.attuneMessageQueue) {
+      window.attuneMessageQueue.queueMessage('assistant', content, false);
+    } else if (this.connectionManager) {
+      // Fallback to connection manager
+      this.connectionManager.saveMessage('assistant', content);
+    } else if (this.messageQueue) {
+      // Last resort - direct queue
+      this.messageQueue.queueMessage('assistant', content, false);
+    }
   }
 
   /**
@@ -101,7 +174,22 @@ export class RealtimeChat {
    */
   flushPendingMessages(): void {
     console.log("Forcing flush of all pending messages");
-    this.messageQueue?.flushQueue();
+    
+    // First try global queue
+    if (typeof window !== 'undefined' && window.attuneMessageQueue) {
+      window.attuneMessageQueue.forceFlushQueue().catch(err => {
+        console.error("Error flushing global message queue:", err);
+      });
+    }
+    
+    // Then try our direct queue
+    if (this.messageQueue) {
+      this.messageQueue.flushQueue().catch(err => {
+        console.error("Error flushing message queue:", err);
+      });
+    }
+    
+    // Also flush any user transcript
     this.userMessageHandler.saveTranscriptIfNotEmpty();
   }
 
@@ -150,8 +238,21 @@ export class RealtimeChat {
   disconnect(): void {
     console.log("Disconnecting from chat...");
     this.statusCallback('Disconnected');
+    
+    // Clear any pending initialization timer
+    if (this.retryInitTimerId !== null) {
+      clearTimeout(this.retryInitTimerId);
+      this.retryInitTimerId = null;
+    }
+    
+    // Flush all messages before disconnecting
+    this.flushPendingMessages();
+    
+    // Disconnect the connection manager
     this.connectionManager?.disconnect();
+    
+    // Cleanup
     this.userMessageHandler.cleanupProcessedMessages();
-    this.messageQueue?.flushQueue();
+    this.conversationInitialized = false;
   }
 }
