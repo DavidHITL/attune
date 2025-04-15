@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Message } from '@/utils/types';
 import { toast } from 'sonner';
@@ -40,38 +41,41 @@ export const useSaveMessage = (
   const saveMessage = async (message: Partial<Message>): Promise<(Message & { conversation_id: string }) | null> => {
     const normalizedMessage = ensureValidMessageRole(message);
     
-    console.log('useSaveMessage called with:', {
+    // Enhanced logging for message save attempts
+    console.log('📝 [Save Message] Attempt:', {
+      timestamp: new Date().toISOString(),
       userExists: !!user,
       userId: user?.id,
       conversationId,
       messageRole: normalizedMessage.role,
       messageContentLength: normalizedMessage.content?.length,
-      content: normalizedMessage.content?.substring(0, 50)
+      contentPreview: normalizedMessage.content?.substring(0, 50) + '...',
+      validContent: isValidMessageContent(normalizedMessage.content)
     });
     
     if (!isValidMessageContent(normalizedMessage.content)) {
-      console.warn('Skipping empty message save attempt');
+      console.warn('⚠️ [Save Message] Skipping empty message save attempt');
       return null;
     }
     
     if (!user) {
-      console.log(`👤 Anonymous user message processing: ${normalizedMessage.role}`);
+      console.log(`👤 [Save Message] Anonymous user message processing: ${normalizedMessage.role}`);
       return { ...createAnonymousMessage(normalizedMessage.role, normalizedMessage.content), conversation_id: 'anonymous' };
     }
     
     let targetConversationId = conversationId;
     
     if (!targetConversationId && normalizedMessage.role === 'user') {
-      console.log('No conversation ID found, creating new conversation...');
+      console.log('🆕 [Save Message] No conversation ID found, creating new conversation...');
       targetConversationId = await createNewConversation(user.id);
       
       if (!targetConversationId) {
-        console.error('Failed to create conversation');
+        console.error('❌ [Save Message] Failed to create conversation');
         toast.error('Unable to start conversation. Please try again.');
         return { ...createAnonymousMessage(normalizedMessage.role, normalizedMessage.content), conversation_id: 'anonymous' };
       }
       
-      console.log('Created new conversation:', targetConversationId);
+      console.log('✅ [Save Message] Created new conversation:', targetConversationId);
     }
     
     const insertData = {
@@ -81,7 +85,15 @@ export const useSaveMessage = (
       content: normalizedMessage.content
     };
     
-    console.log('Attempting to insert message:', insertData);
+    console.log('💾 [Save Message] Inserting message:', {
+      timestamp: new Date().toISOString(),
+      payload: insertData,
+      conversationContext: {
+        conversationId: targetConversationId,
+        userId: user.id,
+        role: normalizedMessage.role
+      }
+    });
     
     try {
       const { data, error } = await supabase
@@ -91,11 +103,21 @@ export const useSaveMessage = (
         .single();
         
       if (error) {
-        console.error('Database error during message insert:', error);
+        console.error('❌ [Save Message] Database error during message insert:', {
+          error,
+          payload: insertData,
+          timestamp: new Date().toISOString()
+        });
         throw error;
       }
       
-      console.log('Message saved successfully:', data);
+      console.log('✅ [Save Message] Message saved successfully:', {
+        messageId: data.id,
+        conversationId: data.conversation_id,
+        role: data.role,
+        timestamp: new Date().toISOString(),
+        contentPreview: data.content.substring(0, 50) + '...'
+      });
       
       const savedMessage = {
         id: data.id,
@@ -115,7 +137,14 @@ export const useSaveMessage = (
       return savedMessage;
       
     } catch (error) {
-      console.error('Error saving message:', error);
+      console.error('❌ [Save Message] Error saving message:', {
+        error: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString(),
+        context: {
+          conversationId: targetConversationId,
+          role: normalizedMessage.role
+        }
+      });
       
       toast.error(`Failed to save message: ${error instanceof Error ? error.message : "Unknown error"}`, {
         duration: 4000,
