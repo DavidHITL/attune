@@ -47,6 +47,13 @@ export class TranscriptAccumulator {
   }
   
   /**
+   * Get the timestamp of the last transcript update
+   */
+  getLastTranscriptTime(): number {
+    return this.lastTranscriptTime;
+  }
+  
+  /**
    * Check if the transcript is considered stale based on timing
    */
   isTranscriptStale(staleThresholdMs: number = 1500): boolean {
