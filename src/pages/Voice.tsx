@@ -33,8 +33,6 @@ const Voice = () => {
       });
 
       try {
-        // The conversation will be automatically initialized by the useConversation hook
-        // We just need to wait for it to complete
         if (conversationLoading) {
           console.log('Waiting for conversation initialization...');
         } else {
@@ -69,7 +67,7 @@ const Voice = () => {
               </div>
             </div>
           ) : (
-            <RealtimeChat />
+            <RealtimeChat isDisabled={conversationLoading || !conversationId} />
           )}
         </div>
       </div>

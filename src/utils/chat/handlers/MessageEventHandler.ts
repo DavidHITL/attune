@@ -18,10 +18,10 @@ export class MessageEventHandler {
     this.messageCallback(event);
     this.transcriptHandler.handleTranscriptEvents(event);
     
+    // Get accumulated transcript length for debugging only
     const accumulator = this.userMessageHandler.getAccumulatedTranscript();
-    if (accumulator && accumulator.length > 15) {
-      console.log(`📝 Auto-saving accumulated transcript (${accumulator.length} chars)`);
-      this.userMessageHandler.saveTranscriptIfNotEmpty();
+    if (accumulator && accumulator.length > 0) {
+      console.log(`📝 Current transcript length: ${accumulator.length} chars`);
     }
   }
 

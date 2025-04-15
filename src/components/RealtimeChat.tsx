@@ -9,14 +9,16 @@ import { useAuth } from '@/context/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 
-const RealtimeChat: React.FC = () => {
+interface RealtimeChatProps {
+  isDisabled?: boolean;
+}
+
+const RealtimeChat: React.FC<RealtimeChatProps> = ({ isDisabled = false }) => {
   const [currentVoice, setCurrentVoice] = useState<string>('');
   const { user } = useAuth();
   
-  // Get conversation state from the useConversation hook
   const { loading: conversationLoading } = useConversation();
   
-  // Get chat client functionality
   const {
     status,
     isConnected,
@@ -28,7 +30,6 @@ const RealtimeChat: React.FC = () => {
     toggleMute
   } = useChatClient();
 
-  // Get call control functionality
   const { handleStartCall, handleEndCall } = useCallControls(
     startConversation, 
     endConversation
@@ -81,8 +82,9 @@ const RealtimeChat: React.FC = () => {
         conversationLoading={conversationLoading}
         onToggleMute={toggleMute}
         onEndConversation={handleEndCall}
-        onStartConversation={handleStartCall}
+        onStartConversation={isDisabled ? undefined : handleStartCall}
         currentVoice={currentVoice}
+        isStartDisabled={isDisabled}
       />
     </>
   );
