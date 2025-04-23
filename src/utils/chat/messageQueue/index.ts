@@ -29,13 +29,68 @@ export class MessageQueue {
     // Check if the conversation is initialized or if we have a conversation ID in global context
     const isInitialized = this.checkInitialized();
     
+    // CRITICAL FIX: For the first user message, initialize conversation immediately
+    // instead of queuing it in pendingPreInitMessages
+    if (!isInitialized && role === 'user') {
+      console.log(`[MessageQueue] First user message received. Initializing conversation immediately...`);
+      
+      // For the first message, we'll save directly and get a conversation ID
+      this.saveFirstMessageAndInitialize(role, content, priority);
+      return;
+    }
+    
+    // For non-first messages or assistant messages before initialization
     if (!isInitialized) {
-      console.log(`[MessageQueue] Pre-initialization message received, queueing until conversation is ready`);
+      console.log(`[MessageQueue] Pre-initialization ${role} message received, queueing until conversation is ready`);
       this.pendingPreInitMessages.push({ role, content, priority });
       return;
     }
     
     this.queueProcessor.queueMessage(role, content, priority);
+  }
+  
+  // CRITICAL FIX: New method to handle the first message specially
+  private async saveFirstMessageAndInitialize(role: 'user', content: string, priority: boolean): Promise<void> {
+    try {
+      console.log(`[MessageQueue] Saving first message directly to initialize conversation`);
+      
+      // Save the message directly to get a conversation ID
+      const savedMessage = await this.saveMessageCallback({
+        role: role,
+        content: content
+      });
+      
+      if (savedMessage?.conversation_id) {
+        console.log(`[MessageQueue] First message saved successfully with conversation ID:`, savedMessage.conversation_id);
+        
+        // Update global context with the new conversation ID
+        if (typeof window !== 'undefined') {
+          window.conversationContext = {
+            conversationId: savedMessage.conversation_id,
+            userId: savedMessage.user_id || null,
+            isInitialized: true,
+            messageCount: 1
+          };
+        }
+        
+        // Mark conversation as initialized
+        this.isConversationInitialized = true;
+        
+        // Process any pending messages (likely assistant responses)
+        if (this.pendingPreInitMessages.length > 0) {
+          console.log(`[MessageQueue] Processing ${this.pendingPreInitMessages.length} pending messages after conversation initialization`);
+          this.processPendingMessages();
+        }
+      } else {
+        console.error(`[MessageQueue] Failed to initialize conversation - no conversation_id returned`);
+        // Fall back to queueing if direct save failed
+        this.pendingPreInitMessages.push({ role, content, priority });
+      }
+    } catch (error) {
+      console.error(`[MessageQueue] Error saving first message:`, error);
+      // Fall back to queueing if direct save failed
+      this.pendingPreInitMessages.push({ role, content, priority });
+    }
   }
   
   private checkInitialized(): boolean {
@@ -65,12 +120,17 @@ export class MessageQueue {
     
     this.isConversationInitialized = true;
     
+    // Process any pending messages
+    this.processPendingMessages();
+  }
+  
+  // Extracted method to process pending messages
+  private processPendingMessages(): void {
     // Ensure we clear any existing processing timeout
     if (this.processingTimeoutId !== null) {
       clearTimeout(this.processingTimeoutId);
     }
     
-    // Process any pending messages with progressive delay
     if (this.pendingPreInitMessages.length > 0) {
       console.log(`[MessageQueue] Processing ${this.pendingPreInitMessages.length} pending messages:`, {
         messageTypes: this.pendingPreInitMessages.map(m => m.role).join(', '),
@@ -78,26 +138,21 @@ export class MessageQueue {
       });
       
       // Process messages with progressive delays to ensure proper order
-      const processPendingMessages = () => {
-        // Create a copy of the messages to process
-        const messagesToProcess = [...this.pendingPreInitMessages];
-        this.pendingPreInitMessages = [];
-        
-        // Process messages with slight delays to maintain order
-        messagesToProcess.forEach((msg, index) => {
-          setTimeout(() => {
-            console.log(`[MessageQueue] Processing pre-init message ${index + 1}/${messagesToProcess.length}:`, {
-              role: msg.role,
-              priority: msg.priority,
-              contentPreview: msg.content.substring(0, 30) + '...'
-            });
-            this.queueProcessor.queueMessage(msg.role, msg.content, msg.priority);
-          }, index * 200);
-        });
-      };
+      // Create a copy of the messages to process
+      const messagesToProcess = [...this.pendingPreInitMessages];
+      this.pendingPreInitMessages = [];
       
-      // Add a small delay before processing to ensure DB is ready
-      this.processingTimeoutId = window.setTimeout(processPendingMessages, 500);
+      // Process messages with slight delays to maintain order
+      messagesToProcess.forEach((msg, index) => {
+        setTimeout(() => {
+          console.log(`[MessageQueue] Processing pre-init message ${index + 1}/${messagesToProcess.length}:`, {
+            role: msg.role,
+            priority: msg.priority,
+            contentPreview: msg.content.substring(0, 30) + '...'
+          });
+          this.queueProcessor.queueMessage(msg.role, msg.content, msg.priority);
+        }, index * 200);
+      });
     }
   }
   
@@ -125,6 +180,18 @@ export class MessageQueue {
     console.log(`Queue status: ${this.pendingPreInitMessages.length} pre-init, ${pendingUserMessages} regular`);
     
     return status;
+  }
+  
+  // Force flush all messages in queue
+  async forceFlushQueue(): Promise<void> {
+    // Process any pending pre-init messages first
+    if (this.pendingPreInitMessages.length > 0) {
+      console.log(`Force-processing ${this.pendingPreInitMessages.length} pending pre-init messages`);
+      this.processPendingMessages();
+    }
+    
+    // Then flush the main queue
+    return this.queueProcessor.flushQueue();
   }
 }
 

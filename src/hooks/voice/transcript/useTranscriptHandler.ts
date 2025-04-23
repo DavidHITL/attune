@@ -39,6 +39,8 @@ export const useTranscriptHandler = () => {
       // SAVING STRATEGY 1: Try message queue first (highest priority)
       if (typeof window !== 'undefined' && window.attuneMessageQueue) {
         console.log(`🔄 Using message queue for ${role} transcript`);
+        
+        // The message queue will now handle the first message correctly
         window.attuneMessageQueue.queueMessage(role, transcript, true);
         
         // Force queue processing if conversation is initialized
@@ -50,11 +52,8 @@ export const useTranscriptHandler = () => {
         } else {
           console.log("⏳ Queue not yet initialized, message will be processed when ready");
           
-          // Store conversation ID in global context if available
-          if (hasConversationContext && !window.attuneMessageQueue.isInitialized()) {
-            console.log("🔄 Setting conversation as initialized from transcript handler");
-            window.attuneMessageQueue.setConversationInitialized();
-          }
+          // No need to set conversation as initialized here anymore,
+          // since the queue will handle the first message initialization
         }
         
         toast.success("Message queued", {
@@ -65,22 +64,21 @@ export const useTranscriptHandler = () => {
       }
       
       // SAVING STRATEGY 2: Direct save if context is valid (backup)
-      if (validateConversationContext()) {
-        console.log(`💾 Context valid, attempting direct save of ${role} message`);
-        const savedMsg = await saveMessage({
-          role: role, // Use the provided role instead of hardcoding 'user'
-          content: transcript
+      // For the first message, this will create a conversation
+      console.log(`💾 Attempting direct message save for ${role} transcript`);
+      const savedMsg = await saveMessage({
+        role: role,
+        content: transcript
+      });
+      
+      if (savedMsg?.id) {
+        console.log(`✅ Successfully saved ${role} transcript with ID:`, savedMsg.id);
+        notifyTranscriptSaved(savedMsg.id);
+        toast.success("Message saved", {
+          description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
         });
-        
-        if (savedMsg?.id) {
-          console.log(`✅ Successfully saved ${role} transcript with ID:`, savedMsg.id);
-          notifyTranscriptSaved(savedMsg.id);
-          toast.success("Message saved", {
-            description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
-          });
-        }
       } else {
-        console.log("⚠️ Conversation context not valid for direct save, relying on queue");
+        console.warn("⚠️ No message ID returned from save operation");
       }
     } catch (error) {
       console.error("❌ Failed to save transcript:", error);
