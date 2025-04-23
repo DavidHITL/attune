@@ -46,9 +46,11 @@ export class AssistantResponseHandler {
       
     if (finalContent && finalContent.trim()) {
       console.log(`Queueing assistant response [${finalContent.length} chars]`);
+      // CRITICAL FIX: Ensure we use 'assistant' role, not 'user'
       this.messageQueue.queueMessage('assistant', finalContent, false);
     } else if (!this.emptyResponseHandled) {
       const defaultMessage = "I'm listening. Could you please continue?";
+      // CRITICAL FIX: Ensure we use 'assistant' role, not 'user'
       this.messageQueue.queueMessage('assistant', defaultMessage, false);
       
       toast.error("Received an empty response from the assistant", {
@@ -72,12 +74,12 @@ export class AssistantResponseHandler {
     }
   }
 
-  // Add the missing methods
   handleConversationTruncated(): void {
     console.log("Conversation truncated event received");
     // Handle any cleanup or notifications related to truncated conversations
     if (this.pendingAssistantMessage && this.assistantResponse) {
       console.log("Saving pending assistant message due to conversation truncation");
+      // CRITICAL FIX: Ensure we use 'assistant' role, not 'user'
       this.messageQueue.queueMessage('assistant', this.assistantResponse, true);
       this.pendingAssistantMessage = false;
       this.assistantResponse = '';
@@ -88,6 +90,7 @@ export class AssistantResponseHandler {
     console.log("Flushing any pending assistant response");
     if (this.pendingAssistantMessage && this.assistantResponse && this.assistantResponse.trim()) {
       console.log(`Flushing pending assistant response [${this.assistantResponse.length} chars]`);
+      // CRITICAL FIX: Ensure we use 'assistant' role, not 'user'
       this.messageQueue.queueMessage('assistant', this.assistantResponse, true);
       this.pendingAssistantMessage = false;
       this.assistantResponse = '';

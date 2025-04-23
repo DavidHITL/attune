@@ -24,21 +24,21 @@ export const useTranscriptAggregator = () => {
       const finalTranscript = transcriptAccumulator.getAccumulatedText();
       if (finalTranscript && finalTranscript.trim()) {
         console.log('[TranscriptAggregator] Saving final transcript on cleanup:', finalTranscript.substring(0, 50));
-        handleFinalTranscript(finalTranscript);
+        handleFinalTranscript(finalTranscript, 'user');
       }
     };
   }, []);
 
-  const handleFinalTranscript = useCallback(async (finalTranscript) => {
+  const handleFinalTranscript = useCallback(async (finalTranscript, role: 'user' | 'assistant' = 'user') => {
     if (!finalTranscript || !finalTranscript.trim()) {
       console.log('[TranscriptAggregator] No transcript to save');
       return;
     }
     
     // Prevent duplicate saves
-    const transcriptHash = `${finalTranscript.substring(0, 20)}-${Date.now()}`;
+    const transcriptHash = `${role}-${finalTranscript.substring(0, 20)}-${Date.now()}`;
     if (savedMessagesRef.current.has(transcriptHash)) {
-      console.log('[TranscriptAggregator] Already saved this transcript recently');
+      console.log(`[TranscriptAggregator] Already saved this ${role} transcript recently`);
       return;
     }
     
@@ -50,7 +50,7 @@ export const useTranscriptAggregator = () => {
     processingRef.current = true;
     
     try {
-      console.log('[TranscriptAggregator] Waiting for conversation before saving...');
+      console.log(`[TranscriptAggregator] Waiting for conversation before saving ${role} transcript...`);
       
       // Wait for conversation to be ready (with timeout)
       const conversationReady = await Promise.race([
@@ -60,8 +60,8 @@ export const useTranscriptAggregator = () => {
       
       // First priority: global message queue
       if (typeof window !== 'undefined' && window.attuneMessageQueue) {
-        console.log('[TranscriptAggregator] Using global message queue for transcript');
-        window.attuneMessageQueue.queueMessage('user', finalTranscript, true);
+        console.log(`[TranscriptAggregator] Using global message queue for ${role} transcript`);
+        window.attuneMessageQueue.queueMessage(role, finalTranscript, true);
         
         // If the queue is initialized, force processing
         if (window.attuneMessageQueue.isInitialized()) {
@@ -74,34 +74,34 @@ export const useTranscriptAggregator = () => {
         }
         
         savedMessagesRef.current.add(transcriptHash);
-        toast.success("Message queued", {
+        toast.success(`${role === 'user' ? 'Message' : 'Response'} queued`, {
           description: finalTranscript.substring(0, 50) + (finalTranscript.length > 50 ? "..." : ""),
           duration: 2000
         });
       } 
       // Second priority: direct save if conversation is ready
       else if (conversationReady) {
-        console.log('[TranscriptAggregator] Saving message via direct save:', {
-          role: 'user',
+        console.log(`[TranscriptAggregator] Saving ${role} message via direct save:`, {
+          role,
           contentLength: finalTranscript.length,
           conversationId,
           preview: finalTranscript.substring(0, 50)
         });
         
         const savedMessage = await saveMessage({
-          role: 'user',
+          role,
           content: finalTranscript,
         });
         
         if (savedMessage) {
-          console.log('[TranscriptAggregator] Message saved successfully:', {
+          console.log(`[TranscriptAggregator] ${role} message saved successfully:`, {
             messageId: savedMessage.id,
             conversationId
           });
           
           savedMessagesRef.current.add(transcriptHash);
           
-          toast.success("Speech transcribed", {
+          toast.success(role === 'user' ? "Speech transcribed" : "AI response saved", {
             description: finalTranscript.substring(0, 50) + (finalTranscript.length > 50 ? "..." : ""),
             duration: 2000
           });
@@ -115,6 +115,7 @@ export const useTranscriptAggregator = () => {
           pendingTranscripts.push({
             timestamp: Date.now(),
             content: finalTranscript,
+            role,
             userId: user?.id
           });
           localStorage.setItem('pendingTranscripts', JSON.stringify(pendingTranscripts));
@@ -134,7 +135,7 @@ export const useTranscriptAggregator = () => {
       
       // Try global message queue as fallback
       if (typeof window !== 'undefined' && window.attuneMessageQueue) {
-        window.attuneMessageQueue.queueMessage('user', finalTranscript, true);
+        window.attuneMessageQueue.queueMessage(role, finalTranscript, true);
       }
       
       toast.error("Failed to save transcript", {
@@ -146,6 +147,14 @@ export const useTranscriptAggregator = () => {
   }, [saveMessage, waitForConversation, conversationId, user]);
 
   const handleTranscriptEvent = useCallback(async (event: any) => {
+    // Determine the role based on the event type
+    let role: 'user' | 'assistant' = 'user';
+    if (event.type === 'response.done' || 
+        event.type === 'response.delta' ||
+        event.type === 'response.content_part.done') {
+      role = 'assistant';
+    }
+
     // CRITICAL FIX: Better handling of various transcript formats
     let transcriptText = '';
     
@@ -186,9 +195,29 @@ export const useTranscriptAggregator = () => {
       
       if (transcriptText && transcriptText.trim()) {
         console.log('[TranscriptAggregator] Found final transcript:', transcriptText.substring(0, 50));
-        await handleFinalTranscript(transcriptText);
+        await handleFinalTranscript(transcriptText, role);
       } else {
         console.log('[TranscriptAggregator] No usable transcript found in final event');
+      }
+    }
+    
+    // Handle assistant responses
+    else if (event.type === 'response.done' && event.response?.content) {
+      const assistantContent = event.response.content;
+      if (assistantContent && assistantContent.trim()) {
+        console.log('[TranscriptAggregator] Found assistant content in response.done:', 
+                  assistantContent.substring(0, 50));
+        await handleFinalTranscript(assistantContent, 'assistant');
+      }
+    }
+    
+    // Handle assistant partial responses
+    else if (event.type === 'response.content_part.done' && event.content_part?.text) {
+      const assistantContent = event.content_part.text;
+      if (assistantContent && assistantContent.trim()) {
+        console.log('[TranscriptAggregator] Found assistant content part:', 
+                  assistantContent.substring(0, 50));
+        await handleFinalTranscript(assistantContent, 'assistant');
       }
     }
     
@@ -199,7 +228,7 @@ export const useTranscriptAggregator = () => {
       if (transcriptFromResponse && transcriptFromResponse.trim()) {
         console.log('[TranscriptAggregator] Found transcript in response.done:', 
                    transcriptFromResponse.substring(0, 50));
-        await handleFinalTranscript(transcriptFromResponse);
+        await handleFinalTranscript(transcriptFromResponse, role);
       }
     }
   }, [handleFinalTranscript]);
@@ -207,11 +236,11 @@ export const useTranscriptAggregator = () => {
   return {
     handleTranscriptEvent,
     currentTranscript: accumulatedTranscript,
-    saveCurrentTranscript: async () => {
+    saveCurrentTranscript: async (role: 'user' | 'assistant' = 'user') => {
       const transcript = transcriptAccumulator.getAccumulatedText();
       if (transcript && transcript.trim()) {
-        console.log('[TranscriptAggregator] Manually saving current transcript:', transcript.substring(0, 50));
-        await handleFinalTranscript(transcript);
+        console.log(`[TranscriptAggregator] Manually saving current transcript as ${role}:`, transcript.substring(0, 50));
+        await handleFinalTranscript(transcript, role);
       }
     }
   };

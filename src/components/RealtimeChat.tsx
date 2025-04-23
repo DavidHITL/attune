@@ -86,7 +86,7 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({
     // First save any pending transcript
     if (transcriptAggregator.currentTranscript) {
       console.log('Saving pending transcript before ending call');
-      await transcriptAggregator.saveCurrentTranscript();
+      await transcriptAggregator.saveCurrentTranscript('user'); // Explicitly set as user transcript
     }
     // Then end the call
     handleEndCall();

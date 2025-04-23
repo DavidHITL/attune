@@ -11,7 +11,8 @@ export const useTranscriptHandler = () => {
 
   const saveTranscript = useCallback(async (
     transcript: string, 
-    saveMessage: (msg: { role: 'user' | 'assistant'; content: string }) => Promise<Message | null>
+    saveMessage: (msg: { role: 'user' | 'assistant'; content: string }) => Promise<Message | null>,
+    role: 'user' | 'assistant' = 'user' // Default to user, but allow specifying role
   ) => {
     // CRITICAL FIX: Validate transcript content first
     if (!transcript || transcript.trim() === '') {
@@ -21,6 +22,7 @@ export const useTranscriptHandler = () => {
 
     // Log full transcript for debugging
     console.log("💾 Processing transcript:", {
+      role,
       preview: transcript.substring(0, 50),
       length: transcript.length,
       timestamp: new Date().toISOString()
@@ -36,8 +38,8 @@ export const useTranscriptHandler = () => {
     try {
       // SAVING STRATEGY 1: Try message queue first (highest priority)
       if (typeof window !== 'undefined' && window.attuneMessageQueue) {
-        console.log("🔄 Using message queue for transcript");
-        window.attuneMessageQueue.queueMessage('user', transcript, true);
+        console.log(`🔄 Using message queue for ${role} transcript`);
+        window.attuneMessageQueue.queueMessage(role, transcript, true);
         
         // Force queue processing if conversation is initialized
         if (window.attuneMessageQueue.isInitialized()) {
@@ -64,14 +66,14 @@ export const useTranscriptHandler = () => {
       
       // SAVING STRATEGY 2: Direct save if context is valid (backup)
       if (validateConversationContext()) {
-        console.log("💾 Context valid, attempting direct save");
+        console.log(`💾 Context valid, attempting direct save of ${role} message`);
         const savedMsg = await saveMessage({
-          role: 'user',
+          role: role, // Use the provided role instead of hardcoding 'user'
           content: transcript
         });
         
         if (savedMsg?.id) {
-          console.log("✅ Successfully saved transcript with ID:", savedMsg.id);
+          console.log(`✅ Successfully saved ${role} transcript with ID:`, savedMsg.id);
           notifyTranscriptSaved(savedMsg.id);
           toast.success("Message saved", {
             description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
