@@ -60,14 +60,17 @@ export class MessageQueue {
         content: content
       });
       
-      if (savedMessage?.conversation_id) {
-        console.log(`[MessageQueue] First message saved successfully with conversation ID:`, savedMessage.conversation_id);
+      // Check if savedMessage exists and has a conversation_id property
+      // The type doesn't guarantee this, so we need to check at runtime
+      if (savedMessage && 'conversation_id' in savedMessage) {
+        const conversationId = (savedMessage as Message & { conversation_id: string }).conversation_id;
+        console.log(`[MessageQueue] First message saved successfully with conversation ID:`, conversationId);
         
         // Update global context with the new conversation ID
         if (typeof window !== 'undefined') {
           window.conversationContext = {
-            conversationId: savedMessage.conversation_id,
-            userId: savedMessage.user_id || null,
+            conversationId: conversationId,
+            userId: 'user_id' in savedMessage ? (savedMessage as any).user_id : null,
             isInitialized: true,
             messageCount: 1
           };
