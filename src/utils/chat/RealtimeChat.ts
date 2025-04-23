@@ -27,7 +27,16 @@ export class RealtimeChat {
     this.responseParser = new ResponseParser();
     this.messageQueue = new MessageQueue(this.saveMessageCallback);
     this.userMessageHandler = new UserMessageHandler(this.saveMessageCallback);
-    this.transcriptHandler = new TranscriptEventHandler(this.messageQueue);
+    
+    // Fix: Create a transcript handler with a function that properly forwards to messageQueue
+    this.transcriptHandler = new TranscriptEventHandler(
+      (text: string) => {
+        if (this.messageQueue) {
+          this.messageQueue.queueMessage('user', text, true);
+        }
+      }
+    );
+    
     this.messageEventHandler = new MessageEventHandler(
       this.messageQueue,
       this.responseParser,
@@ -35,6 +44,7 @@ export class RealtimeChat {
       this.userMessageHandler,
       this.transcriptHandler
     );
+    
     this.conversationInitializer = new ConversationInitializer(this.statusCallback, this.messageQueue);
     this.microphoneManager = new MicrophoneControlManager(this.connectionManager);
   }
