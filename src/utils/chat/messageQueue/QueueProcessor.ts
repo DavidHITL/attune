@@ -19,7 +19,9 @@ export class QueueProcessor {
     this.messageSaver = new MessageSaveHandler(saveMessageCallback);
     this.processingStrategy = new QueueProcessingStrategy(this.messageSaver, this.messageQueue);
     this.queueMonitor = new QueueMonitor();
-    this.queueFlusher = new QueueFlusher(this.messageQueue, saveMessageCallback, this.messageSaver);
+    // Fix: Pass required arguments to QueueFlusher
+    this.queueFlusher = new QueueFlusher(this.messageQueue, this.saveMessageCallback, this.messageSaver);
+    // Fix: Initialize MessageValidator with required arguments
     this.messageValidator = new MessageValidator();
   }
   

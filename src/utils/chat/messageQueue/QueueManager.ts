@@ -1,3 +1,4 @@
+
 import { SaveMessageCallback } from '../../types';
 import { QueueState } from './state/QueueState';
 import { QueueProcessor } from './QueueProcessor';
@@ -40,8 +41,12 @@ export class MessageQueue {
   }
   
   private checkInitialized(): boolean {
-    return this.queueState.isInitialized() || 
-           (typeof window !== 'undefined' && window.conversationContext?.conversationId);
+    // Fix: Convert string|true to boolean with explicit check
+    const isStateInitialized = this.queueState.isInitialized();
+    const hasConversationContext = typeof window !== 'undefined' && 
+                               window.conversationContext?.conversationId ? true : false;
+    
+    return isStateInitialized || hasConversationContext;
   }
   
   setConversationInitialized(): void {
