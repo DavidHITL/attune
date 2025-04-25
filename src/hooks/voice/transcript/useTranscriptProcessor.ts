@@ -1,4 +1,3 @@
-
 import { useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { Message } from '@/utils/types';
@@ -50,7 +49,7 @@ export const useTranscriptProcessor = (saveMessage: (msg: Partial<Message>) => P
       
       // Direct save as fallback
       const savedMessage = await saveMessage({
-        role,
+        role,  // Explicitly set role
         content: finalTranscript,
       });
       

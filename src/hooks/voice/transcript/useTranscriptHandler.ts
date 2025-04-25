@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { useConversationValidator } from './useConversationValidator';
 import { useTranscriptNotifications } from './useTranscriptNotifications';
@@ -12,7 +11,7 @@ export const useTranscriptHandler = () => {
   const saveTranscript = useCallback(async (
     transcript: string, 
     saveMessage: (msg: { role: 'user' | 'assistant'; content: string }) => Promise<Message | null>,
-    role: 'user' | 'assistant' = 'user' // Default to user, but allow specifying role
+    role: 'user' | 'assistant' = 'user'
   ) => {
     // CRITICAL FIX: Validate transcript content first
     if (!transcript || transcript.trim() === '') {
@@ -67,7 +66,7 @@ export const useTranscriptHandler = () => {
       // For the first message, this will create a conversation
       console.log(`💾 Attempting direct message save for ${role} transcript`);
       const savedMsg = await saveMessage({
-        role: role,
+        role,  // Explicitly set role
         content: transcript
       });
       
