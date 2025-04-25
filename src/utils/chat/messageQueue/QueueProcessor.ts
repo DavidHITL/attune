@@ -18,11 +18,25 @@ export class QueueProcessor {
   constructor(private saveMessageCallback: SaveMessageCallback) {
     this.messageSaver = new MessageSaveHandler(saveMessageCallback);
     this.processingStrategy = new QueueProcessingStrategy(this.messageSaver, this.messageQueue);
-    this.queueMonitor = new QueueMonitor();
+    
+    // Fix: Pass required getter functions to QueueMonitor
+    this.queueMonitor = new QueueMonitor(
+      () => this.messageQueue.length,
+      () => this.messageSaver.getPendingUserMessages(),
+      () => this.messageSaver.getActiveMessageSaves()
+    );
+    
     // Fix: Pass required arguments to QueueFlusher
-    this.queueFlusher = new QueueFlusher(this.messageQueue, this.saveMessageCallback, this.messageSaver);
-    // Fix: Initialize MessageValidator with required arguments
-    this.messageValidator = new MessageValidator();
+    this.queueFlusher = new QueueFlusher(
+      this.messageQueue, 
+      this.saveMessageCallback, 
+      this.messageSaver
+    );
+    
+    // Fix: Pass required validator function to MessageValidator
+    this.messageValidator = new MessageValidator(
+      (role, content) => this.messageSaver.isValidContent(content)
+    );
   }
   
   async saveMessageDirectly(message: QueuedMessage): Promise<any> {
@@ -56,8 +70,8 @@ export class QueueProcessor {
   getQueueStatus(): { queueLength: number, pendingUserMessages: number, activeSaves: number } {
     return {
       queueLength: this.messageQueue.length,
-      pendingUserMessages: 0,
-      activeSaves: 0
+      pendingUserMessages: this.messageSaver.getPendingUserMessages(),
+      activeSaves: this.messageSaver.getActiveMessageSaves()
     };
   }
 }

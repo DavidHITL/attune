@@ -1,44 +1,26 @@
 
-import { QueuedMessage } from '../types';
-import { MessageSaver } from '../MessageSaver';
+type ContentValidator = (role: 'user' | 'assistant', content: string) => boolean;
 
-/**
- * Handles validation and filtering of messages
- */
 export class MessageValidator {
-  constructor(
-    private messageSaver: MessageSaver
-  ) {}
+  private contentValidator: ContentValidator;
   
-  /**
-   * Check if a message is valid and should be processed
-   */
+  constructor(contentValidator: ContentValidator) {
+    this.contentValidator = contentValidator;
+  }
+  
   isValidMessage(role: 'user' | 'assistant', content: string): boolean {
-    // Don't save empty messages
-    if (!content || content.trim() === '') {
-      console.log(`Skipping empty ${role} message`);
+    // First check if the role is valid
+    if (role !== 'user' && role !== 'assistant') {
+      console.log(`Invalid message role: ${role}`);
+      return false;
+    }
+    
+    // Then delegate content validation to the provided validator
+    if (!this.contentValidator(role, content)) {
+      console.log(`Invalid message content for ${role} role`);
       return false;
     }
     
     return true;
-  }
-  
-  /**
-   * Check if message is a duplicate
-   */
-  isDuplicate(role: 'user' | 'assistant', content: string, queue: QueuedMessage[]): boolean {
-    // Check for duplicate content in storage
-    if (this.messageSaver.isDuplicateContent(role, content)) {
-      // Check for duplicate content in queue
-      if (queue.some(msg => 
-        msg.role === role && 
-        msg.content.trim() === content.trim()
-      )) {
-        console.log(`Duplicate ${role} message detected, skipping`);
-        return true;
-      }
-    }
-    
-    return false;
   }
 }
