@@ -26,6 +26,18 @@ export class QueueProcessor {
     this.messageValidator = new MessageValidator(this.messageSaver);
   }
   
+  async saveMessageDirectly(message: QueuedMessage): Promise<any> {
+    try {
+      return await this.saveMessageCallback({
+        role: message.role,
+        content: message.content
+      });
+    } catch (error) {
+      console.error(`Direct save failed for ${message.role} message:`, error);
+      throw error;
+    }
+  }
+  
   /**
    * Add a message to the queue with unified processing logic
    */
