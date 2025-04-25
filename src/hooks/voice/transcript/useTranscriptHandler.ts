@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { useConversationValidator } from './useConversationValidator';
 import { useTranscriptNotifications } from './useTranscriptNotifications';
@@ -13,13 +14,11 @@ export const useTranscriptHandler = () => {
     saveMessage: (msg: { role: 'user' | 'assistant'; content: string }) => Promise<Message | null>,
     role: 'user' | 'assistant' = 'user'
   ) => {
-    // CRITICAL FIX: Validate transcript content first
     if (!transcript || transcript.trim() === '') {
       console.warn("⚠️ Empty transcript received, not saving");
       return;
     }
 
-    // Log full transcript for debugging
     console.log("💾 Processing transcript:", {
       role,
       preview: transcript.substring(0, 50),
@@ -29,30 +28,35 @@ export const useTranscriptHandler = () => {
     
     notifyTranscriptReceived(transcript);
 
-    // Check if we have a global context with conversationId
-    const hasConversationContext = typeof window !== 'undefined' && 
-      window.conversationContext && 
-      window.conversationContext.conversationId;
-    
     try {
-      // SAVING STRATEGY 1: Try message queue first (highest priority)
+      // SAVING STRATEGY 1: Try message queue for established conversations
       if (typeof window !== 'undefined' && window.attuneMessageQueue) {
         console.log(`🔄 Using message queue for ${role} transcript`);
         
-        // The message queue will now handle the first message correctly
+        // Queue the message with high priority
         window.attuneMessageQueue.queueMessage(role, transcript, true);
         
-        // Force queue processing if conversation is initialized
-        if (window.attuneMessageQueue.isInitialized()) {
+        // For user messages: if queue not initialized, force initialization and immediate save
+        if (role === 'user' && !window.attuneMessageQueue.isInitialized()) {
+          console.log("🔄 First user message - forcing immediate save");
+          
+          // Try direct save first
+          const savedMsg = await saveMessage({
+            role,
+            content: transcript
+          });
+
+          if (savedMsg?.id) {
+            console.log("✅ First message saved directly:", savedMsg.id);
+            window.attuneMessageQueue.setConversationInitialized();
+            notifyTranscriptSaved(savedMsg.id);
+          }
+        } else if (window.attuneMessageQueue.isInitialized()) {
+          // For subsequent messages in initialized conversations, flush queue
           console.log("🔄 Queue is initialized, forcing processing");
           window.attuneMessageQueue.forceFlushQueue().catch(err => {
             console.error("Error flushing queue:", err);
           });
-        } else {
-          console.log("⏳ Queue not yet initialized, message will be processed when ready");
-          
-          // No need to set conversation as initialized here anymore,
-          // since the queue will handle the first message initialization
         }
         
         toast.success("Message queued", {
@@ -62,11 +66,10 @@ export const useTranscriptHandler = () => {
         return;
       }
       
-      // SAVING STRATEGY 2: Direct save if context is valid (backup)
-      // For the first message, this will create a conversation
+      // SAVING STRATEGY 2: Direct save as fallback
       console.log(`💾 Attempting direct message save for ${role} transcript`);
       const savedMsg = await saveMessage({
-        role,  // Explicitly set role
+        role,
         content: transcript
       });
       
@@ -76,8 +79,6 @@ export const useTranscriptHandler = () => {
         toast.success("Message saved", {
           description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
         });
-      } else {
-        console.warn("⚠️ No message ID returned from save operation");
       }
     } catch (error) {
       console.error("❌ Failed to save transcript:", error);

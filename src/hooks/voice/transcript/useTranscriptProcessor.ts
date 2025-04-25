@@ -1,3 +1,4 @@
+
 import { useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { Message } from '@/utils/types';
@@ -12,14 +13,12 @@ export const useTranscriptProcessor = (saveMessage: (msg: Partial<Message>) => P
       return;
     }
     
-    // Prevent duplicate saves
     const transcriptHash = `${role}-${finalTranscript.substring(0, 20)}-${Date.now()}`;
     if (savedMessagesRef.current.has(transcriptHash)) {
       console.log(`[TranscriptProcessor] Already saved this ${role} transcript recently`);
       return;
     }
     
-    // Mark as processing
     if (processingRef.current) {
       console.log('[TranscriptProcessor] Already processing a transcript, queuing');
       return;
@@ -27,16 +26,27 @@ export const useTranscriptProcessor = (saveMessage: (msg: Partial<Message>) => P
     processingRef.current = true;
     
     try {
-      // Use global message queue if available
       if (typeof window !== 'undefined' && window.attuneMessageQueue) {
+        console.log(`[TranscriptProcessor] Using message queue for ${role} transcript`);
         window.attuneMessageQueue.queueMessage(role, finalTranscript, true);
         
-        if (window.attuneMessageQueue.isInitialized()) {
+        // For user messages: if queue not initialized, force immediate save
+        if (role === 'user' && !window.attuneMessageQueue.isInitialized()) {
+          console.log('[TranscriptProcessor] First user message - saving directly');
+          const savedMessage = await saveMessage({
+            role,
+            content: finalTranscript
+          });
+          
+          if (savedMessage?.id) {
+            console.log('[TranscriptProcessor] First message saved, initializing queue');
+            window.attuneMessageQueue.setConversationInitialized();
+            savedMessagesRef.current.add(transcriptHash);
+          }
+        } else if (window.attuneMessageQueue.isInitialized()) {
           window.attuneMessageQueue.forceFlushQueue().catch(err => {
             console.error('Error forcing queue flush:', err);
           });
-        } else if (typeof window !== 'undefined' && window.conversationContext?.conversationId) {
-          window.attuneMessageQueue.setConversationInitialized();
         }
         
         savedMessagesRef.current.add(transcriptHash);
@@ -49,7 +59,7 @@ export const useTranscriptProcessor = (saveMessage: (msg: Partial<Message>) => P
       
       // Direct save as fallback
       const savedMessage = await saveMessage({
-        role,  // Explicitly set role
+        role,
         content: finalTranscript,
       });
       
