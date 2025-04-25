@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useConversation } from '@/hooks/useConversation';
@@ -50,14 +49,6 @@ export const useTranscriptAggregator = () => {
     processingRef.current = true;
     
     try {
-      console.log(`[TranscriptAggregator] Waiting for conversation before saving ${role} transcript...`);
-      
-      // Wait for conversation to be ready (with timeout)
-      const conversationReady = await Promise.race([
-        waitForConversation(),
-        new Promise(resolve => setTimeout(() => resolve(false), 5000)) // 5 second timeout
-      ]);
-      
       // First priority: global message queue
       if (typeof window !== 'undefined' && window.attuneMessageQueue) {
         console.log(`[TranscriptAggregator] Using global message queue for ${role} transcript`);
@@ -79,12 +70,11 @@ export const useTranscriptAggregator = () => {
           duration: 2000
         });
       } 
-      // Second priority: direct save if conversation is ready
-      else if (conversationReady) {
-        console.log(`[TranscriptAggregator] Saving ${role} message via direct save:`, {
+      // Second priority: direct save - REMOVED conversationReady guard
+      else {
+        console.log(`[TranscriptAggregator] Direct saving ${role} message:`, {
           role,
           contentLength: finalTranscript.length,
-          conversationId,
           preview: finalTranscript.substring(0, 50)
         });
         
@@ -96,7 +86,7 @@ export const useTranscriptAggregator = () => {
         if (savedMessage) {
           console.log(`[TranscriptAggregator] ${role} message saved successfully:`, {
             messageId: savedMessage.id,
-            conversationId
+            conversationId: savedMessage.conversation_id
           });
           
           savedMessagesRef.current.add(transcriptHash);
@@ -106,27 +96,8 @@ export const useTranscriptAggregator = () => {
             duration: 2000
           });
         }
-      } else {
-        // Last resort: store in local storage for retry later
-        console.log('[TranscriptAggregator] Conversation not ready, storing for retry');
-        
-        if (typeof localStorage !== 'undefined') {
-          const pendingTranscripts = JSON.parse(localStorage.getItem('pendingTranscripts') || '[]');
-          pendingTranscripts.push({
-            timestamp: Date.now(),
-            content: finalTranscript,
-            role,
-            userId: user?.id
-          });
-          localStorage.setItem('pendingTranscripts', JSON.stringify(pendingTranscripts));
-          
-          toast.warning("Message will be saved when connection is restored", {
-            description: finalTranscript.substring(0, 50) + (finalTranscript.length > 50 ? "..." : ""),
-            duration: 4000
-          });
-        }
       }
-      
+
       // Reset accumulator after successful handling
       transcriptAccumulator.reset();
       setAccumulatedTranscript('');
@@ -144,7 +115,7 @@ export const useTranscriptAggregator = () => {
     } finally {
       processingRef.current = false;
     }
-  }, [saveMessage, waitForConversation, conversationId, user]);
+  }, [saveMessage, user]);
 
   const handleTranscriptEvent = useCallback(async (event: any) => {
     // Determine the role based on the event type
