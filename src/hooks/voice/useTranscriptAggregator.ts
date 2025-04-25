@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useConversation } from '@/hooks/useConversation';
@@ -86,7 +87,8 @@ export const useTranscriptAggregator = () => {
         if (savedMessage) {
           console.log(`[TranscriptAggregator] ${role} message saved successfully:`, {
             messageId: savedMessage.id,
-            conversationId: savedMessage.conversation_id
+            // Fix: Use optional chaining and type safety for conversation_id
+            conversationId: savedMessage.conversation_id || savedMessage.id
           });
           
           savedMessagesRef.current.add(transcriptHash);
