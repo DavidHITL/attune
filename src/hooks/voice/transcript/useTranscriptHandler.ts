@@ -1,6 +1,7 @@
+
 import { useCallback } from 'react';
 import { useConversationValidator } from './useConversationValidator';
-import { useConversation } from '../useConversation';
+import { useConversation } from '@/hooks/useConversation';
 import { toast } from 'sonner';
 
 export const useTranscriptHandler = () => {
