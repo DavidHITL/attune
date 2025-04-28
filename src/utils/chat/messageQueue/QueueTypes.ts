@@ -1,5 +1,5 @@
 
-import { QueuedMessage, QueueStatus } from './types';
+import { QueuedMessage } from './types';
 
 /**
  * Extended queue processing options
@@ -26,4 +26,13 @@ export interface ProcessingResult {
   success: boolean;
   messageId?: string;
   error?: Error;
+}
+
+/**
+ * Queue status information
+ */
+export interface QueueStatus { 
+  queueLength: number; 
+  pendingUserMessages: number; 
+  activeSaves: number;
 }

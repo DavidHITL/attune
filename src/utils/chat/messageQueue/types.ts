@@ -6,9 +6,3 @@ export type QueuedMessage = {
   content: string, 
   priority: boolean 
 };
-
-export type QueueStatus = { 
-  queueLength: number, 
-  pendingUserMessages: number, 
-  activeSaves: number 
-};
