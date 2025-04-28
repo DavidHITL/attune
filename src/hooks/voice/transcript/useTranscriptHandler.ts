@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { useConversationValidator } from './useConversationValidator';
 import { useTranscriptNotifications } from './useTranscriptNotifications';
@@ -36,6 +35,11 @@ export const useTranscriptHandler = () => {
         // Queue the message with high priority
         window.attuneMessageQueue.queueMessage(role, transcript, true);
         
+        toast.success("Message queued", {
+          description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
+          duration: 2000
+        });
+        
         // For user messages: if queue not initialized, force initialization and immediate save
         if (role === 'user' && !window.attuneMessageQueue.isInitialized()) {
           console.log("🔄 First user message - forcing immediate save");
@@ -58,12 +62,6 @@ export const useTranscriptHandler = () => {
             console.error("Error flushing queue:", err);
           });
         }
-        
-        toast.success("Message queued", {
-          description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
-          duration: 2000
-        });
-        return;
       }
       
       // SAVING STRATEGY 2: Direct save as fallback
