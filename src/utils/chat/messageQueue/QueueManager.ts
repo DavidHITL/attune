@@ -1,4 +1,3 @@
-
 import { SaveMessageCallback } from '../../types';
 import { QueueState } from './state/QueueState';
 import { QueueProcessor } from './QueueProcessor';
@@ -77,6 +76,8 @@ export class MessageQueue {
     if (this.queueState.hasPendingMessages()) {
       console.log(`Force-processing ${this.queueState.getPendingMessageCount()} pending pre-init messages`);
       this.queueInitializer.processPendingMessages();
+      this.queueState.setInitialized(true); // Set initialized after processing messages
+      this.queueState.clearPendingMessages(); // Clear any remaining pending messages
     }
     
     return this.queueProcessor.flushQueue();
