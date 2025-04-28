@@ -53,6 +53,10 @@ export class ConnectionManager {
           },
           forceFlushQueue: () => {
             console.log("[ConnectionManager] Force flushing message queue");
+            return this.messageQueue ? this.messageQueue.forceFlushQueue() : Promise.resolve();
+          },
+          flushQueue: () => {
+            console.log("[ConnectionManager] Flushing message queue");
             return this.messageQueue ? this.messageQueue.flushQueue() : Promise.resolve();
           }
         };
