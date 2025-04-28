@@ -1,4 +1,3 @@
-
 import { Message, SaveMessageCallback } from '../../types';
 import { QueueProcessor } from './QueueProcessor';
 import { QueueStatus } from './types';
@@ -8,6 +7,7 @@ export class MessageQueue {
   private pendingPreInitMessages: Array<{role: 'user' | 'assistant', content: string, priority: boolean}> = [];
   private isConversationInitialized: boolean = false;
   private processingTimeoutId: number | null = null;
+  private conversationId: string | null = null;
   
   constructor(private saveMessageCallback: SaveMessageCallback) {
     this.queueProcessor = new QueueProcessor(saveMessageCallback);
@@ -165,11 +165,30 @@ export class MessageQueue {
   }
   
   async flushQueue(): Promise<void> {
+    if (!this.conversationId && window.conversationContext?.conversationId) {
+      this.conversationId = window.conversationContext.conversationId;
+    }
+
     if (!this.isConversationInitialized && this.pendingPreInitMessages.length > 0) {
       console.log(`Forcing processing of pending pre-init messages during flush`);
       this.setConversationInitialized();
     }
     
+    // Process messages with progressive delays to maintain order
+    const messagesToProcess = [...this.pendingPreInitMessages];
+    this.pendingPreInitMessages = [];
+    
+    messagesToProcess.forEach((msg, index) => {
+      setTimeout(() => {
+        console.log(`Processing pre-init message ${index + 1}/${messagesToProcess.length}:`, {
+          role: msg.role,
+          priority: msg.priority,
+          contentPreview: msg.content.substring(0, 30) + '...'
+        });
+        this.queueProcessor.queueMessage(msg.role, msg.content, msg.priority);
+      }, index * 200);
+    });
+
     return this.queueProcessor.flushQueue();
   }
   
