@@ -1,9 +1,8 @@
-
 import { SaveMessageCallback } from '../../types';
 import { QueueState } from './state/QueueState';
 import { QueueProcessor } from './QueueProcessor';
 import { QueueInitializer } from './initialization/QueueInitializer';
-import { QueueStatus } from './types';
+import { QueueStatus } from './QueueTypes';
 import { toast } from 'sonner';
 
 export class MessageQueue {
