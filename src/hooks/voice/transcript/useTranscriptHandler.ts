@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { useConversationValidator } from './useConversationValidator';
 import { useTranscriptNotifications } from './useTranscriptNotifications';
@@ -58,13 +59,15 @@ export const useTranscriptHandler = () => {
         } else if (window.attuneMessageQueue.isInitialized()) {
           // For subsequent messages in initialized conversations, flush queue
           console.log("🔄 Queue is initialized, forcing processing");
-          window.attuneMessageQueue.forceFlushQueue().catch(err => {
+          try {
+            await window.attuneMessageQueue.forceFlushQueue();
+          } catch (err) {
             console.error("Error flushing queue:", err);
-          });
+          }
         }
       }
       
-      // SAVING STRATEGY 2: Direct save as fallback
+      // SAVING STRATEGY 2: Direct save
       console.log(`💾 Attempting direct message save for ${role} transcript`);
       const savedMsg = await saveMessage({
         role,
