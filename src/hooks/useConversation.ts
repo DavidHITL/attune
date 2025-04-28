@@ -1,4 +1,3 @@
-
 import { useAuth } from "@/context/AuthContext";
 import { useConversationState } from "./conversation/useConversationState";
 import { useConversationHelpers } from "./conversation/useConversationHelpers";
@@ -125,12 +124,9 @@ export const useConversation = (): UseConversationReturn => {
         if (!conversationId && savedMessage.conversation_id) {
           console.log('Setting new conversation ID:', savedMessage.conversation_id);
           setConversationId(savedMessage.conversation_id);
-        
-          // NEW: now that we have an ID, flush any queued user msgs 
-          if (window.attuneMessageQueue?.forceFlushQueue) {
-            console.log('[useConversation] Flushing pre-init queue');
-            window.attuneMessageQueue.forceFlushQueue();
-          }
+          
+          // NEW: Flush any queued messages now that we have a conversation ID
+          window.attuneMessageQueue?.flushQueue?.();
         
           // Update global context with all required properties
           if (typeof window !== 'undefined') {
