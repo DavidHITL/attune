@@ -1,15 +1,12 @@
-
 import { Message } from '../types'; // Import Message type from types file
 
 /**
  * Validates and normalizes message role
  */
 export const normalizeMessageRole = (role?: string): 'user' | 'assistant' => {
-  // Default to 'user' if role is undefined or invalid
-  if (role === 'user' || role === 'assistant') {
-    return role;
-  }
-  return 'user'; // Default fallback
+  return role?.toLowerCase?.() === 'assistant' ? 'assistant'
+       : role?.toLowerCase?.() === 'user'      ? 'user'
+       : 'user';
 };
 
 /**
