@@ -37,6 +37,6 @@ export class MessageEventHandler {
     });
     
     // Queue message with high priority to ensure it's processed even if conversation is initializing
-    this.messageQueue.queueMessage('user', content, true);
+    this.messageQueue.queueMessage('assistant', content, true);
   }
 }
