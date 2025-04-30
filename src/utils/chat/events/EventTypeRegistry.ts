@@ -34,23 +34,35 @@ export class EventTypeRegistry {
    * Check if an event type belongs to assistant responses
    */
   static isAssistantEvent(eventType: string): boolean {
-    return this.ASSISTANT_EVENTS.includes(eventType) || 
+    const isAssistant = this.ASSISTANT_EVENTS.includes(eventType) || 
            (eventType.includes('response.delta') && !eventType.includes('audio'));
+    if (isAssistant) {
+      console.log(`[EventTypeRegistry] 🤖 Event ${eventType} classified as ASSISTANT event`);
+    }
+    return isAssistant;
   }
 
   /**
    * Check if an event type belongs to user transcripts
    */
   static isUserEvent(eventType: string): boolean {
-    return this.USER_EVENTS.includes(eventType) || 
+    const isUser = this.USER_EVENTS.includes(eventType) || 
            eventType.includes('audio_transcript');
+    if (isUser) {
+      console.log(`[EventTypeRegistry] 👤 Event ${eventType} classified as USER event`);
+    }
+    return isUser;
   }
 
   /**
    * Check if an event is a system event (not user or assistant)
    */
   static isSystemEvent(eventType: string): boolean {
-    return this.SYSTEM_EVENTS.includes(eventType);
+    const isSystem = this.SYSTEM_EVENTS.includes(eventType);
+    if (isSystem) {
+      console.log(`[EventTypeRegistry] ⚙️ Event ${eventType} classified as SYSTEM event`);
+    }
+    return isSystem;
   }
 
   /**
@@ -59,13 +71,16 @@ export class EventTypeRegistry {
    */
   static getRoleForEvent(eventType: string): 'user' | 'assistant' | null {
     if (this.isAssistantEvent(eventType)) {
+      console.log(`[EventTypeRegistry] 🔄 Event ${eventType} mapped to role: assistant`);
       return 'assistant';
     }
     
     if (this.isUserEvent(eventType)) {
+      console.log(`[EventTypeRegistry] 🔄 Event ${eventType} mapped to role: user`);
       return 'user';
     }
     
+    console.log(`[EventTypeRegistry] ⚠️ Event ${eventType} has no role mapping (SYSTEM or UNKNOWN event)`);
     return null;
   }
 
@@ -73,7 +88,9 @@ export class EventTypeRegistry {
    * Check if an event type has a valid role mapping
    */
   static hasRoleMapping(eventType: string): boolean {
-    return this.getRoleForEvent(eventType) !== null;
+    const hasMapping = this.getRoleForEvent(eventType) !== null;
+    console.log(`[EventTypeRegistry] 🔍 Event ${eventType} has role mapping: ${hasMapping}`);
+    return hasMapping;
   }
 
   /**
