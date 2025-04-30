@@ -15,11 +15,11 @@ export const useTranscriptHandler = () => {
       timestamp: new Date().toISOString()
     });
 
-    // FIX: Improved transcript extraction by checking different event formats
+    // CRITICAL FIX: Start with no default role - require explicit detection
     let transcriptContent: string | null = null;
-    let messageRole: 'user' | 'assistant' | null = null; // Default to null (no default role)
+    let messageRole: 'user' | 'assistant' | null = null;
     
-    // Check if this is an assistant response event
+    // CRITICAL FIX: First determine role from event type - no defaults
     if (event.type === 'response.done' || 
         event.type === 'response.delta' || 
         event.type === 'response.content_part.done') {
@@ -27,10 +27,10 @@ export const useTranscriptHandler = () => {
     } else if (event.type === 'transcript' || 
                event.type === 'response.audio_transcript.delta' ||
                event.type === 'response.audio_transcript.done') {
-      messageRole = 'user'; // User speech is from transcript events
+      messageRole = 'user';
     }
     
-    // Check different possible formats for transcript content
+    // Extract content from various event formats
     if (event.type === 'transcript' && typeof event.transcript === 'string') {
       transcriptContent = event.transcript;
       console.log("📝 Found direct transcript string:", transcriptContent.substring(0, 50));
@@ -48,12 +48,10 @@ export const useTranscriptHandler = () => {
       console.log("📝 Found transcript in response.done event:", transcriptContent.substring(0, 50));
     }
     else if (event.type === 'response.done' && event.response?.content) {
-      // This is likely an assistant message content
       transcriptContent = event.response.content;
       console.log("💬 Found assistant response in response.done event:", transcriptContent?.substring(0, 50));
     }
     else if (event.type === 'response.content_part.done' && event.content_part?.text) {
-      // This is an assistant message part
       transcriptContent = event.content_part.text;
       console.log("💬 Found assistant content part:", transcriptContent.substring(0, 50));
     }
@@ -84,7 +82,7 @@ export const useTranscriptHandler = () => {
       return;
     }
     
-    // Process the transcript content we found
+    // Process the transcript content we found with the determined role
     console.log(`📝 Processing ${messageRole} content:`, {
       role: messageRole,
       contentPreview: transcriptContent.substring(0, 50),
@@ -92,7 +90,7 @@ export const useTranscriptHandler = () => {
     });
       
     if (hasMessageQueue) {
-      console.log(`🔄 Queueing ${messageRole} message`);
+      console.log(`🔄 Queueing ${messageRole} message with role: ${messageRole}`);
       // Use optional chaining to safely access the queueMessage method
       window.attuneMessageQueue?.queueMessage(messageRole, transcriptContent, true);
       
@@ -105,12 +103,12 @@ export const useTranscriptHandler = () => {
 
     // Use unified save pathway if we have a valid context
     if (hasValidContext) {
-      console.log(`💾 Saving ${messageRole} transcript via direct save`);
+      console.log(`💾 Saving ${messageRole} transcript via direct save with role: ${messageRole}`);
       saveMessage({
         role: messageRole,
         content: transcriptContent
       }).then(savedMessage => {
-        console.log('Message save result:', savedMessage ? 'Success' : 'Failed');
+        console.log(`Message save result (role: ${messageRole}):`, savedMessage ? 'Success' : 'Failed');
       }).catch(error => {
         console.error(`Error saving ${messageRole} transcript:`, error);
       });
@@ -121,4 +119,3 @@ export const useTranscriptHandler = () => {
     handleTranscriptEvent
   };
 };
-

@@ -13,9 +13,9 @@ export const useTranscriptProcessor = (saveMessage: (msg: Partial<Message>) => P
       return;
     }
     
-    // CRITICAL FIX: Validate role is provided
-    if (!role) {
-      console.error('[TranscriptProcessor] No role provided for transcript, aborting save');
+    // CRITICAL FIX: Validate role is provided and valid
+    if (!role || (role !== 'user' && role !== 'assistant')) {
+      console.error(`[TranscriptProcessor] Invalid or missing role "${role}" for transcript, aborting save`);
       return;
     }
     
@@ -34,6 +34,7 @@ export const useTranscriptProcessor = (saveMessage: (msg: Partial<Message>) => P
     try {
       if (typeof window !== 'undefined' && window.attuneMessageQueue) {
         console.log(`[TranscriptProcessor] Using message queue for ${role} transcript`);
+        // CRITICAL FIX: Make sure we pass role accurately
         window.attuneMessageQueue.queueMessage(role, finalTranscript, true);
         
         // For user messages: if queue not initialized, force immediate save
@@ -72,6 +73,7 @@ export const useTranscriptProcessor = (saveMessage: (msg: Partial<Message>) => P
       if (savedMessage) {
         console.log(`[TranscriptProcessor] ${role} message saved successfully:`, {
           messageId: savedMessage.id,
+          messageRole: role,
           conversationId: savedMessage.conversation_id || savedMessage.id
         });
         

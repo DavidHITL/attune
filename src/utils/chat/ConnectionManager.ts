@@ -42,6 +42,12 @@ export class ConnectionManager {
             this.messageQueue?.setConversationInitialized();
           },
           queueMessage: (role: 'user' | 'assistant', content: string, priority: boolean = false) => {
+            // CRITICAL: Validate role parameter is provided
+            if (!role) {
+              console.error('[ConnectionManager] No role provided to queueMessage - rejecting message');
+              return;
+            }
+            
             console.log(`[ConnectionManager] Queueing ${role} message (priority: ${priority}):`, {
               contentPreview: content.substring(0, 30) + (content.length > 30 ? '...' : ''),
               timestamp: new Date().toISOString()
@@ -97,6 +103,12 @@ export class ConnectionManager {
   saveMessage(role: 'user' | 'assistant', content: string): void {
     if (!content || content.trim() === '') {
       console.log(`[ConnectionManager] Skipping empty ${role} message`);
+      return;
+    }
+    
+    // CRITICAL: Add role validation here
+    if (role !== 'user' && role !== 'assistant') {
+      console.error(`[ConnectionManager] Invalid role "${role}" provided to saveMessage - must be 'user' or 'assistant'`);
       return;
     }
     

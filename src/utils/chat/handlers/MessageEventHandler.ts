@@ -37,7 +37,7 @@ export class MessageEventHandler {
     });
     
     // Queue message with high priority to ensure it's processed even if conversation is initializing
-    // CRITICAL FIX: This function name implies user message but explicitly set role to user here
+    // CRITICAL FIX: Explicitly set role to user since this method is specifically for user messages
     this.messageQueue.queueMessage('user', content, true);
   }
 }

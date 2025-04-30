@@ -20,21 +20,27 @@ export const useTranscriptAggregator = () => {
       const finalTranscript = getAccumulatedText();
       if (finalTranscript && finalTranscript.trim()) {
         console.log('[TranscriptAggregator] Saving final transcript on cleanup:', finalTranscript.substring(0, 50));
-        // Always save final transcript as user since it's from user speech
+        // CRITICAL FIX: Make sure we explicitly set role for cleanup saving
         processTranscript(finalTranscript, 'user');
       }
     };
   }, [getAccumulatedText, processTranscript]);
 
   const handleTranscriptEvent = useCallback(async (event: any) => {
-    // Determine message role based on event type - CRITICAL FIX
-    let role: 'user' | 'assistant' = 'user'; // Default to user only for transcript events
+    // CRITICAL FIX: Always determine message role before processing
+    // Default to null (require explicit role assignment)
+    let role: 'user' | 'assistant' | null = null;
     
     // Assistant response events
     if (event.type === 'response.done' || 
         event.type.includes('response.content_part') ||
         (event.type === 'response.delta' && !event.type.includes('audio'))) {
       role = 'assistant';
+    }
+    // User speech events
+    else if (event.type === 'transcript' || 
+             event.type.includes('audio_transcript')) {
+      role = 'user';
     }
     
     // Handle transcript delta events for accumulation (always user)
@@ -53,7 +59,8 @@ export const useTranscriptAggregator = () => {
                            (typeof event.transcript === 'string' ? event.transcript : getAccumulatedText());
       
       if (transcriptText && transcriptText.trim()) {
-        await processTranscript(transcriptText, 'user'); // Always user for transcripts
+        // CRITICAL FIX: Always explicitly set role for user transcripts
+        await processTranscript(transcriptText, 'user');
         resetAccumulator();
       }
     }
@@ -63,7 +70,8 @@ export const useTranscriptAggregator = () => {
              (event.type === 'response.content_part.done' && event.content_part?.text)) {
       const content = event.response?.content || event.content_part?.text;
       if (content && content.trim()) {
-        await processTranscript(content, 'assistant'); // Always assistant for responses
+        // CRITICAL FIX: Always explicitly set role for assistant responses
+        await processTranscript(content, 'assistant');
       }
     }
   }, [accumulateText, getAccumulatedText, processTranscript, resetAccumulator]);
@@ -71,7 +79,13 @@ export const useTranscriptAggregator = () => {
   return {
     handleTranscriptEvent,
     currentTranscript: accumulatedTranscript,
-    saveCurrentTranscript: async (role: 'user' | 'assistant' = 'user') => {
+    // CRITICAL FIX: Default parameter removed, require explicit role
+    saveCurrentTranscript: async (role: 'user' | 'assistant') => {
+      if (!role) {
+        console.error('[TranscriptAggregator] No role provided to saveCurrentTranscript');
+        return;
+      }
+      
       const transcript = getAccumulatedText();
       if (transcript && transcript.trim()) {
         await processTranscript(transcript, role);
@@ -80,4 +94,3 @@ export const useTranscriptAggregator = () => {
     }
   };
 };
-

@@ -28,7 +28,8 @@ export class RealtimeChat {
     this.messageQueue = new MessageQueue(this.saveMessageCallback);
     this.userMessageHandler = new UserMessageHandler(this.saveMessageCallback);
     
-    // Fix: Create a transcript handler with a function that properly forwards to messageQueue
+    // CRITICAL FIX: Create a transcript handler with a function that properly forwards to messageQueue 
+    // with explicit user role since it handles transcripts from user speech
     this.transcriptHandler = new TranscriptEventHandler(
       (text: string) => {
         if (this.messageQueue) {
@@ -110,6 +111,7 @@ export class RealtimeChat {
     }
     
     if (typeof window !== 'undefined' && window.attuneMessageQueue) {
+      // CRITICAL FIX: Explicitly set role to 'user' since this method is for user messages
       window.attuneMessageQueue.queueMessage('user', content, true);
       return Promise.resolve();
     }
