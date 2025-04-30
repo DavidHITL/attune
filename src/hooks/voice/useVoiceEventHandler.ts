@@ -11,9 +11,11 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
   const { handleTranscriptEvent } = useTranscriptHandler();
   
   const handleVoiceEvent = useCallback((event: any) => {
-    console.log(`🎙️ Voice Event Handler - Event Type: ${event.type}`);
+    console.log(`🎙️ [useVoiceEventHandler] Secondary processing: Event Type: ${event.type}`);
+    console.log(`🎙️ [useVoiceEventHandler] Role from EventTypeRegistry: ${EventTypeRegistry.getRoleForEvent(event.type) || 'none'}`);
     
-    // Process voice activity state changes
+    // NOTE: This only manages voice UI state, not responsible for message saving
+    // Voice call UI state updates only!
     handleVoiceActivityEvent(event);
     
     // Log speech and transcript events
@@ -32,23 +34,24 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
       }
     }
     
-    // Use our transcript handler to process the event
-    handleTranscriptEvent(event);
-  }, [handleVoiceActivityEvent, logSpeechEvents, handleTranscriptEvent]);
+    // NOTE: In the new architecture, we don't need to process transcript events here
+    // as they are already handled in the EventDispatcher
+    // handleTranscriptEvent(event); - DISABLED
+  }, [handleVoiceActivityEvent, logSpeechEvents]);
   
   function logTranscriptDetails(event: any) {
     // Log raw transcript data for debugging
     if (event.transcript) {
       if (typeof event.transcript === 'string') {
-        console.log(`📄 RAW TRANSCRIPT [${event.type}]: "${event.transcript.substring(0, 100)}"`);
+        console.log(`📄 [useVoiceEventHandler] RAW TRANSCRIPT [${event.type}]: "${event.transcript.substring(0, 100)}"`);
       } else if (event.transcript.text) {
-        console.log(`📄 RAW TRANSCRIPT [${event.type}]: "${event.transcript.text.substring(0, 100)}"`);
+        console.log(`📄 [useVoiceEventHandler] RAW TRANSCRIPT [${event.type}]: "${event.transcript.text.substring(0, 100)}"`);
       }
     }
     
     // Log delta content if present
     if (event.delta && event.delta.text) {
-      console.log(`📄 DELTA TRANSCRIPT [${event.type}]: "${event.delta.text.substring(0, 100)}"`);
+      console.log(`📄 [useVoiceEventHandler] DELTA TRANSCRIPT [${event.type}]: "${event.delta.text.substring(0, 100)}"`);
     }
   }
 

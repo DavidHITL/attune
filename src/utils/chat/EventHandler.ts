@@ -39,7 +39,8 @@ export class EventHandler {
     // Track audio-related events for debugging purposes
     this.eventMonitor.trackAudioEvent(event);
     
-    // Use the event dispatcher to route the event
+    // SINGLE PATH: Use the event dispatcher to route the event
+    console.log(`[EventHandler] Routing event through EventDispatcher: ${event.type}`);
     this.eventDispatcher.dispatchEvent(event);
   }
 

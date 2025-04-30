@@ -16,10 +16,10 @@ export const useTranscriptHandler = () => {
       timestamp: new Date().toISOString()
     });
 
-    // CRITICAL: First determine role from the event type registry - no defaults
+    // SINGLE SOURCE OF TRUTH: Use EventTypeRegistry for role determination
     const messageRole = EventTypeRegistry.getRoleForEvent(event.type);
     if (!messageRole) {
-      console.log(`⚠️ Could not determine message role for event type: ${event.type}`);
+      console.log(`⚠️ [useTranscriptHandler] No role mapping for event type: ${event.type}`);
       return;
     }
 
@@ -53,7 +53,7 @@ export const useTranscriptHandler = () => {
       return;
     }
 
-    console.log(`📝 Processing ${messageRole} content:`, {
+    console.log(`📝 [useTranscriptHandler] Processing ${messageRole} content:`, {
       role: messageRole,
       contentPreview: transcriptContent.substring(0, 50),
       length: transcriptContent.length
@@ -64,12 +64,12 @@ export const useTranscriptHandler = () => {
     const hasMessageQueue = typeof window !== 'undefined' && !!window.attuneMessageQueue;
     
     if (!hasValidContext && !hasMessageQueue) {
-      console.log('⚠️ No valid conversation context or message queue');
+      console.log('⚠️ [useTranscriptHandler] No valid conversation context or message queue');
       return;
     }
       
     if (hasMessageQueue) {
-      console.log(`🔄 Queueing message with explicit role: ${messageRole}`);
+      console.log(`🔄 [useTranscriptHandler] Queueing message with explicit role: ${messageRole}`);
       window.attuneMessageQueue?.queueMessage(messageRole, transcriptContent, true);
       
       toast.success(messageRole === 'user' ? "Speech detected" : "AI response received", {
@@ -81,12 +81,12 @@ export const useTranscriptHandler = () => {
 
     // Direct save with explicit role
     if (hasValidContext) {
-      console.log(`💾 Saving via direct save with role: ${messageRole}`);
+      console.log(`💾 [useTranscriptHandler] Saving via direct save with role: ${messageRole}`);
       saveMessage({
         role: messageRole,
         content: transcriptContent
       }).catch(error => {
-        console.error(`Error saving message:`, error);
+        console.error(`[useTranscriptHandler] Error saving message:`, error);
       });
     }
   }, [validateConversationContext, saveMessage]);

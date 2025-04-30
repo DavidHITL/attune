@@ -15,33 +15,13 @@ export class MessageEventHandler {
   ) {}
 
   handleMessageEvent = (event: any): void => {
+    // DISABLED: Direct event processing bypassing EventDispatcher
+    console.log(`[MessageEventHandler] DEPRECATED: Use EventDispatcher instead. Event: ${event.type}`);
+    
+    // Just pass the event to the general callback
     this.messageCallback(event);
     
-    // Use the EventTypeRegistry to determine the role
-    const role = EventTypeRegistry.getRoleForEvent(event.type);
-    
-    if (role === 'assistant') {
-      // Process assistant messages
-      if (event.type === 'response.done' && event.response?.content) {
-        console.log('📬 [MessageEventHandler] Processing ASSISTANT response:', event.response.content.substring(0, 50));
-        this.messageQueue.queueMessage('assistant', event.response.content, true);
-        return;
-      }
-      
-      // Handle content parts from assistant
-      if (event.type === 'response.content_part.done' && event.content_part?.text) {
-        console.log('📬 [MessageEventHandler] Processing ASSISTANT content part:', event.content_part.text.substring(0, 50));
-        this.messageQueue.queueMessage('assistant', event.content_part.text, true);
-        return;
-      }
-    }
-    else if (role === 'user') {
-      // Let transcript handler manage user transcripts
-      this.transcriptHandler.handleTranscriptEvents(event);
-    }
-    else {
-      console.log(`📬 [MessageEventHandler] Skipping event with unknown role: ${event.type}`);
-    }
+    // NOTE: No longer processing events here - all routing happens in EventDispatcher
   }
 
   saveUserMessage(content: string) {

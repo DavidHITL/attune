@@ -1,3 +1,4 @@
+
 import { MessageQueue } from '../messageQueue';
 import { ResponseParser } from '../ResponseParser';
 import { EventHandler } from '../EventHandler';
@@ -44,10 +45,10 @@ export class RealtimeChatCore {
     this.responseParser = new ResponseParser();
     this.userMessageHandler = new UserMessageHandler(safeSaveCallback);
     
+    // DISABLED: This handler is now completely disabled
     this.transcriptHandler = new TranscriptEventHandler(
-      (text) => {
-        console.log(`📣 TranscriptEventHandler - Direct save for text: "${text.substring(0, 30)}..."`);
-        this.saveUserMessage(text);
+      () => {
+        console.log(`[TranscriptEventHandler] DISABLED: This event handler is no longer used`);
       }
     );
     
@@ -59,6 +60,7 @@ export class RealtimeChatCore {
       this.transcriptHandler
     );
     
+    // SINGLE PATH: Create our main event handler that uses EventDispatcher
     this.eventHandler = new EventHandler(
       this.messageQueue,
       this.responseParser,
@@ -66,6 +68,7 @@ export class RealtimeChatCore {
     );
     
     this.connectionManager = new ConnectionManager(
+      // SINGLE PATH: All events go through eventHandler.handleMessage
       this.eventHandler.handleMessage,
       (state) => {
         messageCallback({
@@ -96,6 +99,12 @@ export class RealtimeChatCore {
   }
 
   private saveUserMessage(content: string) {
+    if (!content || content.trim() === '') {
+      console.log(`[RealtimeChatCore] Skipping empty user message`);
+      return;
+    }
+    
+    console.log(`[RealtimeChatCore] Saving user message: "${content.substring(0, 30)}..."`);
     this.messageEventHandler.saveUserMessage(content);
   }
 
