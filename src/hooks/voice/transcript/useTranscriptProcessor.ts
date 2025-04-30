@@ -35,7 +35,7 @@ export const useTranscriptProcessor = (saveMessage: (msg: Partial<Message>) => P
     try {
       if (typeof window !== 'undefined' && window.attuneMessageQueue) {
         console.log(`[TranscriptProcessor] Using message queue for ${role} transcript`);
-        // Make sure we pass role accurately
+        // Make sure we pass role accurately from EventTypeRegistry
         window.attuneMessageQueue.queueMessage(role, finalTranscript, true);
         
         // For user messages: if queue not initialized, force immediate save

@@ -2,7 +2,6 @@
 import { useCallback } from 'react';
 import { useVoiceActivityState } from './useVoiceActivityState';
 import { useVoiceChatLogger } from './useVoiceChatLogger';
-import { useTranscriptHandler } from './useTranscriptHandler';
 import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 
 export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>) => {
@@ -11,7 +10,8 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
   
   const handleVoiceEvent = useCallback((event: any) => {
     // Only handle UI state updates, not message processing
-    console.log(`🎙️ [useVoiceEventHandler] UI state updates only for: ${event.type}`);
+    const eventCategory = EventTypeRegistry.getEventCategoryName(event.type);
+    console.log(`🎙️ [useVoiceEventHandler] UI state updates only for: ${event.type} (${eventCategory})`);
     
     // Voice call UI state updates only
     handleVoiceActivityEvent(event);

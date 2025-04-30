@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { useTranscriptAggregator } from '@/hooks/voice/useTranscriptAggregator';
+import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 
 interface RealtimeChatProps {
   isDisabled?: boolean;
@@ -86,7 +87,7 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({
     // First save any pending transcript
     if (transcriptAggregator.currentTranscript) {
       console.log('[RealtimeChat] Saving pending transcript before ending call');
-      // CRITICAL: Always explicitly set role to 'user'
+      // CRITICAL: Always explicitly set role to 'user' - explicitly set by EventTypeRegistry's standards
       await transcriptAggregator.saveCurrentTranscript('user');
     }
     // Then end the call

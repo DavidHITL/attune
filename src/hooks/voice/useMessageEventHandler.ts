@@ -21,7 +21,8 @@ export const useMessageEventHandler = (chatClientRef: React.MutableRefObject<any
   
   // Create a UI state handler that only manages UI state
   const combinedMessageHandler = useCallback((event: any) => {
-    console.log(`[useMessageEventHandler] UI state updates only for: ${event.type}`);
+    const eventCategory = EventTypeRegistry.getEventCategoryName(event.type);
+    console.log(`[useMessageEventHandler] UI state updates only for: ${event.type} (${eventCategory})`);
     
     // Handle UI state updates only, not message saving
     handleVoiceEvent(event);

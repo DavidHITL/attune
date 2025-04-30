@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import RealtimeChat from '@/components/RealtimeChat';
@@ -8,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useConversation } from '@/hooks/useConversation';
 import { toast } from 'sonner';
 import { useTranscriptAggregator } from '@/hooks/voice/useTranscriptAggregator';
+import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 
 const Voice = () => {
   const { user, loading: authLoading } = useAuth();
@@ -52,8 +54,9 @@ const Voice = () => {
       // Save any pending transcript when navigating away
       if (transcriptAggregatorRef.current?.saveCurrentTranscript) {
         console.log('[Voice] Page unloading - saving pending transcript');
-        // CRITICAL: Always explicitly pass role
-        transcriptAggregatorRef.current.saveCurrentTranscript('user');
+        // CRITICAL: Always explicitly pass role as defined by EventTypeRegistry
+        const userRole = 'user'; // Following EventTypeRegistry standard role
+        transcriptAggregatorRef.current.saveCurrentTranscript(userRole);
       }
     };
 
@@ -64,8 +67,9 @@ const Voice = () => {
       // Also try to save transcript when component unmounts
       if (transcriptAggregatorRef.current?.saveCurrentTranscript) {
         console.log('[Voice] Component unmounting - saving pending transcript');
-        // CRITICAL: Always explicitly pass role
-        transcriptAggregatorRef.current.saveCurrentTranscript('user');
+        // CRITICAL: Always explicitly pass role as defined by EventTypeRegistry
+        const userRole = 'user'; // Following EventTypeRegistry standard role
+        transcriptAggregatorRef.current.saveCurrentTranscript(userRole);
       }
     };
   }, []);
@@ -76,8 +80,6 @@ const Voice = () => {
       transcriptAggregatorRef.current = api;
     }
   };
-
-  
   
   return (
     <div className="min-h-screen h-screen overflow-hidden relative bg-[#1B4965]">

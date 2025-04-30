@@ -22,7 +22,7 @@ export const useTranscriptAggregator = () => {
       const finalTranscript = getAccumulatedText();
       if (finalTranscript && finalTranscript.trim()) {
         console.log('[TranscriptAggregator] Saving final transcript on cleanup:', finalTranscript.substring(0, 50));
-        // Always explicitly set role for cleanup saving
+        // Explicitly use 'user' role for cleanup saving
         processTranscript(finalTranscript, 'user');
       }
     };
@@ -38,7 +38,7 @@ export const useTranscriptAggregator = () => {
       return;
     }
     
-    console.log(`[TranscriptAggregator] Processing ${event.type} with role: ${role}`);
+    console.log(`[TranscriptAggregator] Processing ${event.type} with role from EventTypeRegistry: ${role}`);
     let transcriptContent: string | null = null;
     
     // Extract content based on event type
@@ -104,7 +104,7 @@ export const useTranscriptAggregator = () => {
       
       const transcript = getAccumulatedText();
       if (transcript && transcript.trim()) {
-        console.log(`[TranscriptAggregator] Saving current transcript with role: ${role}`);
+        console.log(`[TranscriptAggregator] Saving current transcript with explicit role: ${role}`);
         await processTranscript(transcript, role);
         resetAccumulator();
       }

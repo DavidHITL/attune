@@ -1,7 +1,10 @@
 
 /**
- * COMPLETELY DISABLED: This handler is now completely inactive.
- * All event processing goes through EventDispatcher exclusively.
+ * COMPLETELY DISABLED AND DEPRECATED:
+ * This handler is now completely inactive and deprecated.
+ * All event processing must go through EventDispatcher exclusively.
+ * 
+ * @deprecated Use EventDispatcher instead for all event processing
  */
 export class TranscriptEventHandler {
   constructor(
@@ -10,7 +13,8 @@ export class TranscriptEventHandler {
   
   handleTranscriptEvents(event: any): void {
     // DISABLED: Do nothing - all events are processed by EventDispatcher
-    console.log(`[TranscriptEventHandler] DISABLED: Event ignored: ${event.type}`);
+    console.log(`[TranscriptEventHandler] DEPRECATED: Event ignored: ${event.type}`);
+    console.log(`[TranscriptEventHandler] Use EventDispatcher for all event processing`);
     return;
   }
 }

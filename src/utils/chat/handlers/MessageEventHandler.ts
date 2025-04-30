@@ -14,7 +14,7 @@ export class MessageEventHandler {
     private transcriptHandler: any // Using any to avoid circular dependency
   ) {}
 
-  handleMessageEvent = (event: any): void {
+  handleMessageEvent = (event: any): void => {
     // COMPLETELY DISABLED: Direct event processing bypassing EventDispatcher
     console.log(`[MessageEventHandler] DISABLED: All events now process through EventDispatcher: ${event.type}`);
     
