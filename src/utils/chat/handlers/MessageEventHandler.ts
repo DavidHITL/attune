@@ -17,9 +17,9 @@ export class MessageEventHandler {
   handleMessageEvent = (event: any): void => {
     this.messageCallback(event);
     
-    // CRITICAL FIX: Check for assistant response events first
+    // CRITICAL FIX: Check for assistant response events first and explicitly identify them
     if (event.type === 'response.done' && event.response?.content) {
-      console.log('📬 Processing assistant response:', event.response.content.substring(0, 50));
+      console.log('📬 [MessageEventHandler] Processing ASSISTANT response:', event.response.content.substring(0, 50));
       // Explicitly pass 'assistant' role for assistant messages
       this.messageQueue.queueMessage('assistant', event.response.content, true);
       return;
@@ -27,9 +27,15 @@ export class MessageEventHandler {
     
     // Handle content parts from assistant
     if (event.type === 'response.content_part.done' && event.content_part?.text) {
-      console.log('📬 Processing assistant content part:', event.content_part.text.substring(0, 50));
+      console.log('📬 [MessageEventHandler] Processing ASSISTANT content part:', event.content_part.text.substring(0, 50));
       // Explicitly pass 'assistant' role
       this.messageQueue.queueMessage('assistant', event.content_part.text, true);
+      return;
+    }
+    
+    // CRITICAL FIX: Log when processing assistant delta responses
+    if (event.type && event.type.includes('response.delta') && !event.type.includes('audio')) {
+      console.log(`📬 [MessageEventHandler] Skipping delta assistant event: ${event.type}`);
       return;
     }
     
@@ -39,17 +45,17 @@ export class MessageEventHandler {
     // Get accumulated transcript length for debugging only
     const accumulator = this.userMessageHandler.getAccumulatedTranscript();
     if (accumulator && accumulator.length > 0) {
-      console.log(`📝 Current transcript length: ${accumulator.length} chars`);
+      console.log(`📝 [MessageEventHandler] Current transcript length: ${accumulator.length} chars`);
     }
   }
 
   saveUserMessage(content: string) {
     if (!content || content.trim() === '') {
-      console.log("⚠️ Skipping empty user message");
+      console.log("⚠️ [MessageEventHandler] Skipping empty user message");
       return;
     }
     
-    console.log(`💾 MessageEventHandler.saveUserMessage called with: "${content.substring(0, 30)}..."`, {
+    console.log(`💾 [MessageEventHandler] saveUserMessage called with: "${content.substring(0, 30)}..."`, {
       contentLength: content.length,
       timestamp: new Date().toISOString()
     });

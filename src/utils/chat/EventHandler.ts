@@ -35,7 +35,16 @@ export class EventHandler {
     // Track audio-related events for debugging purposes
     this.eventMonitor.trackAudioEvent(event);
     
-    // CRITICAL FIX: Complete logging for transcript events
+    // CRITICAL FIX: Determine if this is an assistant event or user transcript
+    const isAssistantEvent = event.type === 'response.done' || 
+                             event.type === 'response.content_part.done' ||
+                             (event.type?.includes('response.delta') && !event.type?.includes('audio'));
+                             
+    if (isAssistantEvent) {
+      console.log(`[EventHandler] Processing ASSISTANT event: ${event.type}`);
+    }
+    
+    // Complete logging for transcript events
     if (event.type && (
         event.type === 'transcript' || 
         event.type.includes('audio_transcript')
@@ -51,7 +60,7 @@ export class EventHandler {
       }
       
       if (transcriptText) {
-        console.log(`📝 EventHandler - Transcript event ${event.type}: "${transcriptText.substring(0, 100)}"`);
+        console.log(`[EventHandler] Processing USER transcript event ${event.type}: "${transcriptText.substring(0, 100)}"`);
       }
     }
     
@@ -67,14 +76,14 @@ export class EventHandler {
        event.type === 'response.audio_transcript.done' ||
        event.type === 'input_audio_buffer.speech_started' ||
        event.type === 'input_audio_buffer.speech_stopped')) {
-      console.log(`Key transcript event: ${event.type}`);
+      console.log(`[EventHandler] Key transcript event: ${event.type}`);
       
       // Extra logging for final transcript
       if (event.type === 'response.audio_transcript.done') {
         if (event.transcript && event.transcript.text) {
-          console.log(`FINAL TRANSCRIPT DATA: "${event.transcript.text}"`);
+          console.log(`[EventHandler] FINAL TRANSCRIPT DATA (USER): "${event.transcript.text.substring(0, 100)}..."`);
         } else {
-          console.log("Final transcript event received but no text content");
+          console.log("[EventHandler] Final transcript event received but no text content");
         }
       }
     }

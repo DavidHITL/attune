@@ -15,6 +15,7 @@ export class TranscriptEventHandler {
         event.type === 'response.content_part.done' || 
         event.type.includes('response.delta') && !event.type.includes('audio')) {
       // Skip assistant messages - these should be handled separately
+      console.log(`[TranscriptEventHandler] Skipping assistant response event: ${event.type}`);
       return;
     }
     
@@ -36,6 +37,8 @@ export class TranscriptEventHandler {
       const finalTranscript = event.transcript.text;
       if (this.lastTranscriptContent !== finalTranscript && finalTranscript.trim() !== '') {
         this.lastTranscriptContent = finalTranscript;
+        
+        console.log(`[TranscriptEventHandler] Saving final user transcript: "${finalTranscript.substring(0, 50)}..."`);
         
         toast.success("Speech transcribed", { 
           description: finalTranscript.substring(0, 50) + (finalTranscript.length > 50 ? "..." : ""),

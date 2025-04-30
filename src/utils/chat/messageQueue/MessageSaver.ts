@@ -29,6 +29,14 @@ export class MessageSaver {
       return null;
     }
     
+    // CRITICAL FIX: Validate role is either 'user' or 'assistant'
+    if (role !== 'user' && role !== 'assistant') {
+      console.error(`Invalid role provided: "${role}". Must be 'user' or 'assistant'. Aborting save.`);
+      return null;
+    }
+    
+    console.log(`[MessageSaver] Saving message with role: ${role}, content: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
+    
     // Check for duplicate content
     if (this.messageProcessor.isDuplicateContent(role, content)) {
       console.log(`Skipping duplicate ${role} message:`, content.substring(0, 50));
@@ -53,6 +61,11 @@ export class MessageSaver {
         this.messageTracker.removePendingUserMessage(messageId);
       }
       
+      // Log successful save with role for debugging
+      if (savedMessage) {
+        console.log(`[MessageSaver] Successfully saved ${role} message with ID: ${savedMessage.id}`);
+      }
+      
       return savedMessage;
     } catch (error) {
       console.error(`Error in saveMessageDirectly for ${role} message:`, error);
@@ -72,6 +85,14 @@ export class MessageSaver {
       return null;
     }
     
+    // CRITICAL FIX: Validate role is either 'user' or 'assistant'
+    if (role !== 'user' && role !== 'assistant') {
+      console.error(`Invalid role provided: "${role}". Must be 'user' or 'assistant'. Aborting save.`);
+      return null;
+    }
+    
+    console.log(`[MessageSaver] Saving message with retry, role: ${role}, content: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
+    
     // Check for duplicate content
     if (this.messageProcessor.isDuplicateContent(role, content)) {
       console.log(`Skipping duplicate ${role} message in retry:`, content.substring(0, 50));
@@ -85,6 +106,12 @@ export class MessageSaver {
     try {
       // Use retry save strategy
       const savedMessage = await this.messageSaveStrategy.saveWithRetryStrategy(role, content);
+      
+      // Log successful save with role for debugging
+      if (savedMessage) {
+        console.log(`[MessageSaver] Successfully saved ${role} message with retry, ID: ${savedMessage.id}`);
+      }
+      
       return savedMessage;
     } catch (error) {
       console.error(`Error in saveMessageWithRetry for ${role} message:`, error);

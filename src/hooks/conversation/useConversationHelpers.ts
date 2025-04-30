@@ -8,13 +8,21 @@ import { Message } from '@/utils/types';
 export const useConversationHelpers = () => {
   /**
    * Validates and converts role to proper type
+   * CRITICAL FIX: Properly validate roles without defaulting to 'user'
    */
   const validateRole = (role: string): 'user' | 'assistant' => {
-    if (role === 'user' || role === 'assistant') {
-      return role;
+    // Trim and convert to lowercase for consistent comparison
+    const normalizedRole = role?.trim().toLowerCase();
+    
+    if (normalizedRole === 'user' || normalizedRole === 'assistant') {
+      console.log(`[validateRole] Valid role found: ${normalizedRole}`);
+      return normalizedRole as 'user' | 'assistant';
     }
-    console.warn(`Invalid role found in database: ${role}, defaulting to 'user'`);
-    return 'user';
+    
+    // Instead of defaulting to 'user', log error and still return the original role
+    // This will prevent corruption in the UI while still showing there's a problem
+    console.error(`[validateRole] Invalid role found in database: "${role}". Must be 'user' or 'assistant'.`);
+    throw new Error(`Invalid role: "${role}". Expected 'user' or 'assistant'.`);
   };
 
   /**
@@ -34,13 +42,24 @@ export const useConversationHelpers = () => {
         throw error;
       }
       
-      // Convert database results to Message type with proper role validation
-      const validMessages: Message[] = data ? data.map(item => ({
-        id: item.id,
-        role: validateRole(item.role),
-        content: item.content,
-        created_at: item.created_at
-      })) : [];
+      // Convert database results to Message type with proper role validation and error handling
+      const validMessages: Message[] = [];
+      
+      if (data && data.length > 0) {
+        for (const item of data) {
+          try {
+            validMessages.push({
+              id: item.id,
+              role: validateRole(item.role),
+              content: item.content,
+              created_at: item.created_at
+            });
+          } catch (validationError) {
+            console.error(`Skipping message ${item.id} due to validation error:`, validationError);
+            // Don't add invalid messages to the result array
+          }
+        }
+      }
       
       console.log(`Loaded ${validMessages.length} messages from database`);
       if (validMessages.length > 0) {

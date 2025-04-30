@@ -33,6 +33,8 @@ export class RealtimeChat {
     this.transcriptHandler = new TranscriptEventHandler(
       (text: string) => {
         if (this.messageQueue) {
+          // Always explicitly set as user transcript ONLY for transcript content
+          console.log(`[RealtimeChat] Forwarding user transcript to messageQueue: "${text.substring(0, 30)}..."`);
           this.messageQueue.queueMessage('user', text, true);
         }
       }
@@ -109,6 +111,9 @@ export class RealtimeChat {
       console.log("Skipping empty user message");
       return Promise.resolve();
     }
+    
+    // CRITICAL FIX: Log that we're explicitly saving a user message
+    console.log(`[RealtimeChat] saveUserMessage called with content length ${content.length}, first 50 chars: "${content.substring(0, 50)}..."`);
     
     if (typeof window !== 'undefined' && window.attuneMessageQueue) {
       // CRITICAL FIX: Explicitly set role to 'user' since this method is for user messages
