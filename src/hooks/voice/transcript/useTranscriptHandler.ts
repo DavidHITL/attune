@@ -17,13 +17,17 @@ export const useTranscriptHandler = () => {
 
     // FIX: Improved transcript extraction by checking different event formats
     let transcriptContent: string | null = null;
-    let messageRole: 'user' | 'assistant' = 'user'; // Default role is user
+    let messageRole: 'user' | 'assistant' | null = null; // Default to null (no default role)
     
     // Check if this is an assistant response event
     if (event.type === 'response.done' || 
         event.type === 'response.delta' || 
         event.type === 'response.content_part.done') {
       messageRole = 'assistant'; 
+    } else if (event.type === 'transcript' || 
+               event.type === 'response.audio_transcript.delta' ||
+               event.type === 'response.audio_transcript.done') {
+      messageRole = 'user'; // User speech is from transcript events
     }
     
     // Check different possible formats for transcript content
@@ -46,13 +50,11 @@ export const useTranscriptHandler = () => {
     else if (event.type === 'response.done' && event.response?.content) {
       // This is likely an assistant message content
       transcriptContent = event.response.content;
-      messageRole = 'assistant';
       console.log("💬 Found assistant response in response.done event:", transcriptContent?.substring(0, 50));
     }
     else if (event.type === 'response.content_part.done' && event.content_part?.text) {
       // This is an assistant message part
       transcriptContent = event.content_part.text;
-      messageRole = 'assistant';
       console.log("💬 Found assistant content part:", transcriptContent.substring(0, 50));
     }
     
@@ -64,6 +66,12 @@ export const useTranscriptHandler = () => {
           event.type === 'response.content_part.done') {
         console.log("⚠️ No valid transcript or content found in event", event.type);
       }
+      return;
+    }
+
+    // CRITICAL FIX: Ensure we have a valid role before proceeding
+    if (!messageRole) {
+      console.warn(`⚠️ Could not determine message role from event type: ${event.type}`);
       return;
     }
 
@@ -113,3 +121,4 @@ export const useTranscriptHandler = () => {
     handleTranscriptEvent
   };
 };
+

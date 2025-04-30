@@ -23,7 +23,7 @@ export class TranscriptEventHandler {
       }
     }
     
-    // Handle final transcript completion - this is where we save
+    // Handle final transcript completion - this is where we save user transcripts
     if (event.type === "response.audio_transcript.done" && event.transcript?.text) {
       const finalTranscript = event.transcript.text;
       if (this.lastTranscriptContent !== finalTranscript && finalTranscript.trim() !== '') {
@@ -34,7 +34,7 @@ export class TranscriptEventHandler {
           duration: 2000
         });
         
-        // Only save message on final transcript
+        // This function is specifically for saving user speech transcripts
         this.saveUserMessage(finalTranscript);
       }
     }

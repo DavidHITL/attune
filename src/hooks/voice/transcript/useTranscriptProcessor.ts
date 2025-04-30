@@ -7,9 +7,15 @@ export const useTranscriptProcessor = (saveMessage: (msg: Partial<Message>) => P
   const processingRef = useRef(false);
   const savedMessagesRef = useRef(new Set());
 
-  const processTranscript = useCallback(async (finalTranscript: string, role: 'user' | 'assistant' = 'user') => {
+  const processTranscript = useCallback(async (finalTranscript: string, role: 'user' | 'assistant') => {
     if (!finalTranscript || !finalTranscript.trim()) {
       console.log('[TranscriptProcessor] No transcript to save');
+      return;
+    }
+    
+    // CRITICAL FIX: Validate role is provided
+    if (!role) {
+      console.error('[TranscriptProcessor] No role provided for transcript, aborting save');
       return;
     }
     
@@ -57,7 +63,7 @@ export const useTranscriptProcessor = (saveMessage: (msg: Partial<Message>) => P
         return;
       }
       
-      // Direct save as fallback
+      // Direct save as fallback - CRITICAL FIX: Pass role explicitly
       const savedMessage = await saveMessage({
         role,
         content: finalTranscript,
