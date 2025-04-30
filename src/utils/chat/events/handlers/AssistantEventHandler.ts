@@ -5,6 +5,7 @@
 import { MessageQueue } from '../../messageQueue';
 import { ResponseParser } from '../../ResponseParser';
 import { toast } from 'sonner';
+import { EventTypeRegistry } from '../EventTypeRegistry';
 
 export class AssistantEventHandler {
   private assistantResponse: string = '';
@@ -16,7 +17,13 @@ export class AssistantEventHandler {
   ) {}
   
   handleEvent(event: any): void {
-    console.log(`[AssistantEventHandler] Processing assistant event: ${event.type}`);
+    // Double-check that this is actually an assistant event before proceeding
+    if (!EventTypeRegistry.isAssistantEvent(event.type)) {
+      console.warn(`[AssistantEventHandler] Received non-assistant event: ${event.type}, ignoring`);
+      return;
+    }
+    
+    console.log(`[AssistantEventHandler] Processing ASSISTANT event: ${event.type}`);
     
     // Handle response.done event
     if (event.type === 'response.done') {

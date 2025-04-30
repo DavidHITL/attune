@@ -23,7 +23,8 @@ export class EventDispatcher {
       return;
     }
 
-    console.log(`[EventDispatcher] Routing event: ${event.type}`);
+    const eventCategory = EventTypeRegistry.getEventCategoryName(event.type);
+    console.log(`[EventDispatcher] Routing ${eventCategory} event: ${event.type}`);
     
     // Route events to appropriate handlers based on their type
     if (EventTypeRegistry.isAssistantEvent(event.type)) {
@@ -33,6 +34,9 @@ export class EventDispatcher {
     else if (EventTypeRegistry.isUserEvent(event.type)) {
       console.log(`[EventDispatcher] Routing USER event: ${event.type}`);
       this.userEventHandler.handleEvent(event);
+    }
+    else if (EventTypeRegistry.isSystemEvent(event.type)) {
+      console.log(`[EventDispatcher] Received SYSTEM event: ${event.type} (no handling needed)`);
     }
     else {
       // Log events that don't match known types

@@ -16,7 +16,7 @@ export const useTranscriptHandler = () => {
       timestamp: new Date().toISOString()
     });
 
-    // IMPROVED: First determine role from the event type registry - no defaults
+    // CRITICAL: First determine role from the event type registry - no defaults
     const messageRole = EventTypeRegistry.getRoleForEvent(event.type);
     if (!messageRole) {
       console.log(`⚠️ Could not determine message role for event type: ${event.type}`);

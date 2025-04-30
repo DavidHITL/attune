@@ -10,6 +10,15 @@ export class TranscriptEventHandler {
   ) {}
   
   handleTranscriptEvents(event: any): void {
+    // IMPORTANT: This handler is now DISABLED to prevent duplicate event processing
+    // All transcript events are now handled by the EventDispatcher and routed
+    // to either UserEventHandler or AssistantEventHandler
+    
+    console.log(`[TranscriptEventHandler] DISABLED: Event received but not processed: ${event.type}`);
+    return;
+    
+    // Previous implementation is kept below for reference but won't be executed
+    /*
     // Verify this is a user event to avoid handling assistant events
     if (!EventTypeRegistry.isUserEvent(event.type)) {
       console.log(`[TranscriptEventHandler] Not a user event: ${event.type}, skipping`);
@@ -46,5 +55,6 @@ export class TranscriptEventHandler {
         this.saveUserMessage(finalTranscript);
       }
     }
+    */
   }
 }

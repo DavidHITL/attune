@@ -23,7 +23,7 @@ export class MessageQueue {
       return;
     }
 
-    // CRITICAL FIX: Validate role is provided and correct
+    // CRITICAL: Validate role is provided and correct
     if (!role || (role !== 'user' && role !== 'assistant')) {
       console.error(`[MessageQueue] Invalid role "${role}" provided, must be 'user' or 'assistant'`);
       return;
