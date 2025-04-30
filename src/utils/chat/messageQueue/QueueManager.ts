@@ -1,3 +1,4 @@
+
 import { SaveMessageCallback } from '../../types';
 import { QueueState } from './state/QueueState';
 import { QueueProcessor } from './QueueProcessor';
@@ -21,6 +22,14 @@ export class MessageQueue {
       console.log(`Skipping empty ${role} message`);
       return;
     }
+
+    // CRITICAL FIX: Validate role is provided and correct
+    if (!role || (role !== 'user' && role !== 'assistant')) {
+      console.error(`[MessageQueue] Invalid role "${role}" provided, must be 'user' or 'assistant'`);
+      return;
+    }
+
+    console.log(`[MessageQueue] Queueing ${role} message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}", priority: ${priority}`);
 
     const isInitialized = this.checkInitialized();
     

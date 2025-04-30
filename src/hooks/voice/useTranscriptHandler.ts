@@ -15,18 +15,24 @@ export const useTranscriptHandler = () => {
       timestamp: new Date().toISOString()
     });
 
-    // FIX: Improved transcript extraction by checking different event formats
+    // FIX: Initialize with no default role - require explicit determination
     let transcriptContent: string | null = null;
-    let messageRole: 'user' | 'assistant' = 'user'; // Default role is user
+    let messageRole: 'user' | 'assistant' | null = null;
     
-    // Check if this is an assistant response event
+    // Explicitly determine role from event type
     if (event.type === 'response.done' || 
         event.type === 'response.delta' || 
         event.type === 'response.content_part.done') {
-      messageRole = 'assistant'; 
+      messageRole = 'assistant';
+      console.log('🤖 Assistant event detected:', event.type);
+    } else if (event.type === 'transcript' || 
+               event.type === 'response.audio_transcript.delta' ||
+               event.type === 'response.audio_transcript.done') {
+      messageRole = 'user';
+      console.log('👤 User event detected:', event.type);
     }
     
-    // Check different possible formats for transcript content
+    // Extract content based on event type
     if (event.type === 'transcript' && typeof event.transcript === 'string') {
       transcriptContent = event.transcript;
       console.log("📝 Found direct transcript string:", transcriptContent.substring(0, 50));
@@ -44,19 +50,15 @@ export const useTranscriptHandler = () => {
       console.log("📝 Found transcript in response.done event:", transcriptContent.substring(0, 50));
     }
     else if (event.type === 'response.done' && event.response?.content) {
-      // This is likely an assistant message content
       transcriptContent = event.response.content;
-      messageRole = 'assistant';
       console.log("💬 Found assistant response in response.done event:", transcriptContent?.substring(0, 50));
     }
     else if (event.type === 'response.content_part.done' && event.content_part?.text) {
-      // This is an assistant message part
       transcriptContent = event.content_part.text;
-      messageRole = 'assistant';
       console.log("💬 Found assistant content part:", transcriptContent.substring(0, 50));
     }
     
-    // Skip processing if no valid transcript was found
+    // Skip processing if no valid transcript was found or role couldn't be determined
     if (!transcriptContent || transcriptContent.trim() === '') {
       if (event.type === 'response.audio_transcript.done' || 
           event.type === 'transcript' || 
@@ -64,6 +66,12 @@ export const useTranscriptHandler = () => {
           event.type === 'response.content_part.done') {
         console.log("⚠️ No valid transcript or content found in event", event.type);
       }
+      return;
+    }
+
+    // CRITICAL FIX: Ensure we have a valid role before proceeding
+    if (!messageRole) {
+      console.warn(`⚠️ Could not determine message role from event type: ${event.type}`);
       return;
     }
 
@@ -76,7 +84,7 @@ export const useTranscriptHandler = () => {
       return;
     }
     
-    // Process the transcript content we found
+    // Process the transcript content with correct role
     console.log(`📝 Processing ${messageRole} content:`, {
       role: messageRole,
       contentPreview: transcriptContent.substring(0, 50),
@@ -84,8 +92,8 @@ export const useTranscriptHandler = () => {
     });
       
     if (hasMessageQueue) {
-      console.log(`🔄 Queueing ${messageRole} message`);
-      // Use optional chaining to safely access the queueMessage method
+      console.log(`🔄 Queueing message with role: ${messageRole}`);
+      // Pass the determined role to the message queue
       window.attuneMessageQueue?.queueMessage(messageRole, transcriptContent, true);
       
       toast.success(messageRole === 'user' ? "Speech detected" : "AI response received", {
@@ -95,14 +103,14 @@ export const useTranscriptHandler = () => {
       return;
     }
 
-    // Use unified save pathway if we have a valid context
+    // Use unified save pathway with explicit role if we have a valid context
     if (hasValidContext) {
-      console.log(`💾 Saving ${messageRole} transcript via direct save`);
+      console.log(`💾 Saving transcript via direct save with role: ${messageRole}`);
       saveMessage({
         role: messageRole,
         content: transcriptContent
       }).then(savedMessage => {
-        console.log('Message save result:', savedMessage ? 'Success' : 'Failed');
+        console.log(`Message save result (role: ${messageRole}):`, savedMessage ? 'Success' : 'Failed');
       }).catch(error => {
         console.error(`Error saving ${messageRole} transcript:`, error);
       });

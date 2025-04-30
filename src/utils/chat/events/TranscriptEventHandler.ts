@@ -10,6 +10,14 @@ export class TranscriptEventHandler {
   ) {}
   
   handleTranscriptEvents(event: any): void {
+    // CRITICAL FIX: Explicitly check for assistant responses and don't process them here
+    if (event.type === 'response.done' || 
+        event.type === 'response.content_part.done' || 
+        event.type.includes('response.delta') && !event.type.includes('audio')) {
+      // Skip assistant messages - these should be handled separately
+      return;
+    }
+    
     // Handle direct transcript events - show feedback but don't save
     if (event.type === "transcript" && event.transcript && event.transcript.trim()) {
       if (this.lastTranscriptContent !== event.transcript) {

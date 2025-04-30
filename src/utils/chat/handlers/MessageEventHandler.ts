@@ -16,6 +16,24 @@ export class MessageEventHandler {
 
   handleMessageEvent = (event: any): void => {
     this.messageCallback(event);
+    
+    // CRITICAL FIX: Check for assistant response events first
+    if (event.type === 'response.done' && event.response?.content) {
+      console.log('📬 Processing assistant response:', event.response.content.substring(0, 50));
+      // Explicitly pass 'assistant' role for assistant messages
+      this.messageQueue.queueMessage('assistant', event.response.content, true);
+      return;
+    }
+    
+    // Handle content parts from assistant
+    if (event.type === 'response.content_part.done' && event.content_part?.text) {
+      console.log('📬 Processing assistant content part:', event.content_part.text.substring(0, 50));
+      // Explicitly pass 'assistant' role
+      this.messageQueue.queueMessage('assistant', event.content_part.text, true);
+      return;
+    }
+    
+    // Let transcript handler manage user transcripts (it will preserve the user role)
     this.transcriptHandler.handleTranscriptEvents(event);
     
     // Get accumulated transcript length for debugging only
@@ -37,7 +55,7 @@ export class MessageEventHandler {
     });
     
     // Queue message with high priority to ensure it's processed even if conversation is initializing
-    // CRITICAL FIX: Explicitly set role to user since this method is specifically for user messages
+    // Explicitly set role to user since this method is specifically for user messages
     this.messageQueue.queueMessage('user', content, true);
   }
 }
