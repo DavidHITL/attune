@@ -5,8 +5,8 @@ import { useSessionHandler } from '@/hooks/voice/useSessionHandler';
 import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 
 /**
- * Hook for combining different message event handlers
- * NOTE: This is now a secondary layer - primary event routing happens in EventDispatcher
+ * Hook for UI state updates only - no message processing
+ * NOTE: All primary event processing happens in EventDispatcher
  */
 export const useMessageEventHandler = (chatClientRef: React.MutableRefObject<any>) => {
   // Use our custom hooks - pass chatClientRef to avoid circular dependencies
@@ -19,10 +19,9 @@ export const useMessageEventHandler = (chatClientRef: React.MutableRefObject<any
     handleSessionEvent
   } = useSessionHandler();
   
-  // Create a combined message handler that delegates to specific handlers
+  // Create a UI state handler that only manages UI state
   const combinedMessageHandler = useCallback((event: any) => {
-    console.log(`[useMessageEventHandler] Secondary processing of event: ${event.type}`);
-    console.log(`[useMessageEventHandler] EventTypeRegistry role: ${EventTypeRegistry.getRoleForEvent(event.type) || 'none'}`);
+    console.log(`[useMessageEventHandler] UI state updates only for: ${event.type}`);
     
     // Handle UI state updates only, not message saving
     handleVoiceEvent(event);

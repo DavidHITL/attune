@@ -10,86 +10,12 @@ export const useTranscriptHandler = () => {
   const { saveMessage } = useConversation();
   
   const handleTranscriptEvent = useCallback((event: any) => {
-    console.log('🎯 Transcript Handler - Processing event:', {
-      type: event.type,
-      hasTranscript: !!event.transcript || !!(event.transcript?.text),
-      timestamp: new Date().toISOString()
-    });
-
-    // SINGLE SOURCE OF TRUTH: Use EventTypeRegistry for role determination
-    const messageRole = EventTypeRegistry.getRoleForEvent(event.type);
-    if (!messageRole) {
-      console.log(`⚠️ [useTranscriptHandler] No role mapping for event type: ${event.type}`);
-      return;
-    }
-
-    let transcriptContent: string | null = null;
+    console.log('[useTranscriptHandler] DISABLED - Event handling now fully managed by EventDispatcher');
+    console.log(`[useTranscriptHandler] Skipping secondary processing for event: ${event.type}`);
     
-    // Extract content from various event formats
-    if (event.type === 'transcript' && typeof event.transcript === 'string') {
-      transcriptContent = event.transcript;
-    } 
-    else if (event.type === 'response.audio_transcript.done' && event.transcript?.text) {
-      transcriptContent = event.transcript.text;
-    }
-    else if (event.type === 'response.audio_transcript.done' && event.delta?.text) {
-      transcriptContent = event.delta.text;
-    }
-    else if (event.type === 'response.done' && event.response?.content) {
-      transcriptContent = event.response.content;
-    }
-    else if (event.type === 'response.content_part.done' && event.content_part?.text) {
-      transcriptContent = event.content_part.text;
-    }
-    
-    // Skip processing if no valid content was found
-    if (!transcriptContent || transcriptContent.trim() === '') {
-      if (event.type === 'response.audio_transcript.done' || 
-          event.type === 'transcript' || 
-          event.type === 'response.done' || 
-          event.type === 'response.content_part.done') {
-        console.log("⚠️ No valid content found in event", event.type);
-      }
-      return;
-    }
-
-    console.log(`📝 [useTranscriptHandler] Processing ${messageRole} content:`, {
-      role: messageRole,
-      contentPreview: transcriptContent.substring(0, 50),
-      length: transcriptContent.length
-    });
-    
-    // Only process when we have a valid context or message queue
-    const hasValidContext = validateConversationContext();
-    const hasMessageQueue = typeof window !== 'undefined' && !!window.attuneMessageQueue;
-    
-    if (!hasValidContext && !hasMessageQueue) {
-      console.log('⚠️ [useTranscriptHandler] No valid conversation context or message queue');
-      return;
-    }
-      
-    if (hasMessageQueue) {
-      console.log(`🔄 [useTranscriptHandler] Queueing message with explicit role: ${messageRole}`);
-      window.attuneMessageQueue?.queueMessage(messageRole, transcriptContent, true);
-      
-      toast.success(messageRole === 'user' ? "Speech detected" : "AI response received", {
-        description: transcriptContent.substring(0, 50) + (transcriptContent.length > 50 ? "..." : ""),
-        duration: 3000
-      });
-      return;
-    }
-
-    // Direct save with explicit role
-    if (hasValidContext) {
-      console.log(`💾 [useTranscriptHandler] Saving via direct save with role: ${messageRole}`);
-      saveMessage({
-        role: messageRole,
-        content: transcriptContent
-      }).catch(error => {
-        console.error(`[useTranscriptHandler] Error saving message:`, error);
-      });
-    }
-  }, [validateConversationContext, saveMessage]);
+    // All events are now processed by EventDispatcher, no duplicate processing needed
+    return;
+  }, []);
 
   return {
     handleTranscriptEvent

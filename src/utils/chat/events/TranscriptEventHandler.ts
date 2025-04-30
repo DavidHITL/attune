@@ -1,21 +1,16 @@
 
 /**
- * DEPRECATED: This handler is now disabled. All event processing goes through EventDispatcher.
- * Kept for backwards compatibility but does nothing.
+ * COMPLETELY DISABLED: This handler is now completely inactive.
+ * All event processing goes through EventDispatcher exclusively.
  */
-import { EventTypeRegistry } from './EventTypeRegistry';
-import { toast } from 'sonner';
-
 export class TranscriptEventHandler {
-  private lastTranscriptContent: string = '';
-  
   constructor(
     private saveUserMessage: (text: string) => void
   ) {}
   
   handleTranscriptEvents(event: any): void {
-    // COMPLETELY DISABLED: This handler is now deprecated
-    // All transcript events are now handled by the EventDispatcher
-    console.log(`[TranscriptEventHandler] DISABLED: Event received but not processed: ${event.type}`);
+    // DISABLED: Do nothing - all events are processed by EventDispatcher
+    console.log(`[TranscriptEventHandler] DISABLED: Event ignored: ${event.type}`);
+    return;
   }
 }

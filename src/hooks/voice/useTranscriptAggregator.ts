@@ -3,6 +3,8 @@ import { useCallback, useEffect } from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import { useTranscriptProcessor } from './transcript/useTranscriptProcessor';
 import { useTranscriptAccumulator } from './transcript/useTranscriptAccumulator';
+import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
+import { toast } from 'sonner';
 
 export const useTranscriptAggregator = () => {
   const { saveMessage } = useConversation();
@@ -27,72 +29,67 @@ export const useTranscriptAggregator = () => {
   }, [getAccumulatedText, processTranscript]);
 
   const handleTranscriptEvent = useCallback(async (event: any) => {
-    // CRITICAL FIX: Always determine message role before processing
-    // Default to null (require explicit role assignment)
-    let role: 'user' | 'assistant' | null = null;
+    // SINGLE SOURCE OF TRUTH: Always use EventTypeRegistry for role determination
+    const role = EventTypeRegistry.getRoleForEvent(event.type);
+    
+    // Skip events with no role mapping
+    if (!role) {
+      console.log(`[TranscriptAggregator] Skipping event with no role mapping: ${event.type}`);
+      return;
+    }
+    
+    console.log(`[TranscriptAggregator] Processing ${event.type} with role: ${role}`);
     let transcriptContent: string | null = null;
     
-    // Determine role and content based on event type
-    if (event.type === 'response.done' || 
-        event.type.includes('response.content_part') ||
-        (event.type === 'response.delta' && !event.type.includes('audio'))) {
-      role = 'assistant';
-      
-      // Extract content from assistant responses
-      if (event.type === 'response.done' && event.response?.content) {
-        transcriptContent = event.response.content;
-        console.log("[TranscriptAggregator] Assistant response content:", transcriptContent?.substring(0, 50));
-      } 
-      else if (event.type === 'response.content_part.done' && event.content_part?.text) {
-        transcriptContent = event.content_part.text;
-        console.log("[TranscriptAggregator] Assistant content part:", transcriptContent?.substring(0, 50));
-      }
+    // Extract content based on event type
+    if (event.type === 'response.done' && event.response?.content) {
+      transcriptContent = event.response.content;
+      console.log(`[TranscriptAggregator] Assistant response content: ${transcriptContent.substring(0, 50)}`);
+    } 
+    else if (event.type === 'response.content_part.done' && event.content_part?.text) {
+      transcriptContent = event.content_part.text;
+      console.log(`[TranscriptAggregator] Assistant content part: ${transcriptContent.substring(0, 50)}`);
     }
-    // User speech events
-    else if (event.type === 'transcript' || 
-             event.type.includes('audio_transcript')) {
-      role = 'user';
+    else if (event.type === 'transcript' && typeof event.transcript === 'string') {
+      transcriptContent = event.transcript;
+      console.log(`[TranscriptAggregator] User transcript: ${transcriptContent.substring(0, 50)}`);
       
-      // Extract content from user transcripts
-      if (event.type === 'transcript' && typeof event.transcript === 'string' && event.transcript.trim()) {
-        transcriptContent = event.transcript;
-        console.log("[TranscriptAggregator] User transcript:", transcriptContent?.substring(0, 50));
-      }
-      else if (event.type === 'response.audio_transcript.done') {
-        transcriptContent = event.transcript?.text || event.delta?.text || 
+      // Accumulate text for interim transcripts from user
+      accumulateText(event.transcript);
+    }
+    else if (event.type === 'response.audio_transcript.done') {
+      transcriptContent = event.transcript?.text || event.delta?.text || 
                           (typeof event.transcript === 'string' ? event.transcript : getAccumulatedText());
-        console.log("[TranscriptAggregator] User final transcript:", transcriptContent?.substring(0, 50));
+      
+      if (transcriptContent && transcriptContent.trim()) {
+        console.log(`[TranscriptAggregator] Final user transcript: ${transcriptContent.substring(0, 50)}`);
+        await processTranscript(transcriptContent, role);
+        resetAccumulator();
+        
+        // Show toast to confirm transcript saved
+        toast.success("Speech captured", {
+          description: transcriptContent.substring(0, 50) + (transcriptContent.length > 50 ? "..." : ""),
+          duration: 3000
+        });
       }
     }
     
-    // Handle transcript delta events for accumulation (always user)
+    // Handle audio transcript delta events (always user)
     if (event.type === 'response.audio_transcript.delta' && event.delta?.text) {
       accumulateText(event.delta.text);
     }
     
-    // Handle interim transcripts (always user)
-    else if (event.type === 'transcript' && typeof event.transcript === 'string' && event.transcript.trim()) {
-      accumulateText(event.transcript);
-    }
-    
-    // Handle final transcript and save message
-    else if (event.type === 'response.audio_transcript.done' && role === 'user') {
-      const transcriptText = event.transcript?.text || event.delta?.text || 
-                          (typeof event.transcript === 'string' ? event.transcript : getAccumulatedText());
+    // Process final assistant responses
+    if ((event.type === 'response.done' || event.type === 'response.content_part.done') && 
+        role === 'assistant' && transcriptContent && transcriptContent.trim()) {
+      console.log(`[TranscriptAggregator] Processing assistant response with role ${role}: ${transcriptContent.substring(0, 50)}`);
+      await processTranscript(transcriptContent, role);
       
-      if (transcriptText && transcriptText.trim()) {
-        console.log("[TranscriptAggregator] Processing final user transcript:", transcriptText.substring(0, 50));
-        await processTranscript(transcriptText, 'user');
-        resetAccumulator();
-      }
-    }
-    
-    // Handle assistant responses
-    else if ((event.type === 'response.done' || event.type === 'response.content_part.done') && 
-             role === 'assistant' && transcriptContent) {
-      console.log("[TranscriptAggregator] Processing assistant response:", transcriptContent.substring(0, 50));
-      // CRITICAL FIX: Process with explicit assistant role
-      await processTranscript(transcriptContent, 'assistant');
+      // Show toast for assistant response
+      toast.success("AI response received", {
+        description: transcriptContent.substring(0, 50) + (transcriptContent.length > 50 ? "..." : ""),
+        duration: 3000
+      });
     }
   }, [accumulateText, getAccumulatedText, processTranscript, resetAccumulator]);
 
@@ -107,6 +104,7 @@ export const useTranscriptAggregator = () => {
       
       const transcript = getAccumulatedText();
       if (transcript && transcript.trim()) {
+        console.log(`[TranscriptAggregator] Saving current transcript with role: ${role}`);
         await processTranscript(transcript, role);
         resetAccumulator();
       }

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import { useChatClient } from '@/hooks/voice/useChatClient';
@@ -85,7 +86,7 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({
     // First save any pending transcript
     if (transcriptAggregator.currentTranscript) {
       console.log('[RealtimeChat] Saving pending transcript before ending call');
-      // CRITICAL: Always explicitly set role
+      // CRITICAL: Always explicitly set role to 'user'
       await transcriptAggregator.saveCurrentTranscript('user');
     }
     // Then end the call
