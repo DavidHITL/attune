@@ -3,7 +3,7 @@ import { MessageCallback, SaveMessageCallback } from '../../types';
 import { MessageQueue } from '../messageQueue';
 import { ResponseParser } from '../ResponseParser';
 import { UserMessageHandler } from '../user-messages/UserMessageHandler';
-import { TranscriptEventHandler } from '../events/TranscriptEventHandler';
+import { EventTypeRegistry } from '../events/EventTypeRegistry';
 
 export class MessageEventHandler {
   constructor(
@@ -11,41 +11,36 @@ export class MessageEventHandler {
     private responseParser: ResponseParser,
     private messageCallback: MessageCallback,
     private userMessageHandler: UserMessageHandler,
-    private transcriptHandler: TranscriptEventHandler
+    private transcriptHandler: any // Using any to avoid circular dependency
   ) {}
 
   handleMessageEvent = (event: any): void => {
     this.messageCallback(event);
     
-    // CRITICAL FIX: Check for assistant response events first and explicitly identify them
-    if (event.type === 'response.done' && event.response?.content) {
-      console.log('📬 [MessageEventHandler] Processing ASSISTANT response:', event.response.content.substring(0, 50));
-      // Explicitly pass 'assistant' role for assistant messages
-      this.messageQueue.queueMessage('assistant', event.response.content, true);
-      return;
+    // Use the EventTypeRegistry to determine the role
+    const role = EventTypeRegistry.getRoleForEvent(event.type);
+    
+    if (role === 'assistant') {
+      // Process assistant messages
+      if (event.type === 'response.done' && event.response?.content) {
+        console.log('📬 [MessageEventHandler] Processing ASSISTANT response:', event.response.content.substring(0, 50));
+        this.messageQueue.queueMessage('assistant', event.response.content, true);
+        return;
+      }
+      
+      // Handle content parts from assistant
+      if (event.type === 'response.content_part.done' && event.content_part?.text) {
+        console.log('📬 [MessageEventHandler] Processing ASSISTANT content part:', event.content_part.text.substring(0, 50));
+        this.messageQueue.queueMessage('assistant', event.content_part.text, true);
+        return;
+      }
     }
-    
-    // Handle content parts from assistant
-    if (event.type === 'response.content_part.done' && event.content_part?.text) {
-      console.log('📬 [MessageEventHandler] Processing ASSISTANT content part:', event.content_part.text.substring(0, 50));
-      // Explicitly pass 'assistant' role
-      this.messageQueue.queueMessage('assistant', event.content_part.text, true);
-      return;
+    else if (role === 'user') {
+      // Let transcript handler manage user transcripts
+      this.transcriptHandler.handleTranscriptEvents(event);
     }
-    
-    // CRITICAL FIX: Log when processing assistant delta responses
-    if (event.type && event.type.includes('response.delta') && !event.type.includes('audio')) {
-      console.log(`📬 [MessageEventHandler] Skipping delta assistant event: ${event.type}`);
-      return;
-    }
-    
-    // Let transcript handler manage user transcripts (it will preserve the user role)
-    this.transcriptHandler.handleTranscriptEvents(event);
-    
-    // Get accumulated transcript length for debugging only
-    const accumulator = this.userMessageHandler.getAccumulatedTranscript();
-    if (accumulator && accumulator.length > 0) {
-      console.log(`📝 [MessageEventHandler] Current transcript length: ${accumulator.length} chars`);
+    else {
+      console.log(`📬 [MessageEventHandler] Skipping event with unknown role: ${event.type}`);
     }
   }
 

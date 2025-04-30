@@ -1,4 +1,3 @@
-
 import { WebRTCConnection } from '../audio/WebRTCConnection';
 import { AudioProcessor } from '../audio/AudioProcessor';
 import { MessageCallback, SaveMessageCallback } from '../types';
@@ -106,7 +105,7 @@ export class ConnectionManager {
       return;
     }
     
-    // CRITICAL: Add role validation here
+    // Validate role is either 'user' or 'assistant'
     if (role !== 'user' && role !== 'assistant') {
       console.error(`[ConnectionManager] Invalid role "${role}" provided to saveMessage - must be 'user' or 'assistant'`);
       return;

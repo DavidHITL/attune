@@ -1,10 +1,8 @@
-
 import { ConnectionManager } from './ConnectionManager';
 import { MessageQueue } from './messageQueue';
 import { ResponseParser } from './ResponseParser';
 import { UserMessageHandler } from './user-messages/UserMessageHandler';
-import { TranscriptEventHandler } from './events/TranscriptEventHandler';
-import { MessageEventHandler } from './handlers/MessageEventHandler';
+import { MessageEventProcessor } from './MessageEventProcessor';
 import { ConversationInitializer } from './conversation/ConversationInitializer';
 import { MicrophoneControlManager } from './microphone/MicrophoneControlManager';
 import { StatusCallback, MessageCallback, SaveMessageCallback } from '../types';
@@ -14,8 +12,7 @@ export class RealtimeChat {
   private messageQueue: MessageQueue | null = null;
   private responseParser: ResponseParser;
   private userMessageHandler: UserMessageHandler;
-  private transcriptHandler: TranscriptEventHandler;
-  private messageEventHandler: MessageEventHandler;
+  private messageEventProcessor: MessageEventProcessor;
   private conversationInitializer: ConversationInitializer;
   private microphoneManager: MicrophoneControlManager;
   
@@ -28,24 +25,11 @@ export class RealtimeChat {
     this.messageQueue = new MessageQueue(this.saveMessageCallback);
     this.userMessageHandler = new UserMessageHandler(this.saveMessageCallback);
     
-    // CRITICAL FIX: Create a transcript handler with a function that properly forwards to messageQueue 
-    // with explicit user role since it handles transcripts from user speech
-    this.transcriptHandler = new TranscriptEventHandler(
-      (text: string) => {
-        if (this.messageQueue) {
-          // Always explicitly set as user transcript ONLY for transcript content
-          console.log(`[RealtimeChat] Forwarding user transcript to messageQueue: "${text.substring(0, 30)}..."`);
-          this.messageQueue.queueMessage('user', text, true);
-        }
-      }
-    );
-    
-    this.messageEventHandler = new MessageEventHandler(
+    // Create the central message event processor
+    this.messageEventProcessor = new MessageEventProcessor(
       this.messageQueue,
       this.responseParser,
-      this.messageCallback,
-      this.userMessageHandler,
-      this.transcriptHandler
+      this.messageCallback
     );
     
     this.conversationInitializer = new ConversationInitializer(this.statusCallback, this.messageQueue);
@@ -55,7 +39,8 @@ export class RealtimeChat {
   async init(): Promise<boolean> {
     try {
       this.connectionManager = new ConnectionManager(
-        (event) => this.messageEventHandler.handleMessageEvent(event),
+        // Use the message event processor for all events
+        (event) => this.messageEventProcessor.processEvent(event),
         (state: 'start' | 'stop') => {
           this.statusCallback(`Audio ${state}`);
         },
@@ -112,11 +97,11 @@ export class RealtimeChat {
       return Promise.resolve();
     }
     
-    // CRITICAL FIX: Log that we're explicitly saving a user message
+    // Log that we're explicitly saving a user message
     console.log(`[RealtimeChat] saveUserMessage called with content length ${content.length}, first 50 chars: "${content.substring(0, 50)}..."`);
     
     if (typeof window !== 'undefined' && window.attuneMessageQueue) {
-      // CRITICAL FIX: Explicitly set role to 'user' since this method is for user messages
+      // Explicitly set role to 'user' since this method is for user messages
       window.attuneMessageQueue.queueMessage('user', content, true);
       return Promise.resolve();
     }
@@ -129,6 +114,7 @@ export class RealtimeChat {
     this.messageQueue?.flushQueue().catch(err => {
       console.error("Error flushing message queue:", err);
     });
+    this.messageEventProcessor.flushPendingMessages();
     this.userMessageHandler.saveTranscriptIfNotEmpty();
   }
 

@@ -53,7 +53,7 @@ const Voice = () => {
       // Save any pending transcript when navigating away
       if (transcriptAggregatorRef.current?.saveCurrentTranscript) {
         console.log('Voice page unloading - saving pending transcript');
-        // CRITICAL FIX: Always explicitly pass role when saving transcript
+        // Always explicitly pass role when saving transcript
         transcriptAggregatorRef.current.saveCurrentTranscript('user');
       }
     };
@@ -65,7 +65,7 @@ const Voice = () => {
       // Also try to save transcript when component unmounts
       if (transcriptAggregatorRef.current?.saveCurrentTranscript) {
         console.log('Voice component unmounting - saving pending transcript');
-        // CRITICAL FIX: Always explicitly pass role when saving transcript
+        // Always explicitly pass role when saving transcript
         transcriptAggregatorRef.current.saveCurrentTranscript('user');
       }
     };

@@ -1,5 +1,5 @@
 
-import { EventType } from './EventTypes';
+import { EventTypeRegistry } from './EventTypeRegistry';
 import { toast } from 'sonner';
 
 export class TranscriptEventHandler {
@@ -10,12 +10,9 @@ export class TranscriptEventHandler {
   ) {}
   
   handleTranscriptEvents(event: any): void {
-    // CRITICAL FIX: Explicitly check for assistant responses and don't process them here
-    if (event.type === 'response.done' || 
-        event.type === 'response.content_part.done' || 
-        event.type.includes('response.delta') && !event.type.includes('audio')) {
-      // Skip assistant messages - these should be handled separately
-      console.log(`[TranscriptEventHandler] Skipping assistant response event: ${event.type}`);
+    // Verify this is a user event to avoid handling assistant events
+    if (!EventTypeRegistry.isUserEvent(event.type)) {
+      console.log(`[TranscriptEventHandler] Not a user event: ${event.type}, skipping`);
       return;
     }
     

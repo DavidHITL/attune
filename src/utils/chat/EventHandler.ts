@@ -2,16 +2,15 @@
 import { MessageQueue } from './messageQueue';
 import { ResponseParser } from './ResponseParser';
 import { MessageCallback } from '../types';
-import { TranscriptHandler } from './transcripts/TranscriptHandler';
-import { AssistantResponseHandler } from './responses/AssistantResponseHandler';
-import { SpeechEventHandler } from './events/SpeechEventHandler';
-import { ResponseEventHandler } from './events/ResponseEventHandler';
+import { EventDispatcher } from './events/EventDispatcher';
+import { UserEventHandler } from './events/handlers/UserEventHandler';
+import { AssistantEventHandler } from './events/handlers/AssistantEventHandler';
 import { EventMonitor } from './events/EventMonitor';
-import { toast } from 'sonner';
 
 export class EventHandler {
-  private speechEventHandler: SpeechEventHandler;
-  private responseEventHandler: ResponseEventHandler;
+  private eventDispatcher: EventDispatcher;
+  private userEventHandler: UserEventHandler;
+  private assistantEventHandler: AssistantEventHandler;
   private eventMonitor: EventMonitor;
 
   constructor(
@@ -19,11 +18,16 @@ export class EventHandler {
     private responseParserInstance: ResponseParser,
     private messageCallback: MessageCallback
   ) {
-    const transcriptHandler = new TranscriptHandler(messageQueue);
-    const responseHandler = new AssistantResponseHandler(messageQueue, responseParserInstance);
+    // Create specialized handlers
+    this.userEventHandler = new UserEventHandler(messageQueue);
+    this.assistantEventHandler = new AssistantEventHandler(messageQueue, responseParserInstance);
     
-    this.speechEventHandler = new SpeechEventHandler(transcriptHandler);
-    this.responseEventHandler = new ResponseEventHandler(responseHandler);
+    // Create the central event dispatcher
+    this.eventDispatcher = new EventDispatcher(
+      this.userEventHandler,
+      this.assistantEventHandler
+    );
+    
     this.eventMonitor = new EventMonitor();
   }
 
@@ -35,58 +39,8 @@ export class EventHandler {
     // Track audio-related events for debugging purposes
     this.eventMonitor.trackAudioEvent(event);
     
-    // CRITICAL FIX: Determine if this is an assistant event or user transcript
-    const isAssistantEvent = event.type === 'response.done' || 
-                             event.type === 'response.content_part.done' ||
-                             (event.type?.includes('response.delta') && !event.type?.includes('audio'));
-                             
-    if (isAssistantEvent) {
-      console.log(`[EventHandler] Processing ASSISTANT event: ${event.type}`);
-    }
-    
-    // Complete logging for transcript events
-    if (event.type && (
-        event.type === 'transcript' || 
-        event.type.includes('audio_transcript')
-    )) {
-      let transcriptText = null;
-      
-      if (typeof event.transcript === 'string') {
-        transcriptText = event.transcript;
-      } else if (event.transcript && event.transcript.text) {
-        transcriptText = event.transcript.text;
-      } else if (event.delta && event.delta.text) {
-        transcriptText = event.delta.text;
-      }
-      
-      if (transcriptText) {
-        console.log(`[EventHandler] Processing USER transcript event ${event.type}: "${transcriptText.substring(0, 100)}"`);
-      }
-    }
-    
-    // Handle speech and transcript events with improved user message handling
-    this.speechEventHandler.handleSpeechEvents(event);
-    
-    // Handle assistant response events
-    this.responseEventHandler.handleAssistantResponse(event);
-    
-    // CRITICAL FIX: Enhanced logging for key events
-    if (event.type && 
-      (event.type === 'transcript' || 
-       event.type === 'response.audio_transcript.done' ||
-       event.type === 'input_audio_buffer.speech_started' ||
-       event.type === 'input_audio_buffer.speech_stopped')) {
-      console.log(`[EventHandler] Key transcript event: ${event.type}`);
-      
-      // Extra logging for final transcript
-      if (event.type === 'response.audio_transcript.done') {
-        if (event.transcript && event.transcript.text) {
-          console.log(`[EventHandler] FINAL TRANSCRIPT DATA (USER): "${event.transcript.text.substring(0, 100)}..."`);
-        } else {
-          console.log("[EventHandler] Final transcript event received but no text content");
-        }
-      }
-    }
+    // Use the event dispatcher to route the event
+    this.eventDispatcher.dispatchEvent(event);
   }
 
   // For cleanup - save any pending messages
@@ -96,10 +50,7 @@ export class EventHandler {
     console.log("Speech was detected during this session:", diagnostics.speechDetected);
     
     // Flush any pending assistant response
-    this.responseEventHandler.flushPendingResponse();
-    
-    // Flush any pending user transcript
-    this.speechEventHandler.flushPendingTranscript();
+    this.assistantEventHandler.flushPendingResponse();
   }
   
   // Expose the response parser for access in the component
