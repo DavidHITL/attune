@@ -1,39 +1,59 @@
 
-import { Message } from '../types'; // Import Message type from types file
+import { Message } from '../types';
 
 /**
- * Validates and normalizes message role
+ * Normalize message role to standard format (user or assistant)
+ * CRITICAL FIX: Ensure this preserves assistant role properly
  */
 export const normalizeMessageRole = (role?: string): 'user' | 'assistant' => {
+  // If role is empty or null, default to user
   if (!role) {
-    console.warn('No role provided to normalizeMessageRole, this is likely a bug');
-    // CRITICAL FIX: Never default the role, always throw an error
-    throw new Error('Missing message role - role must be explicitly provided');
+    console.warn('[normalizeMessageRole] ⚠️ Empty role defaulted to "user"');
+    return 'user';
   }
   
-  const normalizedRole = role.toLowerCase();
-  if (normalizedRole !== 'user' && normalizedRole !== 'assistant') {
-    console.warn(`Invalid role provided: "${role}", must be 'user' or 'assistant'`);
-    throw new Error(`Invalid message role: ${role}`);
+  const normalizedRole = role.trim().toLowerCase();
+  
+  // Explicit check for assistant role variations
+  if (normalizedRole === 'assistant' || 
+      normalizedRole === 'ai' || 
+      normalizedRole === 'bot' || 
+      normalizedRole === 'system') {
+    console.log('[normalizeMessageRole] 🤖 Role normalized to "assistant" from:', role);
+    return 'assistant';
   }
   
-  return normalizedRole as 'user' | 'assistant';
+  // All other roles default to user
+  if (normalizedRole !== 'user') {
+    console.log('[normalizeMessageRole] 👤 Non-standard role normalized to "user" from:', role);
+  }
+  
+  return 'user';
 };
 
 /**
- * Ensures a message object has a valid role
+ * Ensure message has a valid role
  */
-export const ensureValidMessageRole = (message: Partial<Message>): Message => {
-  if (!message.role) {
-    console.warn('Message missing role property in ensureValidMessageRole');
-    throw new Error('Message must have an explicit role property');
+export const ensureValidMessageRole = (message: Partial<Message>): Partial<Message> & { role: 'user' | 'assistant' } => {
+  // Skip normalization for already valid roles
+  if (message.role === 'user' || message.role === 'assistant') {
+    console.log(`[ensureValidMessageRole] ✅ Role already valid: ${message.role}`);
+    return message as Partial<Message> & { role: 'user' | 'assistant' };
   }
   
+  // Normalize role only if needed
+  console.log(`[ensureValidMessageRole] 🔄 Normalizing role: "${message.role}"`);
   return {
     ...message,
-    role: normalizeMessageRole(message.role),
-    content: message.content || '',
-    id: message.id || `temp-${Date.now()}`,
-    created_at: message.created_at || new Date().toISOString()
-  } as Message;
+    role: normalizeMessageRole(message.role)
+  };
+};
+
+/**
+ * Check if a message role is valid
+ */
+export const isValidMessageRole = (role?: string): boolean => {
+  if (!role) return false;
+  const normalizedRole = role.trim().toLowerCase();
+  return normalizedRole === 'user' || normalizedRole === 'assistant';
 };

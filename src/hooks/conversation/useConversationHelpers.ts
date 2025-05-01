@@ -8,20 +8,26 @@ import { Message } from '@/utils/types';
 export const useConversationHelpers = () => {
   /**
    * Validates and converts role to proper type
-   * CRITICAL FIX: Properly validate roles without defaulting to 'user'
+   * CRITICAL FIX: Ensure we properly validate roles without defaulting or overriding the assistant role
    */
   const validateRole = (role: string): 'user' | 'assistant' => {
+    console.log(`[validateRole] 🔍 Role validation requested for: "${role}"`);
+    
     // Trim and convert to lowercase for consistent comparison
     const normalizedRole = role?.trim().toLowerCase();
     
-    if (normalizedRole === 'user' || normalizedRole === 'assistant') {
-      console.log(`[validateRole] Valid role found: ${normalizedRole}`);
-      return normalizedRole as 'user' | 'assistant';
+    if (normalizedRole === 'user') {
+      console.log(`[validateRole] ✅ Valid USER role confirmed`);
+      return 'user';
     }
     
-    // Instead of defaulting to 'user', log error and still return the original role
-    // This will prevent corruption in the UI while still showing there's a problem
-    console.error(`[validateRole] Invalid role found in database: "${role}". Must be 'user' or 'assistant'.`);
+    if (normalizedRole === 'assistant') {
+      console.log(`[validateRole] ✅ Valid ASSISTANT role confirmed`);
+      return 'assistant';
+    }
+    
+    // If role is invalid, log error and throw - this prevents silent corruption
+    console.error(`[validateRole] ❌ INVALID ROLE: "${role}". Must be 'user' or 'assistant'.`);
     throw new Error(`Invalid role: "${role}". Expected 'user' or 'assistant'.`);
   };
 

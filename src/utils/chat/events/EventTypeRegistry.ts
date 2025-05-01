@@ -35,10 +35,13 @@ export class EventTypeRegistry {
    */
   static isAssistantEvent(eventType: string): boolean {
     const isAssistant = this.ASSISTANT_EVENTS.includes(eventType) || 
-           (eventType.includes('response.delta') && !eventType.includes('audio'));
+           (eventType.includes('response.delta') && !eventType.includes('audio')) || 
+           eventType.includes('response.content');
+    
     if (isAssistant) {
       console.log(`[EventTypeRegistry] 🤖 Event ${eventType} classified as ASSISTANT event`);
     }
+    
     return isAssistant;
   }
 
@@ -47,10 +50,13 @@ export class EventTypeRegistry {
    */
   static isUserEvent(eventType: string): boolean {
     const isUser = this.USER_EVENTS.includes(eventType) || 
-           eventType.includes('audio_transcript');
+           eventType.includes('audio_transcript') ||
+           eventType === 'transcript';
+    
     if (isUser) {
       console.log(`[EventTypeRegistry] 👤 Event ${eventType} classified as USER event`);
     }
+    
     return isUser;
   }
 
@@ -59,9 +65,11 @@ export class EventTypeRegistry {
    */
   static isSystemEvent(eventType: string): boolean {
     const isSystem = this.SYSTEM_EVENTS.includes(eventType);
+    
     if (isSystem) {
       console.log(`[EventTypeRegistry] ⚙️ Event ${eventType} classified as SYSTEM event`);
     }
+    
     return isSystem;
   }
 

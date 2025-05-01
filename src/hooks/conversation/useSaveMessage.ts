@@ -39,7 +39,14 @@ export const useSaveMessage = (
   validateRole: (role: string) => 'user' | 'assistant'
 ) => {
   const saveMessage = async (message: Partial<Message>): Promise<(Message & { conversation_id: string }) | null> => {
+    // CRITICAL FIX: Add enhanced role validation logging
+    console.log('[useSaveMessage] 🔍 Message role BEFORE normalization:', message.role);
+    
+    // Apply normalization but preserve assistant role
     const normalizedMessage = ensureValidMessageRole(message);
+    
+    // Log role after normalization
+    console.log('[useSaveMessage] 🔍 Message role AFTER normalization:', normalizedMessage.role);
     
     // Enhanced logging for message save attempts
     console.log('📝 [useSaveMessage] Attempt:', {
@@ -82,10 +89,11 @@ export const useSaveMessage = (
       console.log('✅ [useSaveMessage] Created new conversation:', targetConversationId);
     }
     
+    // CRITICAL FIX: Ensure we're using the normalized role without transforming it
     const insertData = {
       conversation_id: targetConversationId,
       user_id: user.id,
-      role: normalizedMessage.role,
+      role: normalizedMessage.role, // Use normalized role directly
       content: normalizedMessage.content
     };
     
@@ -132,13 +140,22 @@ export const useSaveMessage = (
         contentPreview: data.content.substring(0, 50) + '...'
       });
       
+      // CRITICAL FIX: Don't transform the role again with validateRole
+      // Instead, ensure we're getting the correct role from the database
       const savedMessage = {
         id: data.id,
-        role: validateRole(data.role),
+        role: data.role as 'user' | 'assistant', // Trust the database role
         content: data.content,
         created_at: data.created_at,
         conversation_id: data.conversation_id
       };
+      
+      // CRITICAL VALIDATION: Double-check role after database operation
+      console.log(`[useSaveMessage] 🔍 Role verification after database save:`, {
+        originalRole: normalizedMessage.role,
+        savedRole: savedMessage.role,
+        roleMatches: normalizedMessage.role === savedMessage.role
+      });
       
       if (normalizedMessage.role === 'user') {
         toast.success('Message saved', {

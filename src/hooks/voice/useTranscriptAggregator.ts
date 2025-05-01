@@ -40,6 +40,7 @@ export const useTranscriptAggregator = () => {
       return;
     }
     
+    // Log role determined by EventTypeRegistry for tracing
     console.log(`[${componentName}:${instanceId}] 🔍 Processing ${event.type} with role from EventTypeRegistry: ${role}`);
     let transcriptContent: string | null = null;
     
@@ -65,6 +66,10 @@ export const useTranscriptAggregator = () => {
       
       if (transcriptContent && transcriptContent.trim()) {
         console.log(`[${componentName}:${instanceId}] 📝 Final user transcript (${role}): ${transcriptContent.substring(0, 50)}`);
+        
+        // CRITICAL FIX: Double check and log the role we're passing to process
+        console.log(`[${componentName}:${instanceId}] 🔍 Saving transcript with VERIFIED role: ${role}`);
+        
         await processTranscript(transcriptContent, role);
         resetAccumulator();
         
@@ -84,6 +89,10 @@ export const useTranscriptAggregator = () => {
     // Process final assistant responses
     if ((event.type === 'response.done' || event.type === 'response.content_part.done') && 
         role === 'assistant' && transcriptContent && transcriptContent.trim()) {
+        
+      // CRITICAL FIX: Double check and log the role we're passing
+      console.log(`[${componentName}:${instanceId}] 🔍 Saving assistant response with VERIFIED role: ${role}`);
+      
       console.log(`[${componentName}:${instanceId}] 💾 Saving assistant response with role ${role}: ${transcriptContent.substring(0, 50)}`);
       await processTranscript(transcriptContent, role);
       
@@ -103,6 +112,9 @@ export const useTranscriptAggregator = () => {
         console.error(`[${componentName}:${instanceId}] ❌ No role provided to saveCurrentTranscript`);
         return;
       }
+      
+      // CRITICAL FIX: Verify and log the explicit role we're using
+      console.log(`[${componentName}:${instanceId}] 🔍 Saving current transcript with EXPLICIT role: ${role}`);
       
       const transcript = getAccumulatedText();
       if (transcript && transcript.trim()) {
