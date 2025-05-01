@@ -8,7 +8,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
-import { useTranscriptAggregator } from '@/hooks/voice/useTranscriptAggregator';
 
 interface RealtimeChatProps {
   isDisabled?: boolean;
@@ -40,16 +39,23 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({
     endConversation
   );
   
-  // Get transcript aggregator for saving transcripts
-  const transcriptAggregator = useTranscriptAggregator();
-  
-  // Expose transcript API to parent component
+  // Expose transcript API to parent component if needed
   useEffect(() => {
     if (onTranscriptAggregatorReady) {
-      console.log('Providing transcript aggregator API to parent');
-      onTranscriptAggregatorReady(transcriptAggregator);
+      console.log('Legacy transcript aggregator API support is deprecated');
+      onTranscriptAggregatorReady({
+        saveCurrentTranscript: (role: 'user' | 'assistant') => {
+          console.log(`[RealtimeChat] Transcript save request for role: ${role}`);
+          // Use message queue directly if available for backward compatibility
+          if (window.attuneMessageQueue?.flushQueue) {
+            window.attuneMessageQueue.flushQueue();
+            return Promise.resolve();
+          }
+          return Promise.resolve();
+        }
+      });
     }
-  }, [onTranscriptAggregatorReady, transcriptAggregator]);
+  }, [onTranscriptAggregatorReady]);
   
   // Get voice setting
   useEffect(() => {
@@ -80,14 +86,16 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({
     fetchVoiceSetting();
   }, []);
 
-  // Custom end call handler that saves transcript before ending call
-  const handleEndCallWithTranscriptSave = async () => {
-    console.log('Ending call with transcript save');
-    // First save any pending transcript
-    if (transcriptAggregator.currentTranscript) {
-      console.log('Saving pending transcript before ending call');
-      // CRITICAL FIX: Explicitly set as user transcript ONLY for transcript content
-      await transcriptAggregator.saveCurrentTranscript('user');
+  // Custom end call handler
+  const handleEndCallWithCleanup = async () => {
+    console.log('Ending call with cleanup');
+    // Ensure any pending messages are processed before ending the call
+    if (window.attuneMessageQueue?.flushQueue) {
+      try {
+        await window.attuneMessageQueue.flushQueue();
+      } catch (e) {
+        console.error("Error flushing message queue:", e);
+      }
     }
     // Then end the call
     handleEndCall();
@@ -114,7 +122,7 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({
         connectionError={connectionError}
         conversationLoading={conversationLoading}
         onToggleMute={toggleMute}
-        onEndConversation={handleEndCallWithTranscriptSave}
+        onEndConversation={handleEndCallWithCleanup}
         onStartConversation={isDisabled ? undefined : handleStartCall}
         currentVoice={currentVoice}
         isStartDisabled={isDisabled}

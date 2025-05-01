@@ -1,3 +1,4 @@
+
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
@@ -7,7 +8,7 @@ import { useVoiceChatLogger } from '@/hooks/voice/useVoiceChatLogger';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { useVoiceStateManagement } from '@/hooks/voice/useVoiceStateManagement';
-import { useVoiceEvents } from '@/hooks/voice/useVoiceEvents';
+import { useVoiceEventHandler } from '@/hooks/voice/useVoiceEventHandler';
 import { useVoiceChatAnalysis } from '@/hooks/voice/useVoiceChatAnalysis';
 
 /**
@@ -40,15 +41,15 @@ export const useChatClient = () => {
   // Set up background analysis when voice chat sessions end
   useVoiceChatAnalysis(isConnected);
 
-  // Get enhanced voice event handling with unified transcript processing
-  const { handleVoiceEvent } = useVoiceEvents(chatClientRef, setVoiceActivityState);
+  // Use the enhanced voice event handler instead of useVoiceEvents
+  const { handleVoiceEvent } = useVoiceEventHandler(chatClientRef);
   
   // Combined message handler for all event types
   const combinedMessageHandler = useCallback((event: any) => {
-    // Process voice events (speech, transcripts)
+    // Process all voice events through our unified handler
     handleVoiceEvent(event);
     
-    // Process session creation events
+    // Process session creation events separately (not handled by dispatcher)
     handleSessionCreated(event);
     
     // Log the last few event types for debugging
