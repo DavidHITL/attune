@@ -10,6 +10,7 @@ import { SystemEventHandler } from '@/utils/chat/events/handlers/SystemEventHand
 import { useRef } from 'react';
 import { useTranscriptHandler } from './useTranscriptHandler';
 import { MessageQueue } from '@/utils/chat/messageQueue';
+import { ResponseParser } from '@/utils/chat/ResponseParser';
 
 export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>) => {
   const { voiceActivityState, handleMessageEvent: handleVoiceActivityEvent } = useVoiceActivityState();
@@ -18,6 +19,7 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
   
   // Create refs for our event handlers to maintain instance identity
   const dispatcherRef = useRef<EventDispatcher | null>(null);
+  const responseParserRef = useRef<ResponseParser | null>(null);
   
   const handleVoiceEvent = useCallback((event: any) => {
     console.log(`🎙️ Voice Event Handler - Event Type: ${event.type}`);
@@ -41,8 +43,17 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
       
       // Type check to ensure attuneMessageQueue has the required methods
       if (typeof window.attuneMessageQueue?.queueMessage === 'function') {
+        // Initialize a proper ResponseParser instance for the AssistantEventHandler
+        if (!responseParserRef.current) {
+          responseParserRef.current = new ResponseParser();
+          console.log('🔄 [useVoiceEventHandler] Created new ResponseParser instance');
+        }
+        
         const userHandler = new UserEventHandler(window.attuneMessageQueue);
-        const assistantHandler = new AssistantEventHandler(window.attuneMessageQueue, {logEvent: () => {}}); 
+        const assistantHandler = new AssistantEventHandler(
+          window.attuneMessageQueue, 
+          responseParserRef.current
+        ); 
         const systemHandler = new SystemEventHandler();
         
         dispatcherRef.current = new EventDispatcher(
