@@ -7,27 +7,38 @@ import { ResponseParser } from './ResponseParser';
 import { EventDispatcher } from './events/EventDispatcher';
 import { UserEventHandler } from './events/handlers/UserEventHandler';
 import { AssistantEventHandler } from './events/handlers/AssistantEventHandler';
+import { SystemEventHandler } from './events/handlers/SystemEventHandler';
 import { MessageCallback } from '../types';
+import { EventLogger } from './parsing/EventLogger';
 
 export class MessageEventProcessor {
   private eventDispatcher: EventDispatcher;
   private userEventHandler: UserEventHandler;
   private assistantEventHandler: AssistantEventHandler;
+  private systemEventHandler: SystemEventHandler;
+  private eventLogger: EventLogger;
   
   constructor(
     private messageQueue: MessageQueue,
     private responseParser: ResponseParser,
     private messageCallback: MessageCallback
   ) {
+    // Initialize event logger
+    this.eventLogger = new EventLogger();
+    
     // Initialize specialized handlers
     this.userEventHandler = new UserEventHandler(messageQueue);
     this.assistantEventHandler = new AssistantEventHandler(messageQueue, responseParser);
+    this.systemEventHandler = new SystemEventHandler();
     
     // Initialize central event dispatcher
     this.eventDispatcher = new EventDispatcher(
       this.userEventHandler,
-      this.assistantEventHandler
+      this.assistantEventHandler,
+      this.systemEventHandler
     );
+    
+    console.log('[MessageEventProcessor] Initialized with event dispatcher and handlers');
   }
   
   /**
@@ -38,6 +49,7 @@ export class MessageEventProcessor {
     this.messageCallback(event);
     
     // Log the event for debugging
+    this.eventLogger.logEvent(event);
     this.responseParser.logEvent(event);
     
     // Use the central dispatcher to route the event
@@ -50,5 +62,12 @@ export class MessageEventProcessor {
   flushPendingMessages(): void {
     console.log('[MessageEventProcessor] Flushing any pending messages');
     this.assistantEventHandler.flushPendingResponse();
+  }
+  
+  /**
+   * Get event statistics for debugging
+   */
+  getEventStatistics(): any {
+    return this.eventLogger.getEventCounts();
   }
 }

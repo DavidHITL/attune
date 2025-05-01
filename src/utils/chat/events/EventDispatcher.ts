@@ -5,13 +5,17 @@
  */
 import { UserEventHandler } from './handlers/UserEventHandler';
 import { AssistantEventHandler } from './handlers/AssistantEventHandler';
+import { SystemEventHandler } from './handlers/SystemEventHandler';
 import { EventTypeRegistry } from './EventTypeRegistry';
 
 export class EventDispatcher {
   constructor(
     private userEventHandler: UserEventHandler,
-    private assistantEventHandler: AssistantEventHandler
-  ) {}
+    private assistantEventHandler: AssistantEventHandler,
+    private systemEventHandler: SystemEventHandler
+  ) {
+    console.log('[EventDispatcher] Initialized with all event handlers');
+  }
 
   /**
    * Main dispatch method that routes events to the appropriate handler
@@ -23,7 +27,9 @@ export class EventDispatcher {
       return;
     }
 
-    console.log(`[EventDispatcher] Routing event: ${event.type}`);
+    // Get the role from the event type for logging purposes
+    const role = EventTypeRegistry.getRoleForEvent(event.type);
+    console.log(`[EventDispatcher] Routing event: ${event.type}, role: ${role || 'unknown'}`);
     
     // Route events to appropriate handlers based on their type
     if (EventTypeRegistry.isAssistantEvent(event.type)) {
@@ -33,6 +39,10 @@ export class EventDispatcher {
     else if (EventTypeRegistry.isUserEvent(event.type)) {
       console.log(`[EventDispatcher] Routing USER event: ${event.type}`);
       this.userEventHandler.handleEvent(event);
+    }
+    else if (EventTypeRegistry.isSystemEvent(event.type)) {
+      console.log(`[EventDispatcher] Routing SYSTEM event: ${event.type}`);
+      this.systemEventHandler.handleEvent(event);
     }
     else {
       // Log events that don't match known types

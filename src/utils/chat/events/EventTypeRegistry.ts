@@ -4,10 +4,21 @@
  * This is the single source of truth for event type categorization
  */
 export class EventTypeRegistry {
+  // System events are general session and connection events
+  private static readonly SYSTEM_EVENTS = [
+    'session.created',
+    'session.updated',
+    'session.terminated',
+    'connection.established',
+    'connection.error',
+    'conversation.item.truncated'
+  ];
+
   // Assistant events are response events from the AI
   private static readonly ASSISTANT_EVENTS = [
-    'response.done',
+    'response.created',
     'response.delta',
+    'response.done',
     'response.content_part.done',
   ];
 
@@ -17,8 +28,16 @@ export class EventTypeRegistry {
     'response.audio_transcript.delta',
     'response.audio_transcript.done',
     'input_audio_buffer.speech_started',
-    'input_audio_buffer.speech_stopped'
+    'input_audio_buffer.speech_stopped',
+    'input_audio_buffer.committed'
   ];
+
+  /**
+   * Check if an event type belongs to system events
+   */
+  static isSystemEvent(eventType: string): boolean {
+    return this.SYSTEM_EVENTS.includes(eventType);
+  }
 
   /**
    * Check if an event type belongs to assistant responses
@@ -39,13 +58,17 @@ export class EventTypeRegistry {
   /**
    * Get role for an event type
    */
-  static getRoleForEvent(eventType: string): 'user' | 'assistant' | null {
+  static getRoleForEvent(eventType: string): 'user' | 'assistant' | 'system' | null {
     if (this.isAssistantEvent(eventType)) {
       return 'assistant';
     }
     
     if (this.isUserEvent(eventType)) {
       return 'user';
+    }
+    
+    if (this.isSystemEvent(eventType)) {
+      return 'system';
     }
     
     return null;
