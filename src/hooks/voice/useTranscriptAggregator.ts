@@ -4,6 +4,11 @@ import { useConversation } from '@/hooks/useConversation';
 import { useTranscriptProcessor } from './transcript/useTranscriptProcessor';
 import { useTranscriptAccumulator } from './transcript/useTranscriptAccumulator';
 
+/**
+ * @deprecated This hook is deprecated in favor of the EventDispatcher system.
+ * UserEventHandler is now the primary handler for user speech events.
+ * This hook is kept for backward compatibility only.
+ */
 export const useTranscriptAggregator = () => {
   const { saveMessage } = useConversation();
   const { processTranscript } = useTranscriptProcessor(saveMessage);
@@ -19,7 +24,7 @@ export const useTranscriptAggregator = () => {
     return () => {
       const finalTranscript = getAccumulatedText();
       if (finalTranscript && finalTranscript.trim()) {
-        console.log('[TranscriptAggregator] Saving final transcript on cleanup:', finalTranscript.substring(0, 50));
+        console.log('[TranscriptAggregator] ⚠️ DEPRECATED - Saving final transcript on cleanup:', finalTranscript.substring(0, 50));
         // Always explicitly set role for cleanup saving
         processTranscript(finalTranscript, 'user');
       }
@@ -27,6 +32,8 @@ export const useTranscriptAggregator = () => {
   }, [getAccumulatedText, processTranscript]);
 
   const handleTranscriptEvent = useCallback(async (event: any) => {
+    console.warn('[TranscriptAggregator] ⚠️ DEPRECATED - Use EventDispatcher with UserEventHandler instead');
+    
     // CRITICAL FIX: Always determine message role before processing
     // Default to null (require explicit role assignment)
     let role: 'user' | 'assistant' | null = null;

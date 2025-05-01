@@ -3,14 +3,23 @@ import { EventTypeRegistry } from './EventTypeRegistry';
 import { toast } from 'sonner';
 import { extractTranscriptText } from './EventTypes';
 
+/**
+ * @deprecated This handler is deprecated in favor of UserEventHandler
+ * which is integrated with the EventDispatcher system.
+ */
 export class TranscriptEventHandler {
   private lastTranscriptContent: string = '';
   
   constructor(
     private saveUserMessage: (text: string) => void
-  ) {}
+  ) {
+    console.warn('[TranscriptEventHandler] ⚠️ DEPRECATED - Use UserEventHandler with EventDispatcher instead');
+  }
   
   handleTranscriptEvents(event: any): void {
+    // Log deprecation warning
+    console.warn(`[TranscriptEventHandler] ⚠️ DEPRECATED handler called for event: ${event.type}`);
+    
     // Only process user events - verify this is actually a user event
     if (!EventTypeRegistry.isUserEvent(event.type)) {
       console.log(`[TranscriptEventHandler] Not a user event: ${event.type}, skipping`);

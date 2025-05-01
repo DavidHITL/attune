@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import { useChatClient } from '@/hooks/voice/useChatClient';
 import { useCallControls } from '@/hooks/voice/useCallControls';
@@ -11,12 +11,10 @@ import { AlertCircle } from 'lucide-react';
 
 interface RealtimeChatProps {
   isDisabled?: boolean;
-  onTranscriptAggregatorReady?: (api: any) => void;
 }
 
 const RealtimeChat: React.FC<RealtimeChatProps> = ({ 
-  isDisabled = false, 
-  onTranscriptAggregatorReady 
+  isDisabled = false
 }) => {
   const [currentVoice, setCurrentVoice] = useState<string>('');
   const { user } = useAuth();
@@ -38,24 +36,6 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({
     startConversation, 
     endConversation
   );
-  
-  // Expose transcript API to parent component if needed
-  useEffect(() => {
-    if (onTranscriptAggregatorReady) {
-      console.log('Legacy transcript aggregator API support is deprecated');
-      onTranscriptAggregatorReady({
-        saveCurrentTranscript: (role: 'user' | 'assistant') => {
-          console.log(`[RealtimeChat] Transcript save request for role: ${role}`);
-          // Use message queue directly if available for backward compatibility
-          if (window.attuneMessageQueue?.flushQueue) {
-            window.attuneMessageQueue.flushQueue();
-            return Promise.resolve();
-          }
-          return Promise.resolve();
-        }
-      });
-    }
-  }, [onTranscriptAggregatorReady]);
   
   // Get voice setting
   useEffect(() => {

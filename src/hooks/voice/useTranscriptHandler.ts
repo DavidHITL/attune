@@ -6,11 +6,17 @@ import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 import { toast } from 'sonner';
 import { MessageRole } from '@/utils/chat/events/EventTypes';
 
+/**
+ * @deprecated This hook is deprecated in favor of the EventDispatcher system
+ * where UserEventHandler serves as the primary handler for user speech events.
+ */
 export const useTranscriptHandler = () => {
   const { validateConversationContext } = useConversationValidator();
   const { saveMessage } = useConversation();
   
   const handleTranscriptEvent = useCallback((event: any) => {
+    console.warn('⚠️ [DEPRECATED useTranscriptHandler] This hook should not be used anymore. Use EventDispatcher instead.');
+    
     console.log('🎯 Transcript Handler - Processing event:', {
       type: event.type,
       timestamp: new Date().toISOString()

@@ -5,9 +5,10 @@ import { useSessionHandler } from '@/hooks/voice/useSessionHandler';
 
 /**
  * Hook for combining different message event handlers
+ * Now uses only the modern EventDispatcher system
  */
 export const useMessageEventHandler = (chatClientRef: React.MutableRefObject<any>) => {
-  // Use our custom hooks - pass chatClientRef to avoid circular dependencies
+  // Use only our new event handling system - the voice event handler with EventDispatcher
   const { voiceActivityState, handleVoiceEvent } = useVoiceEventHandler(chatClientRef);
   const { 
     status, setStatus, 
@@ -19,11 +20,16 @@ export const useMessageEventHandler = (chatClientRef: React.MutableRefObject<any
   
   // Create a combined message handler that delegates to specific handlers
   const combinedMessageHandler = useCallback((event: any) => {
-    // Process voice activity and transcript events
+    // Process voice activity and transcript events through the modern event handler
     handleVoiceEvent(event);
     
     // Process session creation events
     handleSessionEvent(event);
+
+    // Log event processing for debugging
+    if (event.type && !event.type.includes('audio_buffer')) {
+      console.log(`[MessageEventHandler] Processed event: ${event.type}`);
+    }
   }, [handleVoiceEvent, handleSessionEvent]);
 
   return {

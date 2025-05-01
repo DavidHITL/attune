@@ -1,6 +1,7 @@
 
 /**
  * Handler specifically for user transcript events
+ * This is the PRIMARY handler for processing all user speech events
  */
 import { MessageQueue } from '../../messageQueue';
 import { toast } from 'sonner';
@@ -11,7 +12,7 @@ export class UserEventHandler {
   private lastTranscriptContent: string = '';
   
   constructor(private messageQueue: any) {
-    console.log('[UserEventHandler] Initialized');
+    console.log('[UserEventHandler] PRIMARY HANDLER Initialized');
   }
   
   handleEvent(event: any): void {
