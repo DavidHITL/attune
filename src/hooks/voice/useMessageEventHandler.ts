@@ -26,8 +26,8 @@ export const useMessageEventHandler = (chatClientRef: React.MutableRefObject<any
     // Process session creation events
     handleSessionEvent(event);
 
-    // Log event processing for debugging
-    if (event.type && !event.type.includes('audio_buffer')) {
+    // Log event processing for debugging (but limit frequency of logs)
+    if (event.type && !event.type.includes('audio_buffer') && Math.random() < 0.1) {
       console.log(`[MessageEventHandler] Processed event: ${event.type}`);
     }
   }, [handleVoiceEvent, handleSessionEvent]);

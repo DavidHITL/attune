@@ -24,6 +24,9 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
   const responseParserRef = useRef<ResponseParser | null>(null);
   const handlerInitializedRef = useRef<boolean>(false);
   
+  // Track processed event IDs to prevent double processing
+  const processedEventIdsRef = useRef<Set<string>>(new Set());
+  
   // Make sure we track first-time initialization
   const initializeEventHandler = useCallback(() => {
     if (handlerInitializedRef.current) return true; // Already initialized
@@ -64,7 +67,39 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
     return false;
   }, []);
   
+  // Generate a unique event ID to prevent duplicate processing
+  const generateEventId = useCallback((event: any): string => {
+    // For transcript events, use the transcript content as part of the ID
+    if (event.type === 'transcript' && event.transcript) {
+      return `${event.type}-${typeof event.transcript === 'string' ? 
+        event.transcript.substring(0, 20) : 'object'}-${Date.now()}`;
+    }
+    
+    // For response events, use content if available
+    if (event.type === 'response.done' && event.response?.content) {
+      return `${event.type}-${event.response.content.substring(0, 20)}-${Date.now()}`;
+    }
+    
+    // Default ID with timestamp to make it unique
+    return `${event.type}-${Math.random().toString(36).substring(2, 7)}-${Date.now()}`;
+  }, []);
+  
   const handleVoiceEvent = useCallback((event: any) => {
+    // Deduplicate events
+    const eventId = generateEventId(event);
+    if (processedEventIdsRef.current.has(eventId)) {
+      return; // Skip already processed events
+    }
+    
+    processedEventIdsRef.current.add(eventId);
+    
+    // Limit size of processed events set
+    if (processedEventIdsRef.current.size > 1000) {
+      processedEventIdsRef.current = new Set(
+        Array.from(processedEventIdsRef.current).slice(-500)
+      );
+    }
+    
     // Log essential event information but limit frequency of common events
     if (!event.type?.includes('audio_buffer') || Math.random() < 0.01) { // Log only ~1% of audio_buffer events
       console.log(`🎙️ [useVoiceEventHandler] Processing event: ${event.type}`);
@@ -98,7 +133,7 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
       console.warn(`⚠️ [useVoiceEventHandler] Event dispatcher not initialized, event ${event.type} not properly processed`);
     }
     
-  }, [handleVoiceActivityEvent, logSpeechEvents, initializeEventHandler]);
+  }, [handleVoiceActivityEvent, logSpeechEvents, initializeEventHandler, generateEventId]);
 
   return {
     voiceActivityState,

@@ -1,4 +1,3 @@
-
 /**
  * Central message processing system that uses the event dispatcher
  */
@@ -67,14 +66,15 @@ export class MessageEventProcessor {
       console.log(`[MessageEventProcessor] Processing event: ${eventType}`);
     }
     
-    // First pass the event to the general callback
-    this.messageCallback(event);
-    
     // Log the event for debugging
     this.eventLogger.logEvent(event);
     
     // Use the central dispatcher to route the event
     this.eventDispatcher.dispatchEvent(event);
+    
+    // Call the message callback after processing (moved here from before dispatch)
+    // This ensures the callback receives the event for UI updates but doesn't trigger duplicate processing
+    this.messageCallback(event);
   }
   
   /**
