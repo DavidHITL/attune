@@ -13,7 +13,7 @@ export class AssistantEventHandler {
   private lastResponseContent: string = '';
   private contentPartBuffer: string[] = [];
   private isProcessingResponse: boolean = false;
-  private processingPromise: Promise<void> | null = null;
+  private responseFlushed: boolean = false;
   
   constructor(
     private messageQueue: any,
@@ -33,17 +33,28 @@ export class AssistantEventHandler {
     // Extract content using our utility function
     const content = extractAssistantContent(event);
     
+    // Handle response start - reset flags
+    if (event.type === 'response.created') {
+      this.isProcessingResponse = true;
+      this.responseFlushed = false;
+      this.contentPartBuffer = [];
+      console.log('[AssistantEventHandler] Starting new response processing');
+    }
+    
     // Skip empty content
     if (!content || content.trim() === '') {
-      if (event.type === 'response.done' || event.type === 'response.content_part.done') {
-        console.log(`[AssistantEventHandler] No content found in ${event.type}, checking for buffered content`);
+      if (event.type === 'response.done') {
+        console.log(`[AssistantEventHandler] Empty content in ${event.type}, checking for buffered content`);
         
         // If this is a final event, flush any buffered content
         if (this.contentPartBuffer.length > 0) {
           const combinedContent = this.contentPartBuffer.join('');
           this.contentPartBuffer = [];
           
-          this.queueAssistantMessage(combinedContent);
+          if (combinedContent.trim() !== '') {
+            this.queueAssistantMessage(combinedContent);
+            this.responseFlushed = true;
+          }
         }
       }
       return;
@@ -53,23 +64,26 @@ export class AssistantEventHandler {
     if (event.type === 'response.done') {
       console.log(`[AssistantEventHandler] Processing FINAL response with ${content.length} chars`);
       
-      // Clear any buffered content as we have the full response
-      this.contentPartBuffer = [];
-      
       // Don't save duplicate content
       if (this.lastResponseContent === content) {
         console.log(`[AssistantEventHandler] Skipping duplicate response content`);
         return;
       }
       
+      // Save the final response and mark as flushed
       this.lastResponseContent = content;
       this.queueAssistantMessage(content);
+      this.responseFlushed = true;
+      
+      // Clear buffer since we have the complete response
+      this.contentPartBuffer = [];
+      this.isProcessingResponse = false;
       return;
     }
     
-    // Handle content part events - these are partial responses that should be combined
+    // Handle content part events - buffer these for later use if response.done fails
     if (event.type === 'response.content_part.done') {
-      console.log(`[AssistantEventHandler] Processing content part with ${content.length} chars`);
+      console.log(`[AssistantEventHandler] Buffering content part with ${content.length} chars`);
       
       // Add to buffer but don't save immediately to avoid duplicate messages
       // We'll save when we get response.done or as a fallback if no response.done arrives
@@ -105,16 +119,25 @@ export class AssistantEventHandler {
   
   // Flush any pending response when the connection ends
   flushPendingResponse(): void {
-    console.log(`[AssistantEventHandler] Flushing any pending response content`);
-    
-    // If we have buffered content that hasn't been saved yet, save it now
-    if (this.contentPartBuffer.length > 0) {
-      const combinedContent = this.contentPartBuffer.join('');
-      this.contentPartBuffer = [];
+    // Only flush if we haven't already processed a complete response
+    if (this.isProcessingResponse && !this.responseFlushed) {
+      console.log(`[AssistantEventHandler] Flushing pending response content`);
       
-      if (combinedContent.trim() !== '') {
-        this.queueAssistantMessage(combinedContent);
+      // If we have buffered content that hasn't been saved yet, save it now
+      if (this.contentPartBuffer.length > 0) {
+        const combinedContent = this.contentPartBuffer.join('');
+        this.contentPartBuffer = [];
+        
+        if (combinedContent.trim() !== '') {
+          this.queueAssistantMessage(combinedContent);
+          this.responseFlushed = true;
+        }
       }
+      
+      // Reset processing state
+      this.isProcessingResponse = false;
+    } else {
+      console.log('[AssistantEventHandler] No pending content to flush, or response already flushed');
     }
   }
 }

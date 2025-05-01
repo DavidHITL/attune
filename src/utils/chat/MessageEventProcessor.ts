@@ -1,3 +1,4 @@
+
 /**
  * Central message processing system that uses the event dispatcher
  */
@@ -72,8 +73,7 @@ export class MessageEventProcessor {
     // Use the central dispatcher to route the event
     this.eventDispatcher.dispatchEvent(event);
     
-    // Call the message callback after processing (moved here from before dispatch)
-    // This ensures the callback receives the event for UI updates but doesn't trigger duplicate processing
+    // Call the message callback after processing, so UI gets updated AFTER state changes
     this.messageCallback(event);
   }
   
