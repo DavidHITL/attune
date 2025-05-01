@@ -17,11 +17,20 @@ export const useTranscriptHandler = () => {
     });
 
     // IMPROVED: First determine role from the event type registry - no defaults
-    const messageRole = EventTypeRegistry.getRoleForEvent(event.type);
-    if (!messageRole) {
+    const eventRole = EventTypeRegistry.getRoleForEvent(event.type);
+    if (!eventRole) {
       console.log(`⚠️ Could not determine message role for event type: ${event.type}`);
       return;
     }
+    
+    // Skip system events - they don't contain transcripts to save
+    if (eventRole === 'system') {
+      console.log(`⚠️ Skipping system event: ${event.type} - not a transcript event`);
+      return;
+    }
+    
+    // Now we know the role is either 'user' or 'assistant'
+    const messageRole = eventRole as 'user' | 'assistant';
 
     let transcriptContent: string | null = null;
     
