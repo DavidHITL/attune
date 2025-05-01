@@ -5,6 +5,8 @@
  * now goes through EventDispatcher exclusively.
  */
 export class TranscriptEventHandler {
-  // Class is kept empty as a placeholder for backward compatibility
-  // All functionality has been migrated to EventDispatcher
+  // Class is kept as an empty implementation for backward compatibility
+  constructor() {
+    console.log('[TranscriptEventHandler] ⚠️ This component is deprecated. Using EventDispatcher instead.');
+  }
 }

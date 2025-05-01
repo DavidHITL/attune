@@ -1,4 +1,3 @@
-
 import { MessageQueue } from '../messageQueue';
 import { ResponseParser } from '../ResponseParser';
 import { EventHandler } from '../EventHandler';
@@ -45,12 +44,8 @@ export class RealtimeChatCore {
     this.responseParser = new ResponseParser();
     this.userMessageHandler = new UserMessageHandler(safeSaveCallback);
     
-    // DISABLED: This handler is now completely disabled
-    this.transcriptHandler = new TranscriptEventHandler(
-      () => {
-        console.log(`[TranscriptEventHandler] DISABLED: This event handler is no longer used`);
-      }
-    );
+    // FIXED: Initialize TranscriptEventHandler with no arguments as per its current implementation
+    this.transcriptHandler = new TranscriptEventHandler();
     
     this.messageEventHandler = new MessageEventHandler(
       this.messageQueue,
