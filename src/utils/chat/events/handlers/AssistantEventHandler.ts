@@ -1,6 +1,7 @@
 
 /**
  * Handler specifically for assistant response events
+ * This is the PRIMARY handler for processing all assistant response events
  */
 import { MessageQueue } from '../../messageQueue';
 import { ResponseParser } from '../../ResponseParser';
@@ -9,78 +10,110 @@ import { extractAssistantContent } from '../EventTypes';
 import { toast } from 'sonner';
 
 export class AssistantEventHandler {
-  private pendingResponse: string | null = null;
+  private lastResponseContent: string = '';
+  private contentPartBuffer: string[] = [];
+  private isProcessingResponse: boolean = false;
+  private processingPromise: Promise<void> | null = null;
   
   constructor(
     private messageQueue: any,
     private responseParser: ResponseParser
   ) {
-    console.log('[AssistantEventHandler] Initialized');
+    console.log('[AssistantEventHandler] PRIMARY HANDLER Initialized');
   }
   
   handleEvent(event: any): void {
-    console.log(`[AssistantEventHandler] Processing assistant event: ${event.type}`);
-    
-    // Double-check that this is actually an assistant event through the registry
-    const role = EventTypeRegistry.getRoleForEvent(event.type);
-    if (role !== 'assistant') {
-      console.warn(`[AssistantEventHandler] Received non-assistant event: ${event.type}, role: ${role}`);
+    // Skip if not an assistant event
+    if (!EventTypeRegistry.isAssistantEvent(event.type)) {
       return;
     }
     
-    // Extract assistant content using our utility function
+    console.log(`[AssistantEventHandler] Processing assistant event: ${event.type}`);
+    
+    // Extract content using our utility function
     const content = extractAssistantContent(event);
     
-    // Process content if we have any
-    if (content) {
-      this.processResponseContent(content, event.type);
+    // Skip empty content
+    if (!content || content.trim() === '') {
+      if (event.type === 'response.done' || event.type === 'response.content_part.done') {
+        console.log(`[AssistantEventHandler] No content found in ${event.type}, checking for buffered content`);
+        
+        // If this is a final event, flush any buffered content
+        if (this.contentPartBuffer.length > 0) {
+          const combinedContent = this.contentPartBuffer.join('');
+          this.contentPartBuffer = [];
+          
+          this.queueAssistantMessage(combinedContent);
+        }
+      }
+      return;
     }
-    else {
-      console.log(`[AssistantEventHandler] No content extracted from ${event.type} event`);
-    }
-  }
-  
-  private processResponseContent(content: string, eventType: string): void {
-    // Store final response
-    if (eventType === 'response.done' || eventType === 'response.content_part.done') {
-      console.log(`[AssistantEventHandler] Processing final ASSISTANT response:`, content.substring(0, 50));
+    
+    // Handle response.done - this is the complete assistant response
+    if (event.type === 'response.done') {
+      console.log(`[AssistantEventHandler] Processing FINAL response with ${content.length} chars`);
       
-      // Check if the message queue has the expected interface
-      if (typeof this.messageQueue.queueMessage === 'function') {
-        // Make sure we're explicitly setting the role to 'assistant'
-        this.messageQueue.queueMessage('assistant', content, true);
-        
-        // Reset any pending response
-        this.pendingResponse = null;
-        
-        // Show notification
-        toast.success("AI response received", { 
-          description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
-          duration: 2000
-        });
-      } else {
-        console.error('[AssistantEventHandler] Message queue is missing queueMessage method');
+      // Clear any buffered content as we have the full response
+      this.contentPartBuffer = [];
+      
+      // Don't save duplicate content
+      if (this.lastResponseContent === content) {
+        console.log(`[AssistantEventHandler] Skipping duplicate response content`);
+        return;
       }
+      
+      this.lastResponseContent = content;
+      this.queueAssistantMessage(content);
+      return;
     }
-    // Accumulate delta responses
-    else if (eventType === 'response.delta') {
-      if (!this.pendingResponse) {
-        this.pendingResponse = content;
-      } else {
-        this.pendingResponse += content;
-      }
-      console.log(`[AssistantEventHandler] Accumulating delta response (now ${this.pendingResponse?.length || 0} chars)`);
+    
+    // Handle content part events - these are partial responses that should be combined
+    if (event.type === 'response.content_part.done') {
+      console.log(`[AssistantEventHandler] Processing content part with ${content.length} chars`);
+      
+      // Add to buffer but don't save immediately to avoid duplicate messages
+      // We'll save when we get response.done or as a fallback if no response.done arrives
+      this.contentPartBuffer.push(content);
+      
+      toast.info("Processing AI response...", {
+        duration: 2000,
+      });
     }
   }
   
+  // Queue the message with the assistant role
+  private queueAssistantMessage(content: string): void {
+    if (!content || content.trim() === '') {
+      console.log(`[AssistantEventHandler] Skipping empty content`);
+      return;
+    }
+    
+    console.log(`[AssistantEventHandler] Queueing ASSISTANT message with ${content.length} chars`);
+    
+    if (typeof this.messageQueue.queueMessage === 'function') {
+      // Explicitly mark as assistant message and set high priority to ensure it's processed
+      this.messageQueue.queueMessage('assistant', content, true);
+      
+      toast.success("AI response received", {
+        description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
+        duration: 3000
+      });
+    } else {
+      console.error('[AssistantEventHandler] Message queue is missing queueMessage method');
+    }
+  }
+  
+  // Flush any pending response when the connection ends
   flushPendingResponse(): void {
-    if (this.pendingResponse && this.pendingResponse.trim().length > 0) {
-      console.log(`[AssistantEventHandler] Flushing pending response (${this.pendingResponse.length} chars)`);
-      if (typeof this.messageQueue.queueMessage === 'function') {
-        this.messageQueue.queueMessage('assistant', this.pendingResponse, true);
-        this.pendingResponse = null;
-      } else {
-        console.error('[AssistantEventHandler] Message queue is missing queueMessage method');
+    console.log(`[AssistantEventHandler] Flushing any pending response content`);
+    
+    // If we have buffered content that hasn't been saved yet, save it now
+    if (this.contentPartBuffer.length > 0) {
+      const combinedContent = this.contentPartBuffer.join('');
+      this.contentPartBuffer = [];
+      
+      if (combinedContent.trim() !== '') {
+        this.queueAssistantMessage(combinedContent);
       }
     }
   }

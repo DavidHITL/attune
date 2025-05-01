@@ -17,6 +17,7 @@ export class MessageEventProcessor {
   private assistantEventHandler: AssistantEventHandler;
   private systemEventHandler: SystemEventHandler;
   private eventLogger: EventLogger;
+  private processedEventIds: Set<string> = new Set();
   
   constructor(
     private messageQueue: MessageQueue,
@@ -46,22 +47,34 @@ export class MessageEventProcessor {
    */
   processEvent(event: any): void {
     const eventType = event?.type || 'unknown';
-    console.log(`[MessageEventProcessor] Processing event: ${eventType}`);
+    
+    // Generate an ID for this event to prevent duplicate processing
+    const eventId = this.generateEventId(event);
+    if (this.processedEventIds.has(eventId)) {
+      // Skip events we've already processed
+      return;
+    }
+    this.processedEventIds.add(eventId);
+    
+    // Limit processed events set size to prevent memory leaks
+    if (this.processedEventIds.size > 1000) {
+      const eventArray = Array.from(this.processedEventIds);
+      this.processedEventIds = new Set(eventArray.slice(eventArray.length - 500));
+    }
+    
+    // Only log non-buffer events or sample a small percentage
+    if (!eventType.includes('audio_buffer') || Math.random() < 0.01) {
+      console.log(`[MessageEventProcessor] Processing event: ${eventType}`);
+    }
     
     // First pass the event to the general callback
     this.messageCallback(event);
     
     // Log the event for debugging
     this.eventLogger.logEvent(event);
-    this.responseParser.logEvent(event);
     
     // Use the central dispatcher to route the event
     this.eventDispatcher.dispatchEvent(event);
-    
-    // Log statistics periodically
-    if (Math.random() < 0.05) { // ~5% chance per event to log stats
-      this.eventLogger.logEventStats();
-    }
   }
   
   /**
@@ -77,5 +90,24 @@ export class MessageEventProcessor {
    */
   getEventStatistics(): any {
     return this.eventLogger.getEventCounts();
+  }
+  
+  /**
+   * Generate a unique ID for an event to prevent duplicate processing
+   */
+  private generateEventId(event: any): string {
+    // For transcript events, use the transcript content as part of the ID
+    if (event.type === 'transcript' && event.transcript) {
+      return `${event.type}-${typeof event.transcript === 'string' ? 
+        event.transcript.substring(0, 20) : 'object'}-${Date.now()}`;
+    }
+    
+    // For response events, use content if available
+    if (event.type === 'response.done' && event.response?.content) {
+      return `${event.type}-${event.response.content.substring(0, 20)}-${Date.now()}`;
+    }
+    
+    // Default ID with timestamp to make it unique
+    return `${event.type}-${Math.random().toString(36).substring(2, 7)}-${Date.now()}`;
   }
 }

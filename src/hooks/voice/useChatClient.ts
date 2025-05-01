@@ -12,7 +12,7 @@ import { useVoiceEventHandler } from '@/hooks/voice/useVoiceEventHandler';
 import { useVoiceChatAnalysis } from '@/hooks/voice/useVoiceChatAnalysis';
 
 /**
- * Main hook for chat client functionality, refactored for improved modularity and reliability
+ * Main hook for chat client functionality, refactored to eliminate legacy pathways
  */
 export const useChatClient = () => {
   // Initialize refs and basic state
@@ -41,24 +41,19 @@ export const useChatClient = () => {
   // Set up background analysis when voice chat sessions end
   useVoiceChatAnalysis(isConnected);
 
-  // Use the enhanced voice event handler instead of useVoiceEvents
+  // Use the enhanced voice event handler for all voice events
   const { handleVoiceEvent } = useVoiceEventHandler(chatClientRef);
   
-  // Combined message handler for all event types
+  // Combined message handler that uses only the modern event dispatcher system
   const combinedMessageHandler = useCallback((event: any) => {
-    // Process all voice events through our unified handler
+    // Process all events through our unified handler
     handleVoiceEvent(event);
     
-    // Process session creation events separately (not handled by dispatcher)
+    // Process session creation events separately
     handleSessionCreated(event);
-    
-    // Log the last few event types for debugging
-    if (event.type && event.type !== 'input_audio_buffer.append') {
-      console.log(`EVENT [${event.type}] #${Math.floor(Math.random() * 10)} at ${new Date().toISOString()}`);
-    }
   }, [handleVoiceEvent, handleSessionCreated]);
   
-  // Initialize connection manager with more robust message handling
+  // Initialize connection manager with event handling
   const { startConversation, endConversation } = useConnectionManager(
     chatClientRef,
     combinedMessageHandler,
@@ -103,7 +98,7 @@ export const useChatClient = () => {
     }
   }, [startConversation, isConnected, setConnectionError]);
   
-  // Cleanup effect on unmount with enhanced reliability
+  // Cleanup effect on unmount
   useEffect(() => {
     return () => {
       console.log("Cleaning up chat client");

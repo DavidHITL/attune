@@ -3,27 +3,26 @@
  * Handler specifically for user transcript events
  * This is the PRIMARY handler for processing all user speech events
  */
-import { MessageQueue } from '../../messageQueue';
 import { toast } from 'sonner';
 import { EventTypeRegistry } from '../EventTypeRegistry';
 import { extractTranscriptText } from '../EventTypes';
 
 export class UserEventHandler {
   private lastTranscriptContent: string = '';
+  private processedTranscripts: Set<string> = new Set();
   
   constructor(private messageQueue: any) {
     console.log('[UserEventHandler] PRIMARY HANDLER Initialized');
   }
   
   handleEvent(event: any): void {
-    console.log(`[UserEventHandler] Processing user event: ${event.type}`);
-    
     // Verify this is actually a user event through the registry
     const role = EventTypeRegistry.getRoleForEvent(event.type);
     if (role !== 'user') {
-      console.warn(`[UserEventHandler] Received non-user event: ${event.type}, role: ${role}`);
       return;
     }
+    
+    console.log(`[UserEventHandler] Processing user event: ${event.type}`);
     
     // Extract transcript content using our utility function
     const transcriptContent = extractTranscriptText(event);
@@ -34,9 +33,28 @@ export class UserEventHandler {
       return;
     }
     
-    // Only process new transcript content to avoid duplicates
+    // Generate a content hash to deduplicate similar transcripts
+    const contentHash = this.hashContent(transcriptContent);
+    
+    // Skip if we've already processed this exact transcript
+    if (this.processedTranscripts.has(contentHash)) {
+      console.log(`[UserEventHandler] Duplicate transcript hash, skipping`);
+      return;
+    }
+    
+    // Add to processed set to prevent duplicates
+    this.processedTranscripts.add(contentHash);
+    
+    // Limit size of processed set to prevent memory leaks
+    if (this.processedTranscripts.size > 100) {
+      this.processedTranscripts = new Set(
+        Array.from(this.processedTranscripts).slice(-50)
+      );
+    }
+    
+    // Only process new transcript content to avoid similar duplicates
     if (this.lastTranscriptContent === transcriptContent) {
-      console.log(`[UserEventHandler] Duplicate transcript, skipping`);
+      console.log(`[UserEventHandler] Duplicate transcript content, skipping`);
       return;
     }
     
@@ -57,5 +75,15 @@ export class UserEventHandler {
     } else {
       console.error('[UserEventHandler] Message queue is missing queueMessage method');
     }
+  }
+  
+  /**
+   * Create a simple hash of content for deduplication
+   */
+  private hashContent(content: string): string {
+    // Take the first N chars and the length as a simple hash
+    const prefix = content.substring(0, 30);
+    const length = content.length;
+    return `${prefix}-${length}`;
   }
 }

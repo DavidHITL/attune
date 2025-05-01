@@ -1,4 +1,3 @@
-
 /**
  * Event Dispatcher is the central routing mechanism for all events
  * It identifies event types and routes them to specialized handlers
@@ -10,6 +9,7 @@ import { EventTypeRegistry } from './EventTypeRegistry';
 
 export class EventDispatcher {
   private eventCounter: { [key: string]: number } = {};
+  private processedEventIds: Set<string> = new Set();
   
   constructor(
     private userEventHandler: UserEventHandler,
@@ -27,6 +27,21 @@ export class EventDispatcher {
     if (!event.type) {
       console.log('[EventDispatcher] Skipping event with no type');
       return;
+    }
+
+    // Generate a unique ID for this event to prevent duplicate processing
+    const eventId = this.generateEventId(event);
+    if (this.processedEventIds.has(eventId)) {
+      // Skip events we've already processed
+      return;
+    }
+    this.processedEventIds.add(eventId);
+    
+    // Limit the size of the processed events set to prevent memory leaks
+    if (this.processedEventIds.size > 1000) {
+      // Keep only the most recent events by converting to array, slicing, then back to set
+      const eventArray = Array.from(this.processedEventIds);
+      this.processedEventIds = new Set(eventArray.slice(eventArray.length - 500));
     }
 
     // Track event counts for debugging
@@ -63,5 +78,29 @@ export class EventDispatcher {
     if (totalEvents % 100 === 0) {
       console.log('[EventDispatcher] Event statistics:', JSON.stringify(this.eventCounter));
     }
+  }
+  
+  /**
+   * Generate a unique ID for an event to prevent duplicate processing
+   */
+  private generateEventId(event: any): string {
+    // For transcript events, use the transcript content as part of the ID
+    if (event.type === 'transcript' && event.transcript) {
+      return `${event.type}-${typeof event.transcript === 'string' ? 
+        event.transcript.substring(0, 20) : 'object'}-${Date.now()}`;
+    }
+    
+    // For response events, use content if available
+    if (event.type === 'response.done' && event.response?.content) {
+      return `${event.type}-${event.response.content.substring(0, 20)}-${Date.now()}`;
+    }
+    
+    // For content part events, use the text
+    if (event.type === 'response.content_part.done' && event.content_part?.text) {
+      return `${event.type}-${event.content_part.text.substring(0, 20)}-${Date.now()}`;
+    }
+    
+    // Default ID with timestamp to make it unique
+    return `${event.type}-${Math.random().toString(36).substring(2, 7)}-${Date.now()}`;
   }
 }

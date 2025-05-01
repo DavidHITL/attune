@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 
 /**
  * Enhanced hook for handling all voice-related events using the modern event dispatcher system.
- * This completely replaces the legacy transcript handling system.
+ * This is the primary event handling system, and legacy systems are deactivated.
  */
 export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>) => {
   const { voiceActivityState, handleMessageEvent: handleVoiceActivityEvent } = useVoiceActivityState();
@@ -65,11 +65,14 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
   }, []);
   
   const handleVoiceEvent = useCallback((event: any) => {
-    console.log(`🎙️ [useVoiceEventHandler] Processing event: ${event.type}`);
+    // Log essential event information but limit frequency of common events
+    if (!event.type?.includes('audio_buffer') || Math.random() < 0.01) { // Log only ~1% of audio_buffer events
+      console.log(`🎙️ [useVoiceEventHandler] Processing event: ${event.type}`);
+    }
     
     // First determine role from EventTypeRegistry
     const role = EventTypeRegistry.getRoleForEvent(event.type);
-    if (role) {
+    if (role && !event.type?.includes('audio_buffer')) {
       console.log(`📝 [useVoiceEventHandler] Event type: ${event.type}, role: ${role}`);
     }
     
@@ -84,18 +87,12 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
     
     // Use our dispatcher if available
     if (isInitialized && dispatcherRef.current) {
-      console.log(`🔄 [useVoiceEventHandler] Routing ${event.type} event through EventDispatcher`);
-      dispatcherRef.current.dispatchEvent(event);
-      
-      // Show toast notifications for key events
-      if (EventTypeRegistry.isUserEvent(event.type) && event.transcript) {
-        toast.success("Speech detected", { 
-          description: typeof event.transcript === 'string' 
-            ? event.transcript.substring(0, 50) + (event.transcript.length > 50 ? "..." : "")
-            : "Processing your speech...",
-          duration: 2000
-        });
+      // Avoid excessive logging for high-frequency events
+      if (!event.type?.includes('audio_buffer') || Math.random() < 0.01) {
+        console.log(`🔄 [useVoiceEventHandler] Routing ${event.type} event through EventDispatcher`);
       }
+      
+      dispatcherRef.current.dispatchEvent(event);
     } else {
       // Log failure to initialize modern event handling system
       console.warn(`⚠️ [useVoiceEventHandler] Event dispatcher not initialized, event ${event.type} not properly processed`);

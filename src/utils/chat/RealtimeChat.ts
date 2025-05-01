@@ -1,3 +1,4 @@
+
 import { ConnectionManager } from './ConnectionManager';
 import { MessageQueue } from './messageQueue';
 import { ResponseParser } from './ResponseParser';
@@ -15,6 +16,7 @@ export class RealtimeChat {
   private messageEventProcessor: MessageEventProcessor;
   private conversationInitializer: ConversationInitializer;
   private microphoneManager: MicrophoneControlManager;
+  private processedMessageHashes: Set<string> = new Set();
   
   constructor(
     private messageCallback: MessageCallback,
@@ -34,6 +36,11 @@ export class RealtimeChat {
     
     this.conversationInitializer = new ConversationInitializer(this.statusCallback, this.messageQueue);
     this.microphoneManager = new MicrophoneControlManager(this.connectionManager);
+    
+    // Make message queue available globally
+    if (typeof window !== 'undefined') {
+      window.attuneMessageQueue = this.messageQueue;
+    }
   }
 
   async init(): Promise<boolean> {
@@ -95,6 +102,25 @@ export class RealtimeChat {
     if (!content || content.trim() === '') {
       console.log("Skipping empty user message");
       return Promise.resolve();
+    }
+    
+    // Generate a hash for the content
+    const contentHash = `${content.substring(0, 30)}-${content.length}`;
+    
+    // Skip if we've already processed this message
+    if (this.processedMessageHashes.has(contentHash)) {
+      console.log(`[RealtimeChat] Skipping duplicate user message`);
+      return Promise.resolve();
+    }
+    
+    // Add to processed set
+    this.processedMessageHashes.add(contentHash);
+    
+    // Limit processed set size
+    if (this.processedMessageHashes.size > 100) {
+      this.processedMessageHashes = new Set(
+        Array.from(this.processedMessageHashes).slice(-50)
+      );
     }
     
     // Log that we're explicitly saving a user message
