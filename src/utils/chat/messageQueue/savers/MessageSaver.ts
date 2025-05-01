@@ -1,9 +1,9 @@
 
-import { Message, SaveMessageCallback } from '../../types';
+import { Message, SaveMessageCallback } from '../../../types';
 import { toast } from 'sonner';
 import { MessageSaveStrategy } from './MessageSaveStrategy';
-import { MessageProcessor } from './savers/MessageProcessor';
-import { MessageTracker } from './savers/MessageTracker';
+import { MessageProcessor } from '../savers/processors/MessageProcessor';
+import { MessageTracker } from '../savers/trackers/MessageTracker';
 
 /**
  * Handles the actual saving of messages with retry logic
