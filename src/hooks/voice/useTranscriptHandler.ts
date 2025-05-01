@@ -4,6 +4,7 @@ import { useConversationValidator } from './transcript/useConversationValidator'
 import { useConversation } from '@/hooks/useConversation';
 import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 import { toast } from 'sonner';
+import { MessageRole } from '@/utils/chat/events/EventTypes';
 
 export const useTranscriptHandler = () => {
   const { validateConversationContext } = useConversationValidator();
@@ -16,12 +17,22 @@ export const useTranscriptHandler = () => {
     });
 
     // Determine role from event type using the registry
-    const messageRole = EventTypeRegistry.getRoleForEvent(event.type);
+    const eventRole = EventTypeRegistry.getRoleForEvent(event.type);
     
-    if (!messageRole) {
+    if (!eventRole) {
       console.warn(`⚠️ Could not determine message role from event type: ${event.type}`);
       return;
     }
+    
+    // We only handle user and assistant roles in transcript handler
+    // Filter out system messages early
+    if (eventRole === 'system') {
+      console.log(`⚠️ System event received in transcript handler: ${event.type}, skipping`);
+      return;
+    }
+    
+    // Now we know eventRole is either 'user' or 'assistant'
+    const messageRole = eventRole as 'user' | 'assistant';
     
     // Extract content based on event type and message role
     let transcriptContent: string | null = null;
