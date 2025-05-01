@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Message } from '@/utils/types';
 import { toast } from 'sonner';
-import { normalizeMessageRole, ensureValidMessageRole } from '@/utils/chat/messageUtils';
+import { ensureValidMessageRole } from '@/utils/chat/messageUtils';
 import { createAnonymousMessage } from '@/utils/chat/message/anonymousMessageCreator';
 import { isValidMessageContent, getMessagePreview } from '@/utils/chat/message/messageValidator';
 
@@ -40,13 +40,19 @@ export const useSaveMessage = (
 ) => {
   const saveMessage = async (message: Partial<Message>): Promise<(Message & { conversation_id: string }) | null> => {
     // CRITICAL FIX: Add enhanced role validation logging
-    console.log('[useSaveMessage] 🔍 Message role BEFORE normalization:', message.role);
+    console.log('[useSaveMessage] 🔍 Message role BEFORE validation:', message.role);
     
     // Apply normalization but preserve assistant role
-    const normalizedMessage = ensureValidMessageRole(message);
+    const validatedMessage = ensureValidMessageRole(message);
     
-    // Log role after normalization
-    console.log('[useSaveMessage] 🔍 Message role AFTER normalization:', normalizedMessage.role);
+    // Explicitly preserve assistant role if already set - critical fix
+    if (message.role === 'assistant') {
+      console.log('[useSaveMessage] ⭐ PRESERVING existing assistant role');
+      validatedMessage.role = 'assistant';
+    }
+    
+    // Additional log for role verification
+    console.log('[useSaveMessage] 🔍 Final message role for saving:', validatedMessage.role);
     
     // Enhanced logging for message save attempts
     console.log('📝 [useSaveMessage] Attempt:', {
@@ -54,21 +60,21 @@ export const useSaveMessage = (
       userExists: !!user,
       userId: user?.id,
       conversationId,
-      messageRole: normalizedMessage.role,
-      messageContentLength: normalizedMessage.content?.length,
-      contentPreview: normalizedMessage.content?.substring(0, 50) + '...',
-      validContent: isValidMessageContent(normalizedMessage.content)
+      messageRole: validatedMessage.role,
+      messageContentLength: validatedMessage.content?.length,
+      contentPreview: validatedMessage.content?.substring(0, 50) + '...',
+      validContent: isValidMessageContent(validatedMessage.content)
     });
     
-    if (!isValidMessageContent(normalizedMessage.content)) {
+    if (!isValidMessageContent(validatedMessage.content)) {
       console.warn('⚠️ [useSaveMessage] Skipping empty message save attempt');
       return null;
     }
     
     // For anonymous users, always return a local message without database saving
     if (!user) {
-      console.log(`👤 [useSaveMessage] Anonymous user message processing: ${normalizedMessage.role}`);
-      const anonymousMessage = createAnonymousMessage(normalizedMessage.role, normalizedMessage.content);
+      console.log(`👤 [useSaveMessage] Anonymous user message processing: ${validatedMessage.role}`);
+      const anonymousMessage = createAnonymousMessage(validatedMessage.role, validatedMessage.content);
       console.log('[useSaveMessage] 📝 Anonymous message created (not saved to database):', anonymousMessage);
       return { ...anonymousMessage, conversation_id: 'anonymous' };
     }
@@ -76,25 +82,25 @@ export const useSaveMessage = (
     let targetConversationId = conversationId;
     
     // For authenticated users without an active conversation, create one
-    if (!targetConversationId && normalizedMessage.role === 'user') {
+    if (!targetConversationId && validatedMessage.role === 'user') {
       console.log('🆕 [useSaveMessage] No conversation ID found, creating new conversation...');
       targetConversationId = await createNewConversation(user.id);
       
       if (!targetConversationId) {
         console.error('❌ [useSaveMessage] Failed to create conversation');
         toast.error('Unable to start conversation. Please try again.');
-        return { ...createAnonymousMessage(normalizedMessage.role, normalizedMessage.content), conversation_id: 'anonymous' };
+        return { ...createAnonymousMessage(validatedMessage.role, validatedMessage.content), conversation_id: 'anonymous' };
       }
       
       console.log('✅ [useSaveMessage] Created new conversation:', targetConversationId);
     }
     
-    // CRITICAL FIX: Ensure we're using the normalized role without transforming it
+    // CRITICAL FIX: Use the role directly from validatedMessage without transformation
     const insertData = {
       conversation_id: targetConversationId,
       user_id: user.id,
-      role: normalizedMessage.role, // Use normalized role directly
-      content: normalizedMessage.content
+      role: validatedMessage.role, // Use validated role directly
+      content: validatedMessage.content
     };
     
     console.log('💾 [useSaveMessage] Inserting message:', {
@@ -103,15 +109,13 @@ export const useSaveMessage = (
       conversationContext: {
         conversationId: targetConversationId,
         userId: user.id,
-        role: normalizedMessage.role
+        role: validatedMessage.role
       }
     });
     
     try {
       // Add additional debugging for insert operation
-      console.log(`[useSaveMessage] 🔍 Starting database insert with SQL: 
-        INSERT INTO messages (conversation_id, user_id, role, content)
-        VALUES ('${targetConversationId}', '${user.id}', '${normalizedMessage.role}', '${normalizedMessage.content?.substring(0, 20)}...')`);
+      console.log(`[useSaveMessage] 🔍 Starting database insert with role: ${validatedMessage.role}`);
       
       const { data, error } = await supabase
         .from('messages')
@@ -140,11 +144,10 @@ export const useSaveMessage = (
         contentPreview: data.content.substring(0, 50) + '...'
       });
       
-      // CRITICAL FIX: Don't transform the role again with validateRole
-      // Instead, ensure we're getting the correct role from the database
+      // CRITICAL FIX: Trust the role from the database without revalidation
       const savedMessage = {
         id: data.id,
-        role: data.role as 'user' | 'assistant', // Trust the database role
+        role: data.role as 'user' | 'assistant',
         content: data.content,
         created_at: data.created_at,
         conversation_id: data.conversation_id
@@ -152,12 +155,12 @@ export const useSaveMessage = (
       
       // CRITICAL VALIDATION: Double-check role after database operation
       console.log(`[useSaveMessage] 🔍 Role verification after database save:`, {
-        originalRole: normalizedMessage.role,
+        originalRole: validatedMessage.role,
         savedRole: savedMessage.role,
-        roleMatches: normalizedMessage.role === savedMessage.role
+        roleMatches: validatedMessage.role === savedMessage.role
       });
       
-      if (normalizedMessage.role === 'user') {
+      if (validatedMessage.role === 'user') {
         toast.success('Message saved', {
           description: getMessagePreview(savedMessage.content),
           duration: 2000,
@@ -173,7 +176,7 @@ export const useSaveMessage = (
         timestamp: new Date().toISOString(),
         context: {
           conversationId: targetConversationId,
-          role: normalizedMessage.role
+          role: validatedMessage.role
         }
       });
       
@@ -181,7 +184,7 @@ export const useSaveMessage = (
         duration: 4000,
       });
       
-      return { ...createAnonymousMessage(normalizedMessage.role, normalizedMessage.content), conversation_id: 'anonymous' };
+      return { ...createAnonymousMessage(validatedMessage.role, validatedMessage.content), conversation_id: 'anonymous' };
     }
   };
 

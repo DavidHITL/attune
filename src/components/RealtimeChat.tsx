@@ -47,7 +47,7 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({
   // Expose transcript API to parent component
   useEffect(() => {
     if (onTranscriptAggregatorReady) {
-      console.log('[RealtimeChat] Providing transcript aggregator API to parent');
+      console.log('[RealtimeChat] 🔗 Providing transcript aggregator API to parent');
       onTranscriptAggregatorReady(transcriptAggregator);
     }
   }, [onTranscriptAggregatorReady, transcriptAggregator]);
@@ -83,12 +83,13 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({
 
   // Custom end call handler that saves transcript before ending call
   const handleEndCallWithTranscriptSave = async () => {
-    console.log('[RealtimeChat] Ending call with transcript save');
+    console.log('[RealtimeChat] 🛑 Ending call with transcript save');
     // First save any pending transcript
     if (transcriptAggregator.currentTranscript) {
-      console.log('[RealtimeChat] Saving pending transcript before ending call');
-      // CRITICAL: Always explicitly set role to 'user' - explicitly set by EventTypeRegistry's standards
-      await transcriptAggregator.saveCurrentTranscript('user');
+      console.log('[RealtimeChat] 💾 Saving pending transcript before ending call');
+      // Always use EventTypeRegistry to determine correct role
+      const userRole = EventTypeRegistry.getRoleForEvent('transcript') || 'user';
+      await transcriptAggregator.saveCurrentTranscript(userRole);
     }
     // Then end the call
     handleEndCall();

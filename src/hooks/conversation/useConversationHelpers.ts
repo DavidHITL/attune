@@ -7,8 +7,8 @@ import { Message } from '@/utils/types';
  */
 export const useConversationHelpers = () => {
   /**
-   * Validates and converts role to proper type
-   * CRITICAL FIX: Ensure we properly validate roles without defaulting or overriding the assistant role
+   * Validates role without overriding 
+   * CRITICAL FIX: Prevent role overrides particularly for assistant role
    */
   const validateRole = (role: string): 'user' | 'assistant' => {
     console.log(`[validateRole] 🔍 Role validation requested for: "${role}"`);

@@ -6,7 +6,7 @@ import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 
 /**
  * Hook for UI state updates only - no message processing
- * NOTE: All primary event processing happens in EventDispatcher
+ * All primary event processing happens in EventDispatcher
  */
 export const useMessageEventHandler = (chatClientRef: React.MutableRefObject<any>) => {
   // Use our custom hooks - pass chatClientRef to avoid circular dependencies

@@ -31,7 +31,7 @@ export class MessageQueue {
     console.log(`[MessageQueue] 📋 Queueing ${role} message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}", priority: ${priority}`);
 
     // CRITICAL FIX: Log role explicitly for monitoring  
-    console.log(`[MessageQueue] 🔒 Message queued with VERIFIED ROLE: ${role}`);
+    console.log(`[MessageQueue] 🔒 Message queued with ROLE: ${role}`);
 
     const isInitialized = this.checkInitialized();
     

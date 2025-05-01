@@ -3,31 +3,33 @@ import { Message } from '../types';
 
 /**
  * Normalize message role to standard format (user or assistant)
- * CRITICAL FIX: Ensure this preserves assistant role properly
+ * Critical implementation to preserve role correctness
  */
 export const normalizeMessageRole = (role?: string): 'user' | 'assistant' => {
-  // If role is empty or null, default to user
+  // If role is empty or null, this is an error condition requiring notification
   if (!role) {
-    console.warn('[normalizeMessageRole] ⚠️ Empty role defaulted to "user"');
+    console.error('[normalizeMessageRole] ❌ Empty role provided, this should never happen');
     return 'user';
   }
   
   const normalizedRole = role.trim().toLowerCase();
   
-  // Explicit check for assistant role variations
+  // Primary role determination with explicit logging for traceability
   if (normalizedRole === 'assistant' || 
       normalizedRole === 'ai' || 
       normalizedRole === 'bot' || 
       normalizedRole === 'system') {
-    console.log('[normalizeMessageRole] 🤖 Role normalized to "assistant" from:', role);
+    console.log('[normalizeMessageRole] 🤖 ASSISTANT role preserved:', role);
     return 'assistant';
   }
   
-  // All other roles default to user
-  if (normalizedRole !== 'user') {
-    console.log('[normalizeMessageRole] 👤 Non-standard role normalized to "user" from:', role);
+  if (normalizedRole === 'user' || normalizedRole === 'human') {
+    console.log('[normalizeMessageRole] 👤 USER role preserved:', role);
+    return 'user';
   }
   
+  // Unknown role - this is an error condition that should be logged
+  console.error(`[normalizeMessageRole] ❓ Unknown role "${role}" defaulting to user, but this should be fixed`);
   return 'user';
 };
 

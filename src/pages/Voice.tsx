@@ -53,9 +53,9 @@ const Voice = () => {
     const handleBeforeUnload = () => {
       // Save any pending transcript when navigating away
       if (transcriptAggregatorRef.current?.saveCurrentTranscript) {
-        console.log('[Voice] Page unloading - saving pending transcript');
-        // CRITICAL: Always explicitly pass role as defined by EventTypeRegistry
-        const userRole = 'user'; // Following EventTypeRegistry standard role
+        console.log('[Voice] 🔄 Page unloading - saving pending transcript');
+        // Always use EventTypeRegistry to determine correct role
+        const userRole = EventTypeRegistry.getRoleForEvent('transcript') || 'user';
         transcriptAggregatorRef.current.saveCurrentTranscript(userRole);
       }
     };
@@ -66,9 +66,9 @@ const Voice = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       // Also try to save transcript when component unmounts
       if (transcriptAggregatorRef.current?.saveCurrentTranscript) {
-        console.log('[Voice] Component unmounting - saving pending transcript');
-        // CRITICAL: Always explicitly pass role as defined by EventTypeRegistry
-        const userRole = 'user'; // Following EventTypeRegistry standard role
+        console.log('[Voice] 🔄 Component unmounting - saving pending transcript');
+        // Always use EventTypeRegistry to determine correct role
+        const userRole = EventTypeRegistry.getRoleForEvent('transcript') || 'user';
         transcriptAggregatorRef.current.saveCurrentTranscript(userRole);
       }
     };

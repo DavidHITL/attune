@@ -18,16 +18,17 @@ export class AssistantEventHandler {
    * Process an assistant event
    */
   handleEvent(event: any): void {
+    // For all assistant events, always use 'assistant' role
+    const role = 'assistant';
+    
     // If this is a response.done event with content, directly save the message
     if (event.type === 'response.done' && event.response?.content) {
       const content = event.response.content;
       console.log(`[AssistantEventHandler] 💾 Saving complete assistant response, length: ${content.length}`);
-      console.log(`[AssistantEventHandler] 🔍 EXPLICITLY setting role=assistant for response.done content`);
+      console.log(`[AssistantEventHandler] 🔒 EXPLICITLY setting role=assistant for response.done content`);
       
-      // CRITICAL FIX: Log role explicitly here for monitoring
-      console.log(`[AssistantEventHandler] 🔒 Saving with VERIFIED ROLE: assistant`);
-      
-      this.messageQueue.queueMessage('assistant', content);
+      // CRITICAL FIX: Always explicitly set assistant role
+      this.messageQueue.queueMessage(role, content);
       this.pendingResponse = null; // Reset pending state
       return;
     }
@@ -36,12 +37,10 @@ export class AssistantEventHandler {
     if (event.type === 'response.content_part.done' && event.content_part?.text) {
       const content = event.content_part.text;
       console.log(`[AssistantEventHandler] 💾 Saving content part, length: ${content.length}`);
-      console.log(`[AssistantEventHandler] 🔍 EXPLICITLY setting role=assistant for content_part.done`);
+      console.log(`[AssistantEventHandler] 🔒 EXPLICITLY setting role=assistant for content_part.done`);
       
-      // CRITICAL FIX: Log role explicitly here for monitoring
-      console.log(`[AssistantEventHandler] 🔒 Saving with VERIFIED ROLE: assistant`);
-      
-      this.messageQueue.queueMessage('assistant', content);
+      // CRITICAL FIX: Always explicitly set assistant role
+      this.messageQueue.queueMessage(role, content);
       return;
     }
 
@@ -62,11 +61,9 @@ export class AssistantEventHandler {
   flushPendingResponse(): void {
     if (this.pendingResponse) {
       console.log(`[AssistantEventHandler] 🧹 Flushing pending assistant response, length: ${this.pendingResponse.length}`);
-      console.log(`[AssistantEventHandler] 🔍 EXPLICITLY setting role=assistant for flushed response`);
+      console.log(`[AssistantEventHandler] 🔒 EXPLICITLY setting role=assistant for flushed response`);
       
-      // CRITICAL FIX: Log role explicitly here for monitoring
-      console.log(`[AssistantEventHandler] 🔒 Saving with VERIFIED ROLE: assistant`);
-      
+      // CRITICAL FIX: Always explicitly set assistant role
       this.messageQueue.queueMessage('assistant', this.pendingResponse);
       this.pendingResponse = null;
     }

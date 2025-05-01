@@ -128,6 +128,12 @@ export const useConversation = (): UseConversationReturn => {
       }
       
       console.log(`[useConversation] 🔄 Delegating save to useSaveMessage hook for ${message.role} message`);
+      
+      // CRITICAL FIX: Preserve assistant role explicitly
+      if (message.role === 'assistant') {
+        console.log(`[useConversation] ⭐ EXPLICITLY preserving assistant role before database save`);
+      }
+      
       const savedMessage = await saveMessageToDb(message as Message);
       
       if (savedMessage) {
