@@ -4,74 +4,75 @@
  */
 import { MessageQueue } from '../../messageQueue';
 import { ResponseParser } from '../../ResponseParser';
+import { EventTypeRegistry } from '../EventTypeRegistry';
+import { extractAssistantContent } from '../EventTypes';
 import { toast } from 'sonner';
 
 export class AssistantEventHandler {
-  private assistantResponse: string = '';
-  private pendingResponse: boolean = false;
+  private pendingResponse: string | null = null;
   
   constructor(
     private messageQueue: MessageQueue,
     private responseParser: ResponseParser
-  ) {}
+  ) {
+    console.log('[AssistantEventHandler] Initialized');
+  }
   
   handleEvent(event: any): void {
     console.log(`[AssistantEventHandler] Processing assistant event: ${event.type}`);
     
-    // Handle response.done event
-    if (event.type === 'response.done') {
-      let content = '';
-      
-      if (event.response?.content) {
-        content = event.response.content;
-      } else {
-        content = this.responseParser.extractCompletedResponseFromDoneEvent(event) || 
-                  this.assistantResponse;
-      }
-      
-      if (content && content.trim()) {
-        console.log(`[AssistantEventHandler] Saving ASSISTANT response: "${content.substring(0, 50)}..."`);
-        // Always save assistant responses with assistant role
-        this.messageQueue.queueMessage('assistant', content, true);
-        
-        toast.success("AI response received", { 
-          description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
-          duration: 2000
-        });
-      }
-      
-      // Reset state after processing
-      this.assistantResponse = '';
-      this.pendingResponse = false;
+    // Double-check that this is actually an assistant event through the registry
+    const role = EventTypeRegistry.getRoleForEvent(event.type);
+    if (role !== 'assistant') {
+      console.warn(`[AssistantEventHandler] Received non-assistant event: ${event.type}, role: ${role}`);
+      return;
     }
-    // Handle content part done event
-    else if (event.type === 'response.content_part.done' && event.content_part?.text) {
-      const content = event.content_part.text;
-      console.log(`[AssistantEventHandler] Content part: "${content.substring(0, 50)}..."`);
-      
-      // Always save assistant responses with assistant role
-      this.messageQueue.queueMessage('assistant', content, true);
+    
+    // Extract assistant content using our utility function
+    const content = extractAssistantContent(event);
+    
+    // Process content if we have any
+    if (content) {
+      this.processResponseContent(content, event.type);
     }
-    // Handle response.delta event
-    else if (event.type.includes('response.delta') && !event.type.includes('audio')) {
-      // Accumulate delta content
-      const deltaContent = this.responseParser.extractContentFromDelta(event);
-      if (deltaContent) {
-        this.assistantResponse += deltaContent;
-        this.pendingResponse = true;
-      }
+    else {
+      console.log(`[AssistantEventHandler] No content extracted from ${event.type} event`);
     }
   }
   
-  /**
-   * Flush any pending response that hasn't been sent yet
-   */
+  private processResponseContent(content: string, eventType: string): void {
+    // Store final response
+    if (eventType === 'response.done' || eventType === 'response.content_part.done') {
+      console.log(`[AssistantEventHandler] Processing final ASSISTANT response:`, content.substring(0, 50));
+      
+      // Make sure we're explicitly setting the role to 'assistant'
+      this.messageQueue.queueMessage('assistant', content, true);
+      
+      // Reset any pending response
+      this.pendingResponse = null;
+      
+      // Show notification
+      toast.success("AI response received", { 
+        description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
+        duration: 2000
+      });
+    }
+    // Accumulate delta responses
+    else if (eventType === 'response.delta') {
+      if (!this.pendingResponse) {
+        this.pendingResponse = content;
+      } else {
+        this.pendingResponse += content;
+      }
+      console.log(`[AssistantEventHandler] Accumulating delta response (now ${this.pendingResponse?.length || 0} chars)`);
+    }
+  }
+  
   flushPendingResponse(): void {
-    if (this.pendingResponse && this.assistantResponse.trim()) {
-      console.log(`[AssistantEventHandler] Flushing pending response: "${this.assistantResponse.substring(0, 50)}..."`);
-      this.messageQueue.queueMessage('assistant', this.assistantResponse, true);
-      this.assistantResponse = '';
-      this.pendingResponse = false;
+    if (this.pendingResponse && this.pendingResponse.trim().length > 0) {
+      console.log(`[AssistantEventHandler] Flushing pending response (${this.pendingResponse.length} chars)`);
+      this.messageQueue.queueMessage('assistant', this.pendingResponse, true);
+      this.pendingResponse = null;
     }
   }
 }

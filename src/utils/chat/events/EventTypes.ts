@@ -25,8 +25,15 @@ export enum EventType {
   ResponseCreated = "response.created",
   ResponseDelta = "response.delta", 
   ResponseDone = "response.done",
-  ContentPartDone = "response.content_part.done"
+  ContentPartDone = "response.content_part.done",
+  
+  // Output audio events
+  OutputAudioBufferStarted = "output_audio_buffer.started",
+  OutputAudioBufferStopped = "output_audio_buffer.stopped"
 }
+
+// Define the valid role types for the system
+export type MessageRole = 'user' | 'assistant' | 'system';
 
 /**
  * Helper function to check if an event is of a certain type

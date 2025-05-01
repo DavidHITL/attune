@@ -4,30 +4,28 @@
  */
 import { MessageQueue } from '../../messageQueue';
 import { toast } from 'sonner';
+import { EventTypeRegistry } from '../EventTypeRegistry';
+import { extractTranscriptText } from '../EventTypes';
 
 export class UserEventHandler {
   private lastTranscriptContent: string = '';
   
-  constructor(private messageQueue: MessageQueue) {}
+  constructor(private messageQueue: MessageQueue) {
+    console.log('[UserEventHandler] Initialized');
+  }
   
   handleEvent(event: any): void {
     console.log(`[UserEventHandler] Processing user event: ${event.type}`);
     
-    let transcriptContent: string | null = null;
+    // Verify this is actually a user event through the registry
+    const role = EventTypeRegistry.getRoleForEvent(event.type);
+    if (role !== 'user') {
+      console.warn(`[UserEventHandler] Received non-user event: ${event.type}, role: ${role}`);
+      return;
+    }
     
-    // Extract content based on event type
-    if (event.type === 'transcript' && typeof event.transcript === 'string') {
-      transcriptContent = event.transcript;
-      console.log(`[UserEventHandler] Direct transcript: "${transcriptContent.substring(0, 50)}..."`);
-    } 
-    else if (event.type === 'response.audio_transcript.done' && event.transcript?.text) {
-      transcriptContent = event.transcript.text;
-      console.log(`[UserEventHandler] Final transcript: "${transcriptContent.substring(0, 50)}..."`);
-    }
-    else if (event.type === 'response.audio_transcript.done' && event.delta?.text) {
-      transcriptContent = event.delta.text;
-      console.log(`[UserEventHandler] Final delta transcript: "${transcriptContent.substring(0, 50)}..."`);
-    }
+    // Extract transcript content using our utility function
+    const transcriptContent = extractTranscriptText(event);
     
     // Skip empty transcripts
     if (!transcriptContent || transcriptContent.trim() === '') {
