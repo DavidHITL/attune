@@ -17,6 +17,7 @@ export class RealtimeChat {
   private conversationInitializer: ConversationInitializer;
   private microphoneManager: MicrophoneControlManager;
   private processedMessageHashes: Set<string> = new Set();
+  private isFlushingMessages: boolean = false;
   
   constructor(
     private messageCallback: MessageCallback,
@@ -135,21 +136,56 @@ export class RealtimeChat {
     return this.userMessageHandler.saveUserMessage(content);
   }
 
+  /**
+   * Flushes any pending messages in a coordinated way to prevent duplicate saves
+   * This is a critical path for cleanup, so we need to prevent redundant flush operations
+   */
   flushPendingMessages(): void {
-    console.log("Forcing flush of all pending messages");
-    this.messageQueue?.flushQueue().catch(err => {
-      console.error("Error flushing message queue:", err);
-    });
-    this.messageEventProcessor.flushPendingMessages();
-    this.userMessageHandler.saveTranscriptIfNotEmpty();
+    // Prevent recursive or duplicate flush operations
+    if (this.isFlushingMessages) {
+      console.log("[RealtimeChat] Already flushing messages, skipping redundant flush request");
+      return;
+    }
+
+    this.isFlushingMessages = true;
+    console.log("[RealtimeChat] Starting coordinated message flush operation");
+    
+    try {
+      // First, check if there are any pending messages in the message processor
+      // This ensures that any buffered assistant messages are processed first
+      this.messageEventProcessor.flushPendingMessages();
+      
+      // After the event processor has flushed its pending responses,
+      // flush the message queue to handle any queued messages
+      if (this.messageQueue) {
+        console.log("[RealtimeChat] Flushing message queue");
+        this.messageQueue.flushQueue().catch(err => {
+          console.error("[RealtimeChat] Error flushing message queue:", err);
+        });
+      }
+      
+      // Finally, save any remaining transcript from the user message handler
+      // This is typically for incomplete user utterances that weren't sent yet
+      this.userMessageHandler.saveTranscriptIfNotEmpty();
+      
+    } finally {
+      // Always reset the flushing flag when complete
+      this.isFlushingMessages = false;
+      console.log("[RealtimeChat] Completed coordinated message flush operation");
+    }
   }
 
   disconnect(): void {
-    console.log("Disconnecting from chat...");
+    console.log("[RealtimeChat] Disconnecting from chat...");
     this.statusCallback('Disconnected');
     
     this.conversationInitializer.cleanup();
-    this.flushPendingMessages();
+    
+    // Only flush messages if we haven't already done so
+    if (!this.isFlushingMessages) {
+      this.flushPendingMessages();
+    }
+    
     this.connectionManager?.disconnect();
     this.userMessageHandler.cleanupProcessedMessages();
   }

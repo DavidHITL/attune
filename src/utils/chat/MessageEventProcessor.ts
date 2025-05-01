@@ -18,6 +18,7 @@ export class MessageEventProcessor {
   private systemEventHandler: SystemEventHandler;
   private eventLogger: EventLogger;
   private processedEventIds: Set<string> = new Set();
+  private isFlushingMessages: boolean = false;
   
   constructor(
     private messageQueue: MessageQueue,
@@ -70,7 +71,7 @@ export class MessageEventProcessor {
     // Log the event for debugging
     this.eventLogger.logEvent(event);
     
-    // Use the central dispatcher to route the event
+    // Use the central dispatcher to route the event - this is the single source of truth
     this.eventDispatcher.dispatchEvent(event);
     
     // Call the message callback after processing, so UI gets updated AFTER state changes
@@ -79,10 +80,24 @@ export class MessageEventProcessor {
   
   /**
    * Clean up and flush any pending messages
+   * Coordinated with RealtimeChat to prevent duplicate flushes
    */
   flushPendingMessages(): void {
-    console.log('[MessageEventProcessor] Flushing any pending messages');
-    this.assistantEventHandler.flushPendingResponse();
+    // Prevent recursive flushes
+    if (this.isFlushingMessages) {
+      console.log('[MessageEventProcessor] Already flushing messages, skipping duplicate flush');
+      return;
+    }
+    
+    try {
+      this.isFlushingMessages = true;
+      console.log('[MessageEventProcessor] Flushing any pending assistant responses');
+      
+      // Only assistant responses need special handling during flush
+      this.assistantEventHandler.flushPendingResponse();
+    } finally {
+      this.isFlushingMessages = false;
+    }
   }
   
   /**
