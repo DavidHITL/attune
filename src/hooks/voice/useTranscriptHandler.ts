@@ -1,9 +1,8 @@
 
 import { useCallback } from 'react';
 import { useConversationValidator } from './transcript/useConversationValidator';
-import { useConversation } from '../useConversation';
+import { useConversation } from '@/hooks/useConversation';
 import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
-import { MessageRole } from '@/utils/chat/events/EventTypes';
 import { toast } from 'sonner';
 
 export const useTranscriptHandler = () => {
