@@ -1,82 +1,83 @@
 
-import { Message, SaveMessageCallback } from '../../../types';
-import { DirectSaver } from './strategies/DirectSaver';
-import { RetrySaver } from './strategies/RetrySaver';
-import { SaveOptions } from './core/SaverTypes';
-import { ContentValidator } from './strategies/ContentValidator';
-import { PendingMessageTracker } from './trackers/PendingMessageTracker';
-import { ActiveSavesTracker } from './trackers/ActiveSavesTracker';
-import { ProcessedMessagesTracker } from './utils/ProcessedMessagesTracker';
+import { Message, SaveMessageCallback } from '../../types';
+import { toast } from 'sonner';
+import { MessageSaveStrategy } from './MessageSaveStrategy';
+import { MessageProcessor } from './savers/MessageProcessor';
+import { MessageTracker } from './savers/MessageTracker';
 
 /**
- * Coordinates message saving operations with multiple strategies
+ * Handles the actual saving of messages with retry logic
  */
 export class MessageSaver {
-  private directSaver: DirectSaver;
-  private retrySaver: RetrySaver;
-  private contentValidator: ContentValidator;
-  private pendingTracker: PendingMessageTracker;
-  private activeSavesTracker: ActiveSavesTracker;
-  private processedTracker: ProcessedMessagesTracker;
+  private messageTracker: MessageTracker;
+  private messageProcessor: MessageProcessor;
+  private messageSaveStrategy: MessageSaveStrategy;
   
   constructor(private saveMessageCallback: SaveMessageCallback) {
-    this.directSaver = new DirectSaver(saveMessageCallback);
-    this.retrySaver = new RetrySaver(saveMessageCallback);
-    this.contentValidator = new ContentValidator();
-    this.pendingTracker = new PendingMessageTracker();
-    this.activeSavesTracker = new ActiveSavesTracker();
-    this.processedTracker = new ProcessedMessagesTracker();
+    this.messageTracker = new MessageTracker();
+    this.messageProcessor = new MessageProcessor();
+    this.messageSaveStrategy = new MessageSaveStrategy(saveMessageCallback);
   }
 
   /**
    * Directly save a message with retry logic
    */
-  async saveMessageDirectly(
-    role: 'user' | 'assistant', 
-    content: string, 
-    messageId?: string
-  ): Promise<Message | null> {
-    // Validate content
-    if (!this.contentValidator.isValidContent(content)) {
-      console.log(`Skipping empty ${role} message`);
+  async saveMessageDirectly(role: 'user' | 'assistant', content: string, messageId?: string): Promise<Message | null> {
+    // Skip empty messages
+    if (!this.messageProcessor.isValidContent(content)) {
+      console.log(`[MessageSaver] 🚫 Skipping empty ${role} message`);
       return null;
     }
     
-    // Check for duplicate
-    if (this.processedTracker.hasProcessed(role, content)) {
-      console.log(`Skipping duplicate ${role} message:`, content.substring(0, 50));
+    // CRITICAL FIX: Validate role is either 'user' or 'assistant'
+    if (role !== 'user' && role !== 'assistant') {
+      console.error(`[MessageSaver] ❌ Invalid role provided: "${role}". Must be 'user' or 'assistant'. Aborting save.`);
       return null;
     }
     
-    // Mark as processed to avoid duplicates
-    this.processedTracker.markAsProcessed(role, content);
+    console.log(`[MessageSaver] 💾 Saving message for role: ${role}, content: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}", messageId: ${messageId || 'none'}`);
     
-    // Track active save
-    this.activeSavesTracker.trackSaveStart();
+    // Check for duplicate content
+    if (this.messageProcessor.isDuplicateContent(role, content)) {
+      console.log(`[MessageSaver] 🔄 Skipping duplicate ${role} message:`, content.substring(0, 50));
+      return null;
+    }
+    
+    // Mark message as being processed
+    this.messageProcessor.markAsProcessed(role, content);
+    this.messageTracker.trackMessageSaveStart();
     
     // For user messages with messageId, track as pending
     if (role === 'user' && messageId) {
-      this.pendingTracker.trackMessage(messageId);
+      this.messageTracker.trackPendingUserMessage(messageId);
+      console.log(`[MessageSaver] 🔍 Tracking pending user message with ID: ${messageId}`);
     }
     
     try {
-      // Use direct saver
-      const result = await this.directSaver.saveMessage(role, content, { 
-        trackId: messageId,
-        showNotification: true 
-      });
+      // Use direct save strategy
+      console.log(`[MessageSaver] ⏳ Starting direct save for ${role} message...`);
+      const savedMessage = await this.messageSaveStrategy.saveWithDirectStrategy(role, content, messageId);
       
       // Update tracking for successful save
-      if (role === 'user' && messageId && result.success) {
-        this.pendingTracker.untrackMessage(messageId);
+      if (role === 'user' && messageId) {
+        this.messageTracker.removePendingUserMessage(messageId);
+        console.log(`[MessageSaver] ✅ Completed and removed tracking for user message ID: ${messageId}`);
       }
       
-      return result.savedMessage;
+      // Log successful save with role for debugging
+      if (savedMessage) {
+        console.log(`[MessageSaver] ✅ Successfully saved ${role} message with ID: ${savedMessage.id}, conversation: ${savedMessage.conversation_id || 'unknown'}`);
+      } else {
+        console.warn(`[MessageSaver] ⚠️ Save completed but no message returned for ${role}`);
+      }
+      
+      return savedMessage;
     } catch (error) {
-      console.error(`Error in saveMessageDirectly for ${role} message:`, error);
+      console.error(`[MessageSaver] ❌ Error in saveMessageDirectly for ${role} message:`, error);
       throw error;
     } finally {
-      this.activeSavesTracker.trackSaveComplete();
+      this.messageTracker.trackMessageSaveComplete();
+      console.log(`[MessageSaver] 🏁 Save operation completed for ${role} message`);
     }
   }
   
@@ -84,33 +85,49 @@ export class MessageSaver {
    * Save message with exponential backoff retry logic
    */
   async saveMessageWithRetry(role: 'user' | 'assistant', content: string): Promise<Message | null> {
-    // Validate content
-    if (!this.contentValidator.isValidContent(content)) {
-      console.log(`Skipping empty ${role} message`);
+    // Skip empty messages
+    if (!this.messageProcessor.isValidContent(content)) {
+      console.log(`[MessageSaver] 🚫 Skipping empty ${role} message in retry`);
       return null;
     }
     
-    // Check for duplicate
-    if (this.processedTracker.hasProcessed(role, content)) {
-      console.log(`Skipping duplicate ${role} message in retry:`, content.substring(0, 50));
+    // CRITICAL FIX: Validate role is either 'user' or 'assistant'
+    if (role !== 'user' && role !== 'assistant') {
+      console.error(`[MessageSaver] ❌ Invalid role provided: "${role}". Must be 'user' or 'assistant'. Aborting retry save.`);
       return null;
     }
     
-    // Mark as processed to avoid duplicates
-    this.processedTracker.markAsProcessed(role, content);
+    console.log(`[MessageSaver] 🔄 Starting retry save for role: ${role}, content: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
     
-    // Track active save
-    this.activeSavesTracker.trackSaveStart();
+    // Check for duplicate content
+    if (this.messageProcessor.isDuplicateContent(role, content)) {
+      console.log(`[MessageSaver] 🔄 Skipping duplicate ${role} message in retry:`, content.substring(0, 50));
+      return null;
+    }
+    
+    // Mark message as being processed
+    this.messageProcessor.markAsProcessed(role, content);
+    this.messageTracker.trackMessageSaveStart();
     
     try {
-      // Use retry saver
-      const result = await this.retrySaver.saveMessage(role, content);
-      return result.savedMessage;
+      // Use retry save strategy
+      console.log(`[MessageSaver] ⏳ Starting retry strategy for ${role} message...`);
+      const savedMessage = await this.messageSaveStrategy.saveWithRetryStrategy(role, content);
+      
+      // Log successful save with role for debugging
+      if (savedMessage) {
+        console.log(`[MessageSaver] ✅ Successfully saved ${role} message with retry, ID: ${savedMessage.id}`);
+      } else {
+        console.warn(`[MessageSaver] ⚠️ Retry completed but no message returned for ${role}`);
+      }
+      
+      return savedMessage;
     } catch (error) {
-      console.error(`Error in saveMessageWithRetry for ${role} message:`, error);
+      console.error(`[MessageSaver] ❌ Error in saveMessageWithRetry for ${role} message:`, error);
       return null;
     } finally {
-      this.activeSavesTracker.trackSaveComplete();
+      this.messageTracker.trackMessageSaveComplete();
+      console.log(`[MessageSaver] 🏁 Retry operation completed for ${role} message`);
     }
   }
   
@@ -118,42 +135,42 @@ export class MessageSaver {
    * Track a pending user message
    */
   trackPendingUserMessage(messageId: string): void {
-    this.pendingTracker.trackMessage(messageId);
+    this.messageTracker.trackPendingUserMessage(messageId);
   }
   
   /**
-   * Check if content is a duplicate
+   * Check if content is recent duplicate to avoid saving the same message multiple times
    */
   isDuplicateContent(role: 'user' | 'assistant', content: string): boolean {
-    return this.processedTracker.hasProcessed(role, content);
+    return this.messageProcessor.isDuplicateContent(role, content);
   }
   
   /**
    * Reset processed messages tracking
    */
   resetProcessedMessages(): void {
-    this.processedTracker.reset();
-    this.activeSavesTracker.reset();
+    this.messageProcessor.resetProcessedMessages();
+    this.messageSaveStrategy.resetProcessedMessages();
   }
   
   /**
    * Get current active save count
    */
   getActiveMessageSaves(): number {
-    return this.activeSavesTracker.getActiveCount();
+    return this.messageTracker.getActiveMessageSaves();
   }
   
   /**
    * Get pending user messages count
    */
   getPendingUserMessages(): number {
-    return this.pendingTracker.getPendingCount();
+    return this.messageTracker.getPendingUserMessages();
   }
   
   /**
    * Report any pending user messages that never completed
    */
   reportPendingMessages(): void {
-    this.pendingTracker.reportPendingMessages();
+    this.messageTracker.reportPendingMessages();
   }
 }
