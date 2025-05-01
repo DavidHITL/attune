@@ -32,13 +32,13 @@ export const useConversation = (): UseConversationReturn => {
   // Define loadMessages before using it in useConversationLoading
   const loadMessages = useCallback(async (convoId: string): Promise<Message[]> => {
     try {
-      console.log(`[useConversation] 📚 Loading messages for conversation: ${convoId}`);
+      console.log(`Loading messages for conversation: ${convoId}`);
       const validMessages = await loadMessagesHelper(convoId);
-      console.log(`[useConversation] ✅ Loaded ${validMessages.length} messages from database`);
+      console.log(`Loaded ${validMessages.length} messages from database`);
       setMessages(validMessages);
       return validMessages;
     } catch (error) {
-      console.error('[useConversation] ❌ Error in loadMessages:', error);
+      console.error('Error in loadMessages:', error);
       throw error;
     }
   }, [loadMessagesHelper, setMessages]);
@@ -66,7 +66,7 @@ export const useConversation = (): UseConversationReturn => {
         messageCount: messages.length
       };
       
-      console.log(`[useConversation] 🔄 Updated global conversation context:`, {
+      console.log(`[useConversation] Updated global conversation context:`, {
         conversationId,
         userId: user?.id || null,
         hasMessages: messages.length > 0,
@@ -76,12 +76,12 @@ export const useConversation = (): UseConversationReturn => {
     
     // Signal to any message queues that the conversation is initialized when ID is set
     if (conversationId && !messageQueueInitializedRef.current) {
-      console.log(`[useConversation] 🔔 Conversation ID now available: ${conversationId}`);
+      console.log(`Conversation ID now available: ${conversationId}`);
       messageQueueInitializedRef.current = true;
       
       // Find any existing message queue instances and notify them
       if (typeof window !== 'undefined' && window.attuneMessageQueue) {
-        console.log('[useConversation] 🔔 Notifying global message queue that conversation is initialized');
+        console.log('Notifying global message queue that conversation is initialized');
         window.attuneMessageQueue.setConversationInitialized();
       }
     }
@@ -91,25 +91,20 @@ export const useConversation = (): UseConversationReturn => {
   const saveMessage = useCallback(async (message: Partial<Message>): Promise<Message | null> => {
     try {
       if (!message.role || !message.content) {
-        console.error('[useConversation] ❌ Cannot save message: Missing role or content');
+        console.error('Cannot save message: Missing role or content');
         return null;
       }
       
-      console.log(`[useConversation] 💾 Saving ${message.role} message via useConversation:`, {
+      console.log(`[useConversation] Saving ${message.role} message:`, {
         contentPreview: message.content.substring(0, 30) + '...',
         hasConversationId: !!conversationId,
         hasUser: !!user,
-        timestamp: new Date().toISOString(),
-        messageContext: {
-          role: message.role,
-          length: message.content.length,
-          conversationId: conversationId || 'none'
-        }
+        timestamp: new Date().toISOString()
       });
       
       // For anonymous users, handle locally
       if (!user) {
-        console.log("[useConversation] 👤 Anonymous user detected, using local message only");
+        console.log("Anonymous user detected, using local message only");
         const localMessage: Message = {
           id: `anon-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           role: message.role as 'user' | 'assistant',
@@ -117,40 +112,23 @@ export const useConversation = (): UseConversationReturn => {
           created_at: new Date().toISOString()
         };
         
-        console.log("[useConversation] 📝 Adding local message for anonymous user:", {
-          id: localMessage.id,
-          role: localMessage.role,
-          contentPreview: localMessage.content.substring(0, 30) + '...'
-        });
-        
         addLocalMessage(localMessage);
         return localMessage;
-      }
-      
-      console.log(`[useConversation] 🔄 Delegating save to useSaveMessage hook for ${message.role} message`);
-      
-      // CRITICAL FIX: Preserve assistant role explicitly
-      if (message.role === 'assistant') {
-        console.log(`[useConversation] ⭐ EXPLICITLY preserving assistant role before database save`);
       }
       
       const savedMessage = await saveMessageToDb(message as Message);
       
       if (savedMessage) {
-        console.log(`[useConversation] ✅ Successfully saved ${message.role} message with conversation:`, {
-          messageId: savedMessage.id,
-          conversationId: savedMessage.conversation_id,
-          timestamp: new Date().toISOString()
-        });
+        console.log(`Successfully saved ${message.role} message with conversation:`, savedMessage.conversation_id);
         
         // Update conversation ID if a new one was created
         if (!conversationId && savedMessage.conversation_id) {
-          console.log('[useConversation] 🆕 Setting new conversation ID:', savedMessage.conversation_id);
+          console.log('Setting new conversation ID:', savedMessage.conversation_id);
           setConversationId(savedMessage.conversation_id);
           
           // NEW: Flush any queued messages now that we have a conversation ID
           if (window.attuneMessageQueue?.forceFlushQueue) {
-            console.log('[useConversation] 🔄 Flushing pending message queue');
+            console.log('[useConversation] Flushing pending message queue');
             window.attuneMessageQueue.forceFlushQueue();
           }
         
@@ -162,32 +140,21 @@ export const useConversation = (): UseConversationReturn => {
               isInitialized: true,
               messageCount: messages.length // Use current message count
             };
-            
-            console.log('[useConversation] 🔄 Updated global context with new conversation ID:', savedMessage.conversation_id);
           }
         
           // Also notify message queue if it exists
           if (typeof window !== 'undefined' && window.attuneMessageQueue && !window.attuneMessageQueue.isInitialized()) {
-            console.log('[useConversation] 🔔 Notifying message queue about conversation initialization');
             window.attuneMessageQueue.setConversationInitialized();
           }
         }
       
-        console.log(`[useConversation] 📝 Adding message to state:`, {
-          messageId: savedMessage.id,
-          role: savedMessage.role,
-          conversationId: savedMessage.conversation_id,
-          contentLength: savedMessage.content.length
-        });
         setMessages(prev => [...prev, savedMessage]);
         return savedMessage;
-      } else {
-        console.warn('[useConversation] ⚠️ No message returned from saveMessageToDb');
       }
       return null;
     
     } catch (error) {
-      console.error('[useConversation] ❌ Error in saveMessage:', error);
+      console.error('Error in saveMessage:', error);
       
       const tempMessage: Message = {
         id: `temp-${Date.now()}`,
@@ -196,7 +163,7 @@ export const useConversation = (): UseConversationReturn => {
         created_at: new Date().toISOString()
       };
       
-      console.log(`[useConversation] ⚠️ Created temporary message for ${message.role} due to save error`);
+      console.log(`Created temporary message for ${message.role} due to save error`);
       setMessages(prev => [...prev, tempMessage]);
       return tempMessage;
     }

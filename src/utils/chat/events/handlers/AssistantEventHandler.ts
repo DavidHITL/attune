@@ -1,71 +1,77 @@
 
 /**
- * Specialized handler for assistant events
+ * Handler specifically for assistant response events
  */
 import { MessageQueue } from '../../messageQueue';
 import { ResponseParser } from '../../ResponseParser';
-import { EventType } from '../EventTypes';
+import { toast } from 'sonner';
 
 export class AssistantEventHandler {
-  private pendingResponse: string | null = null;
+  private assistantResponse: string = '';
+  private pendingResponse: boolean = false;
   
   constructor(
     private messageQueue: MessageQueue,
     private responseParser: ResponseParser
   ) {}
-
-  /**
-   * Process an assistant event
-   */
+  
   handleEvent(event: any): void {
-    // For all assistant events, always use 'assistant' role
-    const role = 'assistant';
+    console.log(`[AssistantEventHandler] Processing assistant event: ${event.type}`);
     
-    // If this is a response.done event with content, directly save the message
-    if (event.type === 'response.done' && event.response?.content) {
-      const content = event.response.content;
-      console.log(`[AssistantEventHandler] 💾 Saving complete assistant response, length: ${content.length}`);
-      console.log(`[AssistantEventHandler] 🔒 EXPLICITLY setting role=assistant for response.done content`);
+    // Handle response.done event
+    if (event.type === 'response.done') {
+      let content = '';
       
-      // CRITICAL FIX: Always explicitly set assistant role
-      this.messageQueue.queueMessage(role, content);
-      this.pendingResponse = null; // Reset pending state
-      return;
-    }
-    
-    // If this is a content part done event, save it directly
-    if (event.type === 'response.content_part.done' && event.content_part?.text) {
-      const content = event.content_part.text;
-      console.log(`[AssistantEventHandler] 💾 Saving content part, length: ${content.length}`);
-      console.log(`[AssistantEventHandler] 🔒 EXPLICITLY setting role=assistant for content_part.done`);
-      
-      // CRITICAL FIX: Always explicitly set assistant role
-      this.messageQueue.queueMessage(role, content);
-      return;
-    }
-
-    // For response.delta events, accumulate content until complete
-    if (event.type === 'response.delta' && event.delta?.content) {
-      if (this.pendingResponse === null) {
-        this.pendingResponse = '';
+      if (event.response?.content) {
+        content = event.response.content;
+      } else {
+        content = this.responseParser.extractCompletedResponseFromDoneEvent(event) || 
+                  this.assistantResponse;
       }
       
-      this.pendingResponse += event.delta.content;
-      // Don't save yet, wait for response.done
+      if (content && content.trim()) {
+        console.log(`[AssistantEventHandler] Saving ASSISTANT response: "${content.substring(0, 50)}..."`);
+        // Always save assistant responses with assistant role
+        this.messageQueue.queueMessage('assistant', content, true);
+        
+        toast.success("AI response received", { 
+          description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
+          duration: 2000
+        });
+      }
+      
+      // Reset state after processing
+      this.assistantResponse = '';
+      this.pendingResponse = false;
+    }
+    // Handle content part done event
+    else if (event.type === 'response.content_part.done' && event.content_part?.text) {
+      const content = event.content_part.text;
+      console.log(`[AssistantEventHandler] Content part: "${content.substring(0, 50)}..."`);
+      
+      // Always save assistant responses with assistant role
+      this.messageQueue.queueMessage('assistant', content, true);
+    }
+    // Handle response.delta event
+    else if (event.type.includes('response.delta') && !event.type.includes('audio')) {
+      // Accumulate delta content
+      const deltaContent = this.responseParser.extractContentFromDelta(event);
+      if (deltaContent) {
+        this.assistantResponse += deltaContent;
+        this.pendingResponse = true;
+      }
     }
   }
-
+  
   /**
-   * Flush any pending assistant response
+   * Flush any pending response that hasn't been sent yet
    */
   flushPendingResponse(): void {
-    if (this.pendingResponse) {
-      console.log(`[AssistantEventHandler] 🧹 Flushing pending assistant response, length: ${this.pendingResponse.length}`);
-      console.log(`[AssistantEventHandler] 🔒 EXPLICITLY setting role=assistant for flushed response`);
-      
-      // CRITICAL FIX: Always explicitly set assistant role
-      this.messageQueue.queueMessage('assistant', this.pendingResponse);
-      this.pendingResponse = null;
+    if (this.pendingResponse && this.assistantResponse.trim()) {
+      console.log(`[AssistantEventHandler] Flushing pending response: "${this.assistantResponse.substring(0, 50)}..."`);
+      this.messageQueue.queueMessage('assistant', this.assistantResponse, true);
+      this.assistantResponse = '';
+      this.pendingResponse = false;
     }
   }
 }

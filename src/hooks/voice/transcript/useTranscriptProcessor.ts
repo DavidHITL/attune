@@ -2,7 +2,6 @@
 import { useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { Message } from '@/utils/types';
-import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 
 export const useTranscriptProcessor = (saveMessage: (msg: Partial<Message>) => Promise<Message | null>) => {
   const processingRef = useRef(false);
@@ -14,12 +13,9 @@ export const useTranscriptProcessor = (saveMessage: (msg: Partial<Message>) => P
       return;
     }
     
-    // CRITICAL FIX: Add thorough role validation and logging
-    console.log(`[TranscriptProcessor] 🔍 Processing transcript with role: "${role}"`);
-    
-    // VALIDATION: Validate role is provided and valid
-    if (!role || !['user', 'assistant'].includes(role)) {
-      console.error(`[TranscriptProcessor] ❌ Invalid or missing role "${role}" for transcript, aborting save`);
+    // CRITICAL FIX: Validate role is provided and valid
+    if (!role || (role !== 'user' && role !== 'assistant')) {
+      console.error(`[TranscriptProcessor] Invalid or missing role "${role}" for transcript, aborting save`);
       return;
     }
     
@@ -38,20 +34,12 @@ export const useTranscriptProcessor = (saveMessage: (msg: Partial<Message>) => P
     try {
       if (typeof window !== 'undefined' && window.attuneMessageQueue) {
         console.log(`[TranscriptProcessor] Using message queue for ${role} transcript`);
-        
-        // CRITICAL FIX: Log role clearly before queueing
-        console.log(`[TranscriptProcessor] 📝 Queueing message with EXPLICIT role: ${role}`);
-        
-        // Make sure we pass role accurately
+        // CRITICAL FIX: Make sure we pass role accurately
         window.attuneMessageQueue.queueMessage(role, finalTranscript, true);
         
         // For user messages: if queue not initialized, force immediate save
         if (role === 'user' && !window.attuneMessageQueue.isInitialized()) {
           console.log('[TranscriptProcessor] First user message - saving directly');
-          
-          // CRITICAL FIX: Log the role we're using for direct save
-          console.log(`[TranscriptProcessor] 📝 Direct save with EXPLICIT role: ${role}`);
-          
           const savedMessage = await saveMessage({
             role,
             content: finalTranscript
@@ -76,20 +64,16 @@ export const useTranscriptProcessor = (saveMessage: (msg: Partial<Message>) => P
         return;
       }
       
-      // Direct save as fallback - Pass role explicitly
-      console.log(`[TranscriptProcessor] 📝 Direct save with EXPLICIT role: ${role}`);
-      
+      // Direct save as fallback - CRITICAL FIX: Pass role explicitly
       const savedMessage = await saveMessage({
         role,
         content: finalTranscript,
       });
       
       if (savedMessage) {
-        console.log(`[TranscriptProcessor] ✅ ${role} message saved successfully:`, {
+        console.log(`[TranscriptProcessor] ${role} message saved successfully:`, {
           messageId: savedMessage.id,
           messageRole: role,
-          savedRole: savedMessage.role,
-          roleMatches: role === savedMessage.role,
           conversationId: savedMessage.conversation_id || savedMessage.id
         });
         

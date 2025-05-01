@@ -9,7 +9,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useConversation } from '@/hooks/useConversation';
 import { toast } from 'sonner';
 import { useTranscriptAggregator } from '@/hooks/voice/useTranscriptAggregator';
-import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 
 const Voice = () => {
   const { user, loading: authLoading } = useAuth();
@@ -26,19 +25,19 @@ const Voice = () => {
   useEffect(() => {
     const initializeVoiceChat = async () => {
       if (!user) {
-        console.log('[Voice] No authenticated user available for conversation initialization');
+        console.log('No authenticated user available for conversation initialization');
         return;
       }
 
-      console.log('[Voice] Voice chat initialization started', {
+      console.log('Voice chat initialization started', {
         userId: user.id,
         hasConversationId: !!conversationId
       });
 
       if (conversationLoading) {
-        console.log('[Voice] Waiting for conversation initialization...');
+        console.log('Waiting for conversation initialization...');
       } else {
-        console.log('[Voice] Conversation initialization complete:', {
+        console.log('Conversation initialization complete:', {
           conversationId,
           ready: !conversationLoading && !!conversationId
         });
@@ -53,10 +52,9 @@ const Voice = () => {
     const handleBeforeUnload = () => {
       // Save any pending transcript when navigating away
       if (transcriptAggregatorRef.current?.saveCurrentTranscript) {
-        console.log('[Voice] 🔄 Page unloading - saving pending transcript');
-        // Always use EventTypeRegistry to determine correct role
-        const userRole = EventTypeRegistry.getRoleForEvent('transcript') || 'user';
-        transcriptAggregatorRef.current.saveCurrentTranscript(userRole);
+        console.log('Voice page unloading - saving pending transcript');
+        // Always explicitly pass role when saving transcript
+        transcriptAggregatorRef.current.saveCurrentTranscript('user');
       }
     };
 
@@ -66,10 +64,9 @@ const Voice = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       // Also try to save transcript when component unmounts
       if (transcriptAggregatorRef.current?.saveCurrentTranscript) {
-        console.log('[Voice] 🔄 Component unmounting - saving pending transcript');
-        // Always use EventTypeRegistry to determine correct role
-        const userRole = EventTypeRegistry.getRoleForEvent('transcript') || 'user';
-        transcriptAggregatorRef.current.saveCurrentTranscript(userRole);
+        console.log('Voice component unmounting - saving pending transcript');
+        // Always explicitly pass role when saving transcript
+        transcriptAggregatorRef.current.saveCurrentTranscript('user');
       }
     };
   }, []);
@@ -80,7 +77,7 @@ const Voice = () => {
       transcriptAggregatorRef.current = api;
     }
   };
-  
+
   return (
     <div className="min-h-screen h-screen overflow-hidden relative bg-[#1B4965]">
       <div className="relative z-10 h-full flex flex-col items-center py-6 px-4">

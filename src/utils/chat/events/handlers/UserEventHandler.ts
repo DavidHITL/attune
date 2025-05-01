@@ -4,7 +4,6 @@
  */
 import { MessageQueue } from '../../messageQueue';
 import { toast } from 'sonner';
-import { EventTypeRegistry } from '../EventTypeRegistry';
 
 export class UserEventHandler {
   private lastTranscriptContent: string = '';
@@ -12,13 +11,7 @@ export class UserEventHandler {
   constructor(private messageQueue: MessageQueue) {}
   
   handleEvent(event: any): void {
-    // Double-check that this is actually a user event before proceeding
-    if (!EventTypeRegistry.isUserEvent(event.type)) {
-      console.warn(`[UserEventHandler] Received non-user event: ${event.type}, ignoring`);
-      return;
-    }
-    
-    console.log(`[UserEventHandler] Processing USER event: ${event.type}`);
+    console.log(`[UserEventHandler] Processing user event: ${event.type}`);
     
     let transcriptContent: string | null = null;
     
@@ -50,7 +43,7 @@ export class UserEventHandler {
     
     this.lastTranscriptContent = transcriptContent;
     
-    // ALWAYS save with explicit user role - this is critical
+    // Always save user transcript with the user role
     console.log(`[UserEventHandler] Saving USER transcript: "${transcriptContent.substring(0, 50)}..."`);
     this.messageQueue.queueMessage('user', transcriptContent, true);
     

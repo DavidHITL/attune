@@ -2,11 +2,9 @@
 import { useCallback } from 'react';
 import { useVoiceEventHandler } from '@/hooks/voice/useVoiceEventHandler';
 import { useSessionHandler } from '@/hooks/voice/useSessionHandler';
-import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 
 /**
- * Hook for UI state updates only - no message processing
- * All primary event processing happens in EventDispatcher
+ * Hook for combining different message event handlers
  */
 export const useMessageEventHandler = (chatClientRef: React.MutableRefObject<any>) => {
   // Use our custom hooks - pass chatClientRef to avoid circular dependencies
@@ -19,13 +17,12 @@ export const useMessageEventHandler = (chatClientRef: React.MutableRefObject<any
     handleSessionEvent
   } = useSessionHandler();
   
-  // Create a UI state handler that only manages UI state
+  // Create a combined message handler that delegates to specific handlers
   const combinedMessageHandler = useCallback((event: any) => {
-    const eventCategory = EventTypeRegistry.getEventCategoryName(event.type);
-    console.log(`[useMessageEventHandler] UI state updates only for: ${event.type} (${eventCategory})`);
-    
-    // Handle UI state updates only, not message saving
+    // Process voice activity and transcript events
     handleVoiceEvent(event);
+    
+    // Process session creation events
     handleSessionEvent(event);
   }, [handleVoiceEvent, handleSessionEvent]);
 

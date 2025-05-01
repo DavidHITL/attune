@@ -15,11 +15,33 @@ export class MessageEventHandler {
   ) {}
 
   handleMessageEvent = (event: any): void => {
-    // COMPLETELY DISABLED: Direct event processing bypassing EventDispatcher
-    console.log(`[MessageEventHandler] DISABLED: All events now process through EventDispatcher: ${event.type}`);
-    
-    // Just pass the event to the general callback for UI updates
     this.messageCallback(event);
+    
+    // Use the EventTypeRegistry to determine the role
+    const role = EventTypeRegistry.getRoleForEvent(event.type);
+    
+    if (role === 'assistant') {
+      // Process assistant messages
+      if (event.type === 'response.done' && event.response?.content) {
+        console.log('📬 [MessageEventHandler] Processing ASSISTANT response:', event.response.content.substring(0, 50));
+        this.messageQueue.queueMessage('assistant', event.response.content, true);
+        return;
+      }
+      
+      // Handle content parts from assistant
+      if (event.type === 'response.content_part.done' && event.content_part?.text) {
+        console.log('📬 [MessageEventHandler] Processing ASSISTANT content part:', event.content_part.text.substring(0, 50));
+        this.messageQueue.queueMessage('assistant', event.content_part.text, true);
+        return;
+      }
+    }
+    else if (role === 'user') {
+      // Let transcript handler manage user transcripts
+      this.transcriptHandler.handleTranscriptEvents(event);
+    }
+    else {
+      console.log(`📬 [MessageEventHandler] Skipping event with unknown role: ${event.type}`);
+    }
   }
 
   saveUserMessage(content: string) {
@@ -28,7 +50,10 @@ export class MessageEventHandler {
       return;
     }
     
-    console.log(`💾 [MessageEventHandler] Redirecting user message to EventDispatcher path: "${content.substring(0, 30)}..."`);
+    console.log(`💾 [MessageEventHandler] saveUserMessage called with: "${content.substring(0, 30)}..."`, {
+      contentLength: content.length,
+      timestamp: new Date().toISOString()
+    });
     
     // Queue message with high priority to ensure it's processed even if conversation is initializing
     // Explicitly set role to user since this method is specifically for user messages

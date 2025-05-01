@@ -9,7 +9,6 @@ import { useAuth } from '@/context/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { useTranscriptAggregator } from '@/hooks/voice/useTranscriptAggregator';
-import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 
 interface RealtimeChatProps {
   isDisabled?: boolean;
@@ -47,7 +46,7 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({
   // Expose transcript API to parent component
   useEffect(() => {
     if (onTranscriptAggregatorReady) {
-      console.log('[RealtimeChat] 🔗 Providing transcript aggregator API to parent');
+      console.log('Providing transcript aggregator API to parent');
       onTranscriptAggregatorReady(transcriptAggregator);
     }
   }, [onTranscriptAggregatorReady, transcriptAggregator]);
@@ -56,7 +55,7 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({
   useEffect(() => {
     const fetchVoiceSetting = async () => {
       try {
-        console.log('[RealtimeChat] Fetching voice setting from database');
+        console.log('Fetching voice setting from database');
         const { data, error } = await supabase
           .from('bot_config')
           .select('voice')
@@ -65,16 +64,16 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({
           .single();
           
         if (error) {
-          console.error('[RealtimeChat] Error fetching voice setting:', error);
+          console.error('Error fetching voice setting:', error);
           throw error;
         }
         
         if (data && data.voice) {
-          console.log("[RealtimeChat] Current voice setting:", data.voice);
+          console.log("Current voice setting:", data.voice);
           setCurrentVoice(data.voice);
         }
       } catch (error) {
-        console.error("[RealtimeChat] Error fetching voice setting:", error);
+        console.error("Error fetching voice setting:", error);
       }
     };
     
@@ -83,18 +82,17 @@ const RealtimeChat: React.FC<RealtimeChatProps> = ({
 
   // Custom end call handler that saves transcript before ending call
   const handleEndCallWithTranscriptSave = async () => {
-    console.log('[RealtimeChat] 🛑 Ending call with transcript save');
+    console.log('Ending call with transcript save');
     // First save any pending transcript
     if (transcriptAggregator.currentTranscript) {
-      console.log('[RealtimeChat] 💾 Saving pending transcript before ending call');
-      // Always use EventTypeRegistry to determine correct role
-      const userRole = EventTypeRegistry.getRoleForEvent('transcript') || 'user';
-      await transcriptAggregator.saveCurrentTranscript(userRole);
+      console.log('Saving pending transcript before ending call');
+      // CRITICAL FIX: Explicitly set as user transcript ONLY for transcript content
+      await transcriptAggregator.saveCurrentTranscript('user');
     }
     // Then end the call
     handleEndCall();
   };
-  
+
   return (
     <>
       {!user && (

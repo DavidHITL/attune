@@ -16,13 +16,10 @@ export const useVoiceEvents = (
     // Process voice activity state changes
     handleVoiceActivityEvent(event);
     
-    // Determine role from event type using EventTypeRegistry as single source of truth
+    // Determine role from event type before handling
     const role = EventTypeRegistry.getRoleForEvent(event.type);
-    const eventCategory = EventTypeRegistry.getEventCategoryName(event.type);
     if (role) {
-      console.log(`[useVoiceEvents] Event type: ${event.type} (${eventCategory}), using role: ${role}`);
-    } else {
-      console.log(`[useVoiceEvents] Event type: ${event.type} (${eventCategory}), no role mapping`);
+      console.log(`[useVoiceEvents] Event type: ${event.type}, using role: ${role}`);
     }
     
     // Handle transcript events with unified handler

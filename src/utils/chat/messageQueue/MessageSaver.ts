@@ -1,3 +1,4 @@
+
 import { Message, SaveMessageCallback } from '../../types';
 import { toast } from 'sonner';
 import { MessageSaveStrategy } from './savers/MessageSaveStrategy';
@@ -24,21 +25,21 @@ export class MessageSaver {
   async saveMessageDirectly(role: 'user' | 'assistant', content: string, messageId?: string): Promise<Message | null> {
     // Skip empty messages
     if (!this.messageProcessor.isValidContent(content)) {
-      console.log(`[MessageSaver] 🚫 Skipping empty ${role} message`);
+      console.log(`Skipping empty ${role} message`);
       return null;
     }
     
     // CRITICAL FIX: Validate role is either 'user' or 'assistant'
     if (role !== 'user' && role !== 'assistant') {
-      console.error(`[MessageSaver] ❌ Invalid role provided: "${role}". Must be 'user' or 'assistant'. Aborting save.`);
+      console.error(`Invalid role provided: "${role}". Must be 'user' or 'assistant'. Aborting save.`);
       return null;
     }
     
-    console.log(`[MessageSaver] 💾 Saving message for role: ${role}, content: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}", messageId: ${messageId || 'none'}`);
+    console.log(`[MessageSaver] Saving message with role: ${role}, content: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
     
     // Check for duplicate content
     if (this.messageProcessor.isDuplicateContent(role, content)) {
-      console.log(`[MessageSaver] 🔄 Skipping duplicate ${role} message:`, content.substring(0, 50));
+      console.log(`Skipping duplicate ${role} message:`, content.substring(0, 50));
       return null;
     }
     
@@ -49,34 +50,28 @@ export class MessageSaver {
     // For user messages with messageId, track as pending
     if (role === 'user' && messageId) {
       this.messageTracker.trackPendingUserMessage(messageId);
-      console.log(`[MessageSaver] 🔍 Tracking pending user message with ID: ${messageId}`);
     }
     
     try {
       // Use direct save strategy
-      console.log(`[MessageSaver] ⏳ Starting direct save for ${role} message...`);
       const savedMessage = await this.messageSaveStrategy.saveWithDirectStrategy(role, content, messageId);
       
       // Update tracking for successful save
       if (role === 'user' && messageId) {
         this.messageTracker.removePendingUserMessage(messageId);
-        console.log(`[MessageSaver] ✅ Completed and removed tracking for user message ID: ${messageId}`);
       }
       
       // Log successful save with role for debugging
       if (savedMessage) {
-        console.log(`[MessageSaver] ✅ Successfully saved ${role} message with ID: ${savedMessage.id}, conversation: ${savedMessage.conversation_id || 'unknown'}`);
-      } else {
-        console.warn(`[MessageSaver] ⚠️ Save completed but no message returned for ${role}`);
+        console.log(`[MessageSaver] Successfully saved ${role} message with ID: ${savedMessage.id}`);
       }
       
       return savedMessage;
     } catch (error) {
-      console.error(`[MessageSaver] ❌ Error in saveMessageDirectly for ${role} message:`, error);
+      console.error(`Error in saveMessageDirectly for ${role} message:`, error);
       throw error;
     } finally {
       this.messageTracker.trackMessageSaveComplete();
-      console.log(`[MessageSaver] 🏁 Save operation completed for ${role} message`);
     }
   }
   
@@ -86,21 +81,21 @@ export class MessageSaver {
   async saveMessageWithRetry(role: 'user' | 'assistant', content: string): Promise<Message | null> {
     // Skip empty messages
     if (!this.messageProcessor.isValidContent(content)) {
-      console.log(`[MessageSaver] 🚫 Skipping empty ${role} message in retry`);
+      console.log(`Skipping empty ${role} message`);
       return null;
     }
     
     // CRITICAL FIX: Validate role is either 'user' or 'assistant'
     if (role !== 'user' && role !== 'assistant') {
-      console.error(`[MessageSaver] ❌ Invalid role provided: "${role}". Must be 'user' or 'assistant'. Aborting retry save.`);
+      console.error(`Invalid role provided: "${role}". Must be 'user' or 'assistant'. Aborting save.`);
       return null;
     }
     
-    console.log(`[MessageSaver] 🔄 Starting retry save for role: ${role}, content: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
+    console.log(`[MessageSaver] Saving message with retry, role: ${role}, content: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
     
     // Check for duplicate content
     if (this.messageProcessor.isDuplicateContent(role, content)) {
-      console.log(`[MessageSaver] 🔄 Skipping duplicate ${role} message in retry:`, content.substring(0, 50));
+      console.log(`Skipping duplicate ${role} message in retry:`, content.substring(0, 50));
       return null;
     }
     
@@ -110,23 +105,19 @@ export class MessageSaver {
     
     try {
       // Use retry save strategy
-      console.log(`[MessageSaver] ⏳ Starting retry strategy for ${role} message...`);
       const savedMessage = await this.messageSaveStrategy.saveWithRetryStrategy(role, content);
       
       // Log successful save with role for debugging
       if (savedMessage) {
-        console.log(`[MessageSaver] ✅ Successfully saved ${role} message with retry, ID: ${savedMessage.id}`);
-      } else {
-        console.warn(`[MessageSaver] ⚠️ Retry completed but no message returned for ${role}`);
+        console.log(`[MessageSaver] Successfully saved ${role} message with retry, ID: ${savedMessage.id}`);
       }
       
       return savedMessage;
     } catch (error) {
-      console.error(`[MessageSaver] ❌ Error in saveMessageWithRetry for ${role} message:`, error);
+      console.error(`Error in saveMessageWithRetry for ${role} message:`, error);
       return null;
     } finally {
       this.messageTracker.trackMessageSaveComplete();
-      console.log(`[MessageSaver] 🏁 Retry operation completed for ${role} message`);
     }
   }
   

@@ -41,11 +41,6 @@ export class DirectSaveStrategy {
           });
         }
         
-        // CRITICAL FIX: If this is an assistant message, log it clearly
-        if (role === 'assistant') {
-          console.log(`CRITICAL ROLE CHECK: Explicitly saving as role=${role}`);
-        }
-        
         // Save to database
         savedMessage = await this.saveMessageCallback({
           role: role,
@@ -54,13 +49,6 @@ export class DirectSaveStrategy {
         
         console.log(`Successfully saved ${role} message to database`, 
           savedMessage ? `with ID: ${savedMessage.id}` : "(no ID returned)");
-          
-        // CRITICAL FIX: Verify the saved message has the correct role
-        if (savedMessage && savedMessage.role !== role) {
-          console.error(`❌ ROLE MISMATCH: Saved as ${savedMessage.role}, expected ${role}`);
-        } else if (savedMessage) {
-          console.log(`✅ ROLE VERIFIED: Saved correctly as ${savedMessage.role}`);
-        }
         
         // Show success toast for user message
         if (messageId && role === 'user') {

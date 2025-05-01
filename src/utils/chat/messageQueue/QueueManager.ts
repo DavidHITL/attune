@@ -19,31 +19,28 @@ export class MessageQueue {
   
   queueMessage(role: 'user' | 'assistant', content: string, priority: boolean = false): void {
     if (!content || content.trim() === '') {
-      console.log(`[MessageQueue] 🚫 Skipping empty ${role} message`);
+      console.log(`Skipping empty ${role} message`);
       return;
     }
 
-    // CRITICAL: Validate role is provided and correct
+    // CRITICAL FIX: Validate role is provided and correct
     if (!role || (role !== 'user' && role !== 'assistant')) {
-      console.error(`[MessageQueue] ❌ Invalid role "${role}" provided, must be 'user' or 'assistant'`);
+      console.error(`[MessageQueue] Invalid role "${role}" provided, must be 'user' or 'assistant'`);
       return;
     }
 
-    console.log(`[MessageQueue] 📋 Queueing ${role} message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}", priority: ${priority}`);
-
-    // CRITICAL FIX: Log role explicitly for monitoring  
-    console.log(`[MessageQueue] 🔒 Message queued with ROLE: ${role}`);
+    console.log(`[MessageQueue] Queueing ${role} message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}", priority: ${priority}`);
 
     const isInitialized = this.checkInitialized();
     
     if (!isInitialized && role === 'user') {
-      console.log(`[MessageQueue] 🔄 First user message received. Initializing conversation immediately...`);
+      console.log(`[MessageQueue] First user message received. Initializing conversation immediately...`);
       this.queueInitializer.saveFirstMessageAndInitialize(role, content, priority);
       return;
     }
     
     if (!isInitialized) {
-      console.log(`[MessageQueue] ⏳ Pre-initialization ${role} message received, queueing until conversation is ready`);
+      console.log(`[MessageQueue] Pre-initialization ${role} message received, queueing until conversation is ready`);
       this.queueState.addPendingMessage(role, content, priority);
       return;
     }
@@ -70,7 +67,7 @@ export class MessageQueue {
   
   async flushQueue(): Promise<void> {
     if (!this.queueState.isInitialized() && this.queueState.hasPendingMessages()) {
-      console.log(`[MessageQueue] 🔄 Forcing processing of pending pre-init messages during flush`);
+      console.log(`Forcing processing of pending pre-init messages during flush`);
       this.setConversationInitialized();
     }
     
@@ -86,7 +83,7 @@ export class MessageQueue {
   
   async forceFlushQueue(): Promise<void> {
     if (this.queueState.hasPendingMessages()) {
-      console.log(`[MessageQueue] 🔄 Force-processing ${this.queueState.getPendingMessageCount()} pending pre-init messages`);
+      console.log(`Force-processing ${this.queueState.getPendingMessageCount()} pending pre-init messages`);
       this.queueInitializer.processPendingMessages();
       this.queueState.setInitialized(true); // Set initialized after processing messages
       this.queueState.clearPendingMessages(); // Clear any remaining pending messages
