@@ -12,7 +12,7 @@ export class AssistantEventHandler {
   private pendingResponse: string | null = null;
   
   constructor(
-    private messageQueue: MessageQueue,
+    private messageQueue: any,
     private responseParser: ResponseParser
   ) {
     console.log('[AssistantEventHandler] Initialized');
@@ -45,17 +45,22 @@ export class AssistantEventHandler {
     if (eventType === 'response.done' || eventType === 'response.content_part.done') {
       console.log(`[AssistantEventHandler] Processing final ASSISTANT response:`, content.substring(0, 50));
       
-      // Make sure we're explicitly setting the role to 'assistant'
-      this.messageQueue.queueMessage('assistant', content, true);
-      
-      // Reset any pending response
-      this.pendingResponse = null;
-      
-      // Show notification
-      toast.success("AI response received", { 
-        description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
-        duration: 2000
-      });
+      // Check if the message queue has the expected interface
+      if (typeof this.messageQueue.queueMessage === 'function') {
+        // Make sure we're explicitly setting the role to 'assistant'
+        this.messageQueue.queueMessage('assistant', content, true);
+        
+        // Reset any pending response
+        this.pendingResponse = null;
+        
+        // Show notification
+        toast.success("AI response received", { 
+          description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
+          duration: 2000
+        });
+      } else {
+        console.error('[AssistantEventHandler] Message queue is missing queueMessage method');
+      }
     }
     // Accumulate delta responses
     else if (eventType === 'response.delta') {
@@ -71,8 +76,12 @@ export class AssistantEventHandler {
   flushPendingResponse(): void {
     if (this.pendingResponse && this.pendingResponse.trim().length > 0) {
       console.log(`[AssistantEventHandler] Flushing pending response (${this.pendingResponse.length} chars)`);
-      this.messageQueue.queueMessage('assistant', this.pendingResponse, true);
-      this.pendingResponse = null;
+      if (typeof this.messageQueue.queueMessage === 'function') {
+        this.messageQueue.queueMessage('assistant', this.pendingResponse, true);
+        this.pendingResponse = null;
+      } else {
+        console.error('[AssistantEventHandler] Message queue is missing queueMessage method');
+      }
     }
   }
 }

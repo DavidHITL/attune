@@ -9,6 +9,7 @@ import { AssistantEventHandler } from '@/utils/chat/events/handlers/AssistantEve
 import { SystemEventHandler } from '@/utils/chat/events/handlers/SystemEventHandler';
 import { useRef } from 'react';
 import { useTranscriptHandler } from './useTranscriptHandler';
+import { MessageQueue } from '@/utils/chat/messageQueue';
 
 export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>) => {
   const { voiceActivityState, handleMessageEvent: handleVoiceActivityEvent } = useVoiceActivityState();
@@ -36,26 +37,33 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
     // Initialize the dispatcher on first use
     if (!dispatcherRef.current && typeof window !== 'undefined' && window.attuneMessageQueue) {
       // These handlers would normally be initialized once at a higher level
-      const userHandler = new UserEventHandler(window.attuneMessageQueue);
-      const assistantHandler = new AssistantEventHandler(window.attuneMessageQueue, {logEvent: () => {}}); 
-      const systemHandler = new SystemEventHandler();
+      console.log('🔄 [useVoiceEventHandler] Initializing event handlers with message queue');
       
-      dispatcherRef.current = new EventDispatcher(
-        userHandler, 
-        assistantHandler, 
-        systemHandler
-      );
-      
-      console.log('🔄 Event dispatcher initialized');
+      // Type check to ensure attuneMessageQueue has the required methods
+      if (typeof window.attuneMessageQueue?.queueMessage === 'function') {
+        const userHandler = new UserEventHandler(window.attuneMessageQueue);
+        const assistantHandler = new AssistantEventHandler(window.attuneMessageQueue, {logEvent: () => {}}); 
+        const systemHandler = new SystemEventHandler();
+        
+        dispatcherRef.current = new EventDispatcher(
+          userHandler, 
+          assistantHandler, 
+          systemHandler
+        );
+        
+        console.log('🔄 [useVoiceEventHandler] Event dispatcher successfully initialized');
+      } else {
+        console.warn('⚠️ [useVoiceEventHandler] Message queue object is missing required methods');
+      }
     }
     
     // Use our dispatcher if available (for the new system)
     if (dispatcherRef.current) {
-      console.log('🔄 Routing event through EventDispatcher');
+      console.log(`🔄 [useVoiceEventHandler] Routing ${event.type} event through EventDispatcher`);
       dispatcherRef.current.dispatchEvent(event);
     } else {
       // Fallback to the transcript handler (legacy approach)
-      console.log('🔄 Using legacy transcript handler');
+      console.log(`🔄 [useVoiceEventHandler] Using legacy transcript handler for ${event.type} event`);
       handleTranscriptEvent(event);
     }
     

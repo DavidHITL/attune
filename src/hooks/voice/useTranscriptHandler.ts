@@ -41,33 +41,40 @@ export const useTranscriptHandler = () => {
       // Extract user transcript content
       if (event.type === 'transcript' && typeof event.transcript === 'string') {
         transcriptContent = event.transcript;
+        console.log('📝 [useTranscriptHandler] Found user transcript:', transcriptContent.substring(0, 40));
       } 
       else if (event.type === 'response.audio_transcript.done' && event.transcript?.text) {
         transcriptContent = event.transcript.text;
+        console.log('📝 [useTranscriptHandler] Found user audio transcript:', transcriptContent.substring(0, 40));
       }
       else if (event.type === 'response.audio_transcript.done' && event.delta?.text) {
         transcriptContent = event.delta.text;
+        console.log('📝 [useTranscriptHandler] Found user delta text:', transcriptContent.substring(0, 40));
       }
     } 
     else if (messageRole === 'assistant') {
       // Extract assistant response content
       if (event.type === 'response.done' && event.response?.output?.[0]?.content?.[0]?.transcript) {
         transcriptContent = event.response.output[0].content[0].transcript;
+        console.log('📝 [useTranscriptHandler] Found assistant transcript:', transcriptContent.substring(0, 40));
       }
       else if (event.type === 'response.done' && event.response?.content) {
         transcriptContent = event.response.content;
+        console.log('📝 [useTranscriptHandler] Found assistant content:', transcriptContent.substring(0, 40));
       }
       else if (event.type === 'response.content_part.done' && event.content_part?.text) {
         transcriptContent = event.content_part.text;
+        console.log('📝 [useTranscriptHandler] Found assistant content part:', transcriptContent.substring(0, 40));
       }
     }
     
     // Skip processing if no valid transcript was found
     if (!transcriptContent || transcriptContent.trim() === '') {
+      console.log(`📝 [useTranscriptHandler] No valid content found in ${event.type} event`);
       return;
     }
 
-    console.log(`📝 Processing ${messageRole} content:`, {
+    console.log(`📝 [useTranscriptHandler] Processing ${messageRole} content:`, {
       role: messageRole,
       contentPreview: transcriptContent.substring(0, 50),
       length: transcriptContent.length
@@ -77,32 +84,44 @@ export const useTranscriptHandler = () => {
     const hasValidContext = validateConversationContext();
     const hasMessageQueue = typeof window !== 'undefined' && !!window.attuneMessageQueue;
     
+    console.log(`📝 [useTranscriptHandler] Context validation:`, {
+      hasValidContext,
+      hasMessageQueue,
+      windowExists: typeof window !== 'undefined',
+      queueExists: typeof window !== 'undefined' && !!window.attuneMessageQueue
+    });
+    
     if (!hasValidContext && !hasMessageQueue) {
-      console.log('⚠️ No valid conversation context or message queue, skipping transcript processing');
+      console.log('⚠️ [useTranscriptHandler] No valid conversation context or message queue, skipping transcript processing');
       return;
     }
     
     if (hasMessageQueue) {
-      console.log(`🔄 Delegating to message queue: ${messageRole} message`);
-      window.attuneMessageQueue?.queueMessage(messageRole, transcriptContent, true);
+      console.log(`🔄 [useTranscriptHandler] Delegating to message queue: ${messageRole} message`);
       
-      toast.success(messageRole === 'user' ? "Speech detected" : "AI response received", {
-        description: transcriptContent.substring(0, 50) + (transcriptContent.length > 50 ? "..." : ""),
-        duration: 3000
-      });
+      if (typeof window.attuneMessageQueue?.queueMessage === 'function') {
+        window.attuneMessageQueue.queueMessage(messageRole, transcriptContent, true);
+        
+        toast.success(messageRole === 'user' ? "Speech detected" : "AI response received", {
+          description: transcriptContent.substring(0, 50) + (transcriptContent.length > 50 ? "..." : ""),
+          duration: 3000
+        });
+      } else {
+        console.error('⚠️ [useTranscriptHandler] Message queue is missing queueMessage method');
+      }
       return;
     }
 
     // Use unified save pathway if we have a valid context
     if (hasValidContext) {
-      console.log(`💾 Direct save with explicit role: ${messageRole}`);
+      console.log(`💾 [useTranscriptHandler] Direct save with explicit role: ${messageRole}`);
       saveMessage({
         role: messageRole,
         content: transcriptContent
       }).then(savedMessage => {
-        console.log(`Message save result (role: ${messageRole}):`, savedMessage ? 'Success' : 'Failed');
+        console.log(`[useTranscriptHandler] Message save result (role: ${messageRole}):`, savedMessage ? 'Success' : 'Failed');
       }).catch(error => {
-        console.error(`Error saving ${messageRole} transcript:`, error);
+        console.error(`[useTranscriptHandler] Error saving ${messageRole} transcript:`, error);
       });
     }
   }, [validateConversationContext, saveMessage]);

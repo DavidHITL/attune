@@ -45,6 +45,9 @@ export class MessageEventProcessor {
    * Process incoming message events
    */
   processEvent(event: any): void {
+    const eventType = event?.type || 'unknown';
+    console.log(`[MessageEventProcessor] Processing event: ${eventType}`);
+    
     // First pass the event to the general callback
     this.messageCallback(event);
     
@@ -54,6 +57,11 @@ export class MessageEventProcessor {
     
     // Use the central dispatcher to route the event
     this.eventDispatcher.dispatchEvent(event);
+    
+    // Log statistics periodically
+    if (Math.random() < 0.05) { // ~5% chance per event to log stats
+      this.eventLogger.logEventStats();
+    }
   }
   
   /**
