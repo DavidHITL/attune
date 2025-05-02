@@ -1,11 +1,13 @@
+
 import { useCallback } from 'react';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
 import { MessageCallback, StatusCallback, SaveMessageCallback } from '@/utils/types';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
+import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 
 /**
- * Hook for managing connection to the voice chat service
+ * Hook for managing connection to the voice chat service with improved event flow
  */
 export const useConnectionManager = (
   chatClientRef: React.MutableRefObject<RealtimeChatClient | null>,
@@ -32,8 +34,28 @@ export const useConnectionManager = (
       }
       
       console.log("Creating new RealtimeChatClient instance");
+      
+      // Create a wrapper for the message handler to validate event types
+      const validatedMessageHandler: MessageCallback = (event) => {
+        // Verify event has a type before passing it to handlers
+        if (!event || !event.type) {
+          console.log("Received event with no type, skipping");
+          return;
+        }
+        
+        // Log infrequent events for debugging (skip audio buffer events)
+        if (event.type !== 'input_audio_buffer.append') {
+          const role = EventTypeRegistry.getRoleForEvent(event.type);
+          console.log(`[ConnectionManager] Event: ${event.type}, Role: ${role || 'unknown'}`);
+        }
+        
+        // Pass to the main event handler
+        handleMessageEvent(event);
+      };
+      
+      // Create chat client with validated event handlers
       chatClientRef.current = new RealtimeChatClient(
-        handleMessageEvent, 
+        validatedMessageHandler, 
         setStatus,
         saveMessage
       );
@@ -47,9 +69,6 @@ export const useConnectionManager = (
       
       const mode = user ? "authenticated user" : "anonymous user";
       toast.success(`Connected successfully as ${mode}`);
-      
-      // The session.created event will handle showing the context-aware toast
-      // No return value needed since we're returning Promise<void>
     } catch (error) {
       console.error('Failed to start conversation:', error);
       const errorMessage = error instanceof Error ? error.message : "Unknown connection error";
@@ -65,10 +84,16 @@ export const useConnectionManager = (
   const endConversation = useCallback(async () => {
     console.log("Ending conversation");
     if (chatClientRef.current) {
-      // Make sure we properly disconnect and clean up resources
-      await chatClientRef.current.flushPendingMessages();
-      chatClientRef.current.disconnect();
-      chatClientRef.current = null;
+      try {
+        // Make sure we properly disconnect and clean up resources
+        if (typeof chatClientRef.current.flushPendingMessages === 'function') {
+          await chatClientRef.current.flushPendingMessages();
+        }
+        chatClientRef.current.disconnect();
+        chatClientRef.current = null;
+      } catch (e) {
+        console.error("Error during disconnect:", e);
+      }
     }
     
     // Reset all states

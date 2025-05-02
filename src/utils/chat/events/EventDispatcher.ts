@@ -15,27 +15,32 @@ export class EventDispatcher {
 
   /**
    * Main dispatch method that routes events to the appropriate handler
+   * with improved validation and logging
    */
   dispatchEvent(event: any): void {
     // Skip events with no type
-    if (!event.type) {
+    if (!event || !event.type) {
       console.log('[EventDispatcher] Skipping event with no type');
       return;
     }
 
-    console.log(`[EventDispatcher] Routing event: ${event.type}`);
+    // Determine role and event category
+    const role = EventTypeRegistry.getRoleForEvent(event.type);
+    
+    // Log event routing for non-audio-buffer events
+    if (event.type !== 'input_audio_buffer.append') {
+      console.log(`[EventDispatcher] Routing event: ${event.type}, role: ${role || 'unknown'}`);
+    }
     
     // Route events to appropriate handlers based on their type
     if (EventTypeRegistry.isAssistantEvent(event.type)) {
-      console.log(`[EventDispatcher] Routing ASSISTANT event: ${event.type}`);
       this.assistantEventHandler.handleEvent(event);
     } 
     else if (EventTypeRegistry.isUserEvent(event.type)) {
-      console.log(`[EventDispatcher] Routing USER event: ${event.type}`);
       this.userEventHandler.handleEvent(event);
     }
-    else {
-      // Log events that don't match known types
+    else if (event.type !== 'input_audio_buffer.append') {
+      // Log events that don't match known types (except audio buffer events)
       console.log(`[EventDispatcher] Unhandled event type: ${event.type}`);
     }
   }

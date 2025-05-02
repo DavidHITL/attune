@@ -1,3 +1,4 @@
+
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
@@ -9,9 +10,10 @@ import { toast } from 'sonner';
 import { useVoiceStateManagement } from '@/hooks/voice/useVoiceStateManagement';
 import { useVoiceEvents } from '@/hooks/voice/useVoiceEvents';
 import { useVoiceChatAnalysis } from '@/hooks/voice/useVoiceChatAnalysis';
+import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 
 /**
- * Main hook for chat client functionality, refactored for improved modularity and reliability
+ * Main hook for chat client functionality, refactored for improved event flow and initialization
  */
 export const useChatClient = () => {
   // Initialize refs and basic state
@@ -45,15 +47,22 @@ export const useChatClient = () => {
   
   // Combined message handler for all event types
   const combinedMessageHandler = useCallback((event: any) => {
+    // Skip events with no type - critical for routing
+    if (!event.type) {
+      console.log('Skipping event with no type');
+      return;
+    }
+    
     // Process voice events (speech, transcripts)
     handleVoiceEvent(event);
     
     // Process session creation events
     handleSessionCreated(event);
     
-    // Log the last few event types for debugging
+    // Log events for debugging with event type classification
+    const role = EventTypeRegistry.getRoleForEvent(event.type);
     if (event.type && event.type !== 'input_audio_buffer.append') {
-      console.log(`EVENT [${event.type}] #${Math.floor(Math.random() * 10)} at ${new Date().toISOString()}`);
+      console.log(`EVENT [${event.type}] role: ${role || 'unknown'} at ${new Date().toISOString().substring(11, 23)}`);
     }
   }, [handleVoiceEvent, handleSessionCreated]);
   
@@ -63,7 +72,14 @@ export const useChatClient = () => {
     combinedMessageHandler,
     setStatus,
     async (message) => {
-      console.log(`Unified message saving for ${message.role}: ${message.content?.substring(0, 30)}...`);
+      // Validate message role using EventTypeRegistry as source of truth
+      const role = message.role;
+      if (role !== 'user' && role !== 'assistant') {
+        console.error(`Invalid message role: ${role}, must be 'user' or 'assistant'`);
+        return null;
+      }
+      
+      console.log(`Saving message for ${role}: ${message.content?.substring(0, 30)}...`);
       return saveMessage(message);
     },
     setIsConnected,
@@ -83,7 +99,7 @@ export const useChatClient = () => {
     startConversation
   );
 
-  // Direct access to start conversation function
+  // Direct access to start conversation function with enhanced error handling
   const handleStartConversation = useCallback(async () => {
     console.log("Direct start conversation called");
     setConnectionError(null); // Clear any previous errors
@@ -102,7 +118,7 @@ export const useChatClient = () => {
     }
   }, [startConversation, isConnected, setConnectionError]);
   
-  // Cleanup effect on unmount with enhanced reliability
+  // Cleanup effect on unmount with improved reliability
   useEffect(() => {
     return () => {
       console.log("Cleaning up chat client");
@@ -111,6 +127,7 @@ export const useChatClient = () => {
         try {
           if (typeof chatClientRef.current.flushPendingMessages === 'function') {
             chatClientRef.current.flushPendingMessages();
+            // Give time for messages to be processed before disconnecting
             setTimeout(() => {
               chatClientRef.current?.disconnect();
             }, 300);

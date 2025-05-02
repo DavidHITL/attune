@@ -1,6 +1,7 @@
 
 /**
  * Central message processing system that uses the event dispatcher
+ * with improved event validation and flow
  */
 import { MessageQueue } from './messageQueue';
 import { ResponseParser } from './ResponseParser';
@@ -8,6 +9,7 @@ import { EventDispatcher } from './events/EventDispatcher';
 import { UserEventHandler } from './events/handlers/UserEventHandler';
 import { AssistantEventHandler } from './events/handlers/AssistantEventHandler';
 import { MessageCallback } from '../types';
+import { EventTypeRegistry } from './events/EventTypeRegistry';
 
 export class MessageEventProcessor {
   private eventDispatcher: EventDispatcher;
@@ -31,13 +33,25 @@ export class MessageEventProcessor {
   }
   
   /**
-   * Process incoming message events
+   * Process incoming message events with improved validation
    */
   processEvent(event: any): void {
+    // Skip processing if event has no type
+    if (!event || !event.type) {
+      console.log('[MessageEventProcessor] Received event with no type, skipping');
+      return;
+    }
+    
     // First pass the event to the general callback
     this.messageCallback(event);
     
-    // Log the event for debugging
+    // Log the event type and role for debugging
+    if (event.type !== 'input_audio_buffer.append') {
+      const role = EventTypeRegistry.getRoleForEvent(event.type);
+      console.log(`[MessageEventProcessor] Processing event: ${event.type}, role: ${role || 'unknown'}`);
+    }
+    
+    // Log more details for specific events
     this.responseParser.logEvent(event);
     
     // Use the central dispatcher to route the event
