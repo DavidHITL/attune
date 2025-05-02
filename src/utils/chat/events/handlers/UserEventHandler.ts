@@ -31,7 +31,7 @@ export class UserEventHandler {
     }
     
     // Always force the correct role for any messages saved here
-    const forcedRole = 'user';
+    const forcedRole: 'user' | 'assistant' = 'user';
     
     let transcriptContent: string | null = null;
     let isDelta = false;
@@ -161,7 +161,7 @@ export class UserEventHandler {
   /**
    * Save a user message to the queue
    */
-  private saveUserMessage(transcriptContent: string, forcedRole: string): void {
+  private saveUserMessage(transcriptContent: string, forcedRole: 'user' | 'assistant'): void {
     this.lastTranscriptContent = transcriptContent;
     
     console.log(`[UserEventHandler] Saving USER transcript: "${transcriptContent.substring(0, 50)}..."`, {
@@ -226,4 +226,3 @@ export class UserEventHandler {
     }
   }
 }
-
