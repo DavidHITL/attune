@@ -17,7 +17,10 @@ export enum EventType {
   ResponseContentPartAdded = 'response.content_part.added',
   SessionCreated = 'session.created',
   SessionDisconnected = 'session.disconnected',
-  ConnectionClosed = 'connection.closed'
+  ConnectionClosed = 'connection.closed',
+  // Adding missing enum values
+  ConversationTruncated = 'conversation.item.truncated',
+  ContentPartDone = 'response.content_part.done'
 }
 
 /**

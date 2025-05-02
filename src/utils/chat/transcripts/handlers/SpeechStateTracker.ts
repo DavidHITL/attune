@@ -25,4 +25,11 @@ export class SpeechStateTracker {
   isSpeechDetected(): boolean {
     return this.userSpeechDetected;
   }
+
+  /**
+   * Reset speech detection state
+   */
+  reset(): void {
+    this.userSpeechDetected = false;
+  }
 }

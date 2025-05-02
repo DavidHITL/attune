@@ -21,7 +21,7 @@ export class EventHandler {
     private messageCallback: (event: any) => void
   ) {
     this.userEventHandler = new UserEventHandler(messageQueue);
-    const assistantEventHandler = new AssistantEventHandler(messageCallback);
+    const assistantEventHandler = new AssistantEventHandler(messageQueue, responseParser);
     
     this.eventDispatcher = new EventDispatcher(
       this.userEventHandler,

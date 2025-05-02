@@ -33,7 +33,7 @@ export class ResponseEventHandler {
     }
     
     // Handle finalized content parts that might contain the full response
-    if (isEventType(event, EventType.ContentPartDone) && event.content) {
+    if (isEventType(event, EventType.ResponseContentPartDone) && event.content) {
       this.responseHandler.handleContentPartDone(event.content);
     }
   }

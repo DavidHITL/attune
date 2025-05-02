@@ -17,6 +17,11 @@ export class ResponseParser {
     this.responseEventStore = new ResponseEventStore();
   }
   
+  // Parse an event for processing
+  parseEvent(event: any): void {
+    this.logEvent(event);
+  }
+  
   // Log event for debugging purposes
   logEvent(event: any): void {
     this.eventLogger.logEvent(event);
