@@ -23,8 +23,10 @@ export class UserEventHandler {
   
   /**
    * Flush accumulated transcript even if time threshold hasn't been met
+   * Enhanced to ensure any pending content is always saved
    */
   flushAccumulatedTranscript(): void {
+    console.log('[UserEventHandler] Force flushing accumulated transcript');
     this.userEventProcessor.flushAccumulatedTranscript();
   }
 }

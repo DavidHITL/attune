@@ -77,13 +77,24 @@ export class UserEventProcessor {
   
   /**
    * Flush accumulated transcript even if time threshold hasn't been met
+   * Enhanced to ensure any content is saved regardless of length or content quality
    */
   flushAccumulatedTranscript(): void {
     const accumulatedContent = this.deltaAccumulator.getAccumulatedContent();
-    if (accumulatedContent && accumulatedContent.trim() !== '') {
-      console.log(`[UserEventProcessor] Forcing flush of accumulated transcript: "${accumulatedContent.substring(0, 50)}..."`);
-      this.transcriptProcessor.saveUserMessage(accumulatedContent, 'user');
+    
+    // Enhanced logic to force-save even minimal content
+    if (accumulatedContent) {
+      // Log the force flush with content preview
+      console.log(`[UserEventProcessor] Forcing flush of accumulated transcript: "${accumulatedContent.substring(0, 50)}${accumulatedContent.length > 50 ? '...' : ''}"`);
+      
+      // Save with high priority flag to ensure immediate processing
+      this.transcriptProcessor.saveUserMessage(accumulatedContent, 'user', true);
+      
+      // Reset accumulator after saving
       this.deltaAccumulator.reset();
+      console.log('[UserEventProcessor] Accumulator reset after forced flush');
+    } else {
+      console.log('[UserEventProcessor] No accumulated content to flush');
     }
   }
 }

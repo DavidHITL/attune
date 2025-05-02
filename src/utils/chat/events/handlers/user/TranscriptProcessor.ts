@@ -15,18 +15,27 @@ export class TranscriptProcessor {
   
   /**
    * Save a user message to the queue
+   * @param transcriptContent The transcript content to save
+   * @param role The role of the message ('user' or 'assistant')
+   * @param priority Whether to prioritize this message in the queue
    */
-  saveUserMessage(transcriptContent: string, role: 'user' | 'assistant'): void {
+  saveUserMessage(transcriptContent: string, role: 'user' | 'assistant', priority: boolean = true): void {
+    if (!transcriptContent || transcriptContent.trim() === '') {
+      console.log('[TranscriptProcessor] Skipping empty transcript');
+      return;
+    }
+    
     this.lastTranscriptContent = transcriptContent;
     
-    console.log(`[TranscriptProcessor] Saving transcript: "${transcriptContent.substring(0, 50)}..."`, {
+    console.log(`[TranscriptProcessor] Saving transcript: "${transcriptContent.substring(0, 50)}${transcriptContent.length > 50 ? '...' : ''}"`, {
       contentLength: transcriptContent.length,
       timestamp: new Date().toISOString(),
-      role
+      role,
+      priority
     });
     
-    // Add message to queue with highest priority
-    this.messageQueue.queueMessage(role, transcriptContent, true);
+    // Add message to queue with specified priority
+    this.messageQueue.queueMessage(role, transcriptContent, priority);
     
     // Show notification for user feedback
     this.notifier.notifyTranscriptDetection(transcriptContent);
