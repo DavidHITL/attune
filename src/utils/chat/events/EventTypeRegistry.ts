@@ -9,6 +9,7 @@ export class EventTypeRegistry {
     'response.done',
     'response.delta',
     'response.content_part.done',
+    'response.created'
   ];
 
   // User events are transcript and speech events 
@@ -24,8 +25,11 @@ export class EventTypeRegistry {
    * Check if an event type belongs to assistant responses
    */
   static isAssistantEvent(eventType: string): boolean {
+    // More strict matching for assistant events
     return this.ASSISTANT_EVENTS.includes(eventType) || 
-           (eventType.includes('response.delta') && !eventType.includes('audio'));
+           (eventType.includes('response') && 
+            !eventType.includes('audio') && 
+            !eventType.includes('transcript'));
   }
 
   /**
@@ -33,7 +37,8 @@ export class EventTypeRegistry {
    */
   static isUserEvent(eventType: string): boolean {
     return this.USER_EVENTS.includes(eventType) || 
-           eventType.includes('audio_transcript');
+           eventType.includes('audio_transcript') ||
+           eventType.includes('transcript');
   }
 
   /**
@@ -41,13 +46,27 @@ export class EventTypeRegistry {
    */
   static getRoleForEvent(eventType: string): 'user' | 'assistant' | null {
     if (this.isAssistantEvent(eventType)) {
+      console.log(`[EventTypeRegistry] Event ${eventType} classified as ASSISTANT event`);
       return 'assistant';
     }
     
     if (this.isUserEvent(eventType)) {
+      console.log(`[EventTypeRegistry] Event ${eventType} classified as USER event`);
       return 'user';
     }
     
+    console.log(`[EventTypeRegistry] Event ${eventType} could not be classified, returning null`);
     return null;
+  }
+
+  /**
+   * Debug method to log event type classification
+   */
+  static debugEventClassification(eventType: string): void {
+    const role = this.getRoleForEvent(eventType);
+    const isAssistant = this.isAssistantEvent(eventType);
+    const isUser = this.isUserEvent(eventType);
+    
+    console.log(`[EventType Debug] ${eventType}: role=${role}, isAssistant=${isAssistant}, isUser=${isUser}`);
   }
 }

@@ -1,39 +1,62 @@
 
-import { Message } from '../types'; // Import Message type from types file
+import { Message } from '../types';
 
 /**
- * Validates and normalizes message role
+ * Normalizes the message role to either 'user' or 'assistant'
+ * This is a defensive function to ensure valid roles
  */
-export const normalizeMessageRole = (role?: string): 'user' | 'assistant' => {
+export function normalizeMessageRole(role?: string): 'user' | 'assistant' {
+  console.log(`[normalizeMessageRole] Normalizing role: ${role}`);
+  
   if (!role) {
-    console.warn('No role provided to normalizeMessageRole, this is likely a bug');
-    // CRITICAL FIX: Never default the role, always throw an error
-    throw new Error('Missing message role - role must be explicitly provided');
+    console.warn('[normalizeMessageRole] No role provided, defaulting to "user"');
+    return 'user';
   }
   
+  // Convert to lowercase for case-insensitive comparison
   const normalizedRole = role.toLowerCase();
-  if (normalizedRole !== 'user' && normalizedRole !== 'assistant') {
-    console.warn(`Invalid role provided: "${role}", must be 'user' or 'assistant'`);
-    throw new Error(`Invalid message role: ${role}`);
+  
+  // Only allow 'user' or 'assistant' roles
+  if (normalizedRole === 'assistant') {
+    return 'assistant';
   }
   
-  return normalizedRole as 'user' | 'assistant';
-};
+  // Default to 'user' for any other value
+  if (normalizedRole !== 'user') {
+    console.warn(`[normalizeMessageRole] Invalid role "${role}", defaulting to "user"`);
+  }
+  
+  return 'user';
+}
 
 /**
- * Ensures a message object has a valid role
+ * Ensures that a message has a valid role
  */
-export const ensureValidMessageRole = (message: Partial<Message>): Message => {
-  if (!message.role) {
-    console.warn('Message missing role property in ensureValidMessageRole');
-    throw new Error('Message must have an explicit role property');
+export function ensureValidMessageRole(message: Partial<Message>): Partial<Message> {
+  if (!message) {
+    return { role: 'user', content: '' };
+  }
+  
+  const normalizedRole = normalizeMessageRole(message.role);
+  
+  // Log if the role was changed
+  if (normalizedRole !== message.role) {
+    console.warn(`[ensureValidMessageRole] Changed invalid role "${message.role}" to "${normalizedRole}"`);
+  } else {
+    console.log(`[ensureValidMessageRole] Role "${normalizedRole}" is valid, no changes needed`);
   }
   
   return {
     ...message,
-    role: normalizeMessageRole(message.role),
-    content: message.content || '',
-    id: message.id || `temp-${Date.now()}`,
-    created_at: message.created_at || new Date().toISOString()
-  } as Message;
-};
+    role: normalizedRole
+  };
+}
+
+/**
+ * Validates if a role string is acceptable
+ */
+export function isValidRole(role?: string): boolean {
+  if (!role) return false;
+  const normalizedRole = role.toLowerCase();
+  return normalizedRole === 'user' || normalizedRole === 'assistant';
+}

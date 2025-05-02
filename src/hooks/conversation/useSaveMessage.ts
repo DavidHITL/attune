@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Message } from '@/utils/types';
 import { toast } from 'sonner';
@@ -39,6 +38,16 @@ export const useSaveMessage = (
   validateRole: (role: string) => 'user' | 'assistant'
 ) => {
   const saveMessage = async (message: Partial<Message>): Promise<(Message & { conversation_id: string }) | null> => {
+    // Ensure we have a valid role before proceeding
+    if (!message.role || (message.role !== 'user' && message.role !== 'assistant')) {
+      console.error(`[useSaveMessage] Invalid role provided: "${message.role}". Must be 'user' or 'assistant'.`);
+      return null;
+    }
+    
+    // Keep the original role for logging purposes
+    const originalRole = message.role;
+    
+    // Always normalize the role to prevent any issues
     const normalizedMessage = ensureValidMessageRole(message);
     const saveId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     
@@ -48,7 +57,8 @@ export const useSaveMessage = (
       userExists: !!user,
       userId: user?.id,
       conversationId,
-      messageRole: normalizedMessage.role,
+      originalRole,
+      normalizedRole: normalizedMessage.role,
       messageContentLength: normalizedMessage.content?.length,
       contentPreview: normalizedMessage.content?.substring(0, 50) + '...',
       validContent: isValidMessageContent(normalizedMessage.content)
@@ -86,7 +96,7 @@ export const useSaveMessage = (
     const insertData = {
       conversation_id: targetConversationId,
       user_id: user.id,
-      role: normalizedMessage.role,
+      role: normalizedMessage.role, // Use the normalized role
       content: normalizedMessage.content
     };
     
@@ -95,7 +105,7 @@ export const useSaveMessage = (
       payload: {
         conversation_id: insertData.conversation_id,
         user_id: insertData.user_id,
-        role: insertData.role,
+        role: insertData.role, // Log role before insertion
         contentPreview: insertData.content?.substring(0, 20) + '...',
       }
     });
@@ -133,14 +143,15 @@ export const useSaveMessage = (
       console.log(`✅ [Save Message ${saveId}] Message saved successfully in ${Math.round(endTime - startTime)}ms:`, {
         messageId: data.id,
         conversationId: data.conversation_id,
-        role: data.role,
+        savedRole: data.role, // Log the role that was actually saved
+        originalRole: originalRole, // Log the original role for comparison
         timestamp: new Date().toISOString(),
         contentPreview: data.content.substring(0, 50) + '...'
       });
       
       const savedMessage = {
         id: data.id,
-        role: validateRole(data.role),
+        role: validateRole(data.role), // Validate the role one last time
         content: data.content,
         created_at: data.created_at,
         conversation_id: data.conversation_id
@@ -176,4 +187,3 @@ export const useSaveMessage = (
 
   return { saveMessage };
 };
-

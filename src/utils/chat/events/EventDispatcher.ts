@@ -27,18 +27,30 @@ export class EventDispatcher {
     // Determine role and event category
     const role = EventTypeRegistry.getRoleForEvent(event.type);
     
-    // Log event routing for non-audio-buffer events
+    // Enhanced logging with clear role information
     if (event.type !== 'input_audio_buffer.append') {
       console.log(`[EventDispatcher] Routing event: ${event.type}, role: ${role || 'unknown'}, timestamp: ${new Date().toISOString()}`);
     }
     
-    // Route events to appropriate handlers based on their type
+    // Route events to appropriate handlers based on their type with explicit role checks
     if (EventTypeRegistry.isAssistantEvent(event.type)) {
-      console.log(`[EventDispatcher] → Sending to AssistantEventHandler: ${event.type}`);
+      console.log(`[EventDispatcher] → Sending to AssistantEventHandler: ${event.type} (role: assistant)`);
+      
+      // Add explicit role to event to prevent misclassification later
+      if (!event.role) {
+        event.explicitRole = 'assistant';
+      }
+      
       this.assistantEventHandler.handleEvent(event);
     } 
     else if (EventTypeRegistry.isUserEvent(event.type)) {
-      console.log(`[EventDispatcher] → Sending to UserEventHandler: ${event.type}`);
+      console.log(`[EventDispatcher] → Sending to UserEventHandler: ${event.type} (role: user)`);
+      
+      // Add explicit role to event to prevent misclassification later
+      if (!event.role) {
+        event.explicitRole = 'user';
+      }
+      
       this.userEventHandler.handleEvent(event);
     }
     else if (event.type !== 'input_audio_buffer.append') {
@@ -47,4 +59,3 @@ export class EventDispatcher {
     }
   }
 }
-

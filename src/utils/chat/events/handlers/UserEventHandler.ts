@@ -22,6 +22,9 @@ export class UserEventHandler {
       return;
     }
     
+    // Always force the correct role for any messages saved here
+    const forcedRole = 'user';
+    
     let transcriptContent: string | null = null;
     
     // Extract content based on event type
@@ -29,21 +32,24 @@ export class UserEventHandler {
       transcriptContent = event.transcript;
       console.log(`[UserEventHandler] Direct transcript: "${transcriptContent.substring(0, 50)}..."`, {
         length: transcriptContent.length,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        forcedRole: forcedRole
       });
     } 
     else if (event.type === 'response.audio_transcript.done' && event.transcript?.text) {
       transcriptContent = event.transcript.text;
       console.log(`[UserEventHandler] Final transcript: "${transcriptContent.substring(0, 50)}..."`, {
         length: transcriptContent.length,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        forcedRole: forcedRole
       });
     }
     else if (event.type === 'response.audio_transcript.done' && event.delta?.text) {
       transcriptContent = event.delta.text;
       console.log(`[UserEventHandler] Final delta transcript: "${transcriptContent.substring(0, 50)}..."`, {
         length: transcriptContent.length,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        forcedRole: forcedRole
       });
     }
     
@@ -61,19 +67,14 @@ export class UserEventHandler {
     
     this.lastTranscriptContent = transcriptContent;
     
-    // Always save user transcript with the user role
-    const role = EventTypeRegistry.getRoleForEvent(event.type);
-    if (role !== 'user') {
-      console.error(`[UserEventHandler] Expected user role but got ${role}, using 'user' as fallback`);
-    }
-    
     console.log(`[UserEventHandler] Saving USER transcript: "${transcriptContent.substring(0, 50)}..."`, {
       contentLength: transcriptContent.length,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      forcedRole: forcedRole
     });
     
-    // Add message to queue
-    this.messageQueue.queueMessage('user', transcriptContent, true);
+    // Add message to queue - always explicitly use 'user' role
+    this.messageQueue.queueMessage(forcedRole, transcriptContent, true);
     
     // Show notification for user feedback
     toast.success("Speech detected", { 
@@ -82,4 +83,3 @@ export class UserEventHandler {
     });
   }
 }
-

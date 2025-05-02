@@ -28,6 +28,9 @@ export class AssistantEventHandler {
       return;
     }
     
+    // Always force the correct role for any messages saved here
+    const forcedRole = 'assistant';
+    
     // Handle response.done event
     if (event.type === 'response.done') {
       let content = '';
@@ -43,10 +46,12 @@ export class AssistantEventHandler {
         console.log(`[AssistantEventHandler] Saving ASSISTANT response: "${content.substring(0, 50)}..."`, {
           contentLength: content.length,
           timestamp: new Date().toISOString(),
-          messageNumber: ++this.messagesSaved
+          messageNumber: ++this.messagesSaved,
+          forcedRole: forcedRole
         });
-        // Always save assistant responses with assistant role
-        this.messageQueue.queueMessage('assistant', content, true);
+        
+        // Always explicitly save with assistant role - NEVER use event.role or any other source
+        this.messageQueue.queueMessage(forcedRole, content, true);
         
         toast.success("AI response received", { 
           description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
@@ -64,16 +69,12 @@ export class AssistantEventHandler {
       console.log(`[AssistantEventHandler] Content part: "${content.substring(0, 50)}..."`, {
         contentLength: content.length,
         timestamp: new Date().toISOString(),
-        messageNumber: ++this.messagesSaved
+        messageNumber: ++this.messagesSaved,
+        forcedRole: forcedRole
       });
       
-      // Always save assistant responses with assistant role
-      const role = EventTypeRegistry.getRoleForEvent(event.type);
-      if (role !== 'assistant') {
-        console.error(`[AssistantEventHandler] Expected assistant role but got ${role}, using 'assistant' as fallback`);
-      }
-      
-      this.messageQueue.queueMessage('assistant', content, true);
+      // Always force assistant role - never derive from event or registry
+      this.messageQueue.queueMessage(forcedRole, content, true);
     }
     // Handle response.delta event
     else if (event.type.includes('response.delta') && !event.type.includes('audio')) {
@@ -99,8 +100,11 @@ export class AssistantEventHandler {
       console.log(`[AssistantEventHandler] Flushing pending response: "${this.assistantResponse.substring(0, 50)}..."`, {
         contentLength: this.assistantResponse.length,
         timestamp: new Date().toISOString(),
-        messageNumber: ++this.messagesSaved
+        messageNumber: ++this.messagesSaved,
+        forcedRole: 'assistant'
       });
+      
+      // Always explicitly use 'assistant' role when flushing
       this.messageQueue.queueMessage('assistant', this.assistantResponse, true);
       this.assistantResponse = '';
       this.pendingResponse = false;
@@ -109,4 +113,3 @@ export class AssistantEventHandler {
     }
   }
 }
-
