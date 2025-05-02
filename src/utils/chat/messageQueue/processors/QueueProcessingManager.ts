@@ -15,6 +15,15 @@ export class QueueProcessingManager {
       console.log(`Skipping empty ${role} message`);
       return { success: false };
     }
+    
+    // Validate role
+    if (role !== 'user' && role !== 'assistant') {
+      console.error(`[QueueProcessingManager] Invalid role provided: "${role}". Must be 'user' or 'assistant'`);
+      return { 
+        success: false, 
+        error: new Error(`Invalid role: ${role}`) 
+      };
+    }
 
     try {
       console.log(`Processing ${role} message directly:`, content.substring(0, 30));
@@ -41,6 +50,12 @@ export class QueueProcessingManager {
   }
 
   queueMessage(message: QueuedMessage): void {
+    // Validate role before queueing
+    if (message.role !== 'user' && message.role !== 'assistant') {
+      console.error(`[QueueProcessingManager] Cannot queue message with invalid role: ${message.role}`);
+      return;
+    }
+    
     this.messageQueue.push(message);
   }
 }

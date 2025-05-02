@@ -3,6 +3,7 @@
  * Handler specifically for user transcript events
  */
 import { MessageQueue } from '../../messageQueue';
+import { EventTypeRegistry } from '../EventTypeRegistry';
 import { toast } from 'sonner';
 
 export class UserEventHandler {
@@ -12,6 +13,12 @@ export class UserEventHandler {
   
   handleEvent(event: any): void {
     console.log(`[UserEventHandler] Processing user event: ${event.type}`);
+    
+    // Verify this is actually a user event
+    if (!EventTypeRegistry.isUserEvent(event.type)) {
+      console.log(`[UserEventHandler] Event ${event.type} is not a user event, skipping`);
+      return;
+    }
     
     let transcriptContent: string | null = null;
     
@@ -44,6 +51,11 @@ export class UserEventHandler {
     this.lastTranscriptContent = transcriptContent;
     
     // Always save user transcript with the user role
+    const role = EventTypeRegistry.getRoleForEvent(event.type);
+    if (role !== 'user') {
+      console.error(`[UserEventHandler] Expected user role but got ${role}, using 'user' as fallback`);
+    }
+    
     console.log(`[UserEventHandler] Saving USER transcript: "${transcriptContent.substring(0, 50)}..."`);
     this.messageQueue.queueMessage('user', transcriptContent, true);
     

@@ -4,6 +4,7 @@
  */
 import { MessageQueue } from '../../messageQueue';
 import { ResponseParser } from '../../ResponseParser';
+import { EventTypeRegistry } from '../EventTypeRegistry';
 import { toast } from 'sonner';
 
 export class AssistantEventHandler {
@@ -17,6 +18,12 @@ export class AssistantEventHandler {
   
   handleEvent(event: any): void {
     console.log(`[AssistantEventHandler] Processing assistant event: ${event.type}`);
+    
+    // Verify this is actually an assistant event
+    if (!EventTypeRegistry.isAssistantEvent(event.type)) {
+      console.log(`[AssistantEventHandler] Event ${event.type} is not an assistant event, skipping`);
+      return;
+    }
     
     // Handle response.done event
     if (event.type === 'response.done') {
@@ -50,6 +57,11 @@ export class AssistantEventHandler {
       console.log(`[AssistantEventHandler] Content part: "${content.substring(0, 50)}..."`);
       
       // Always save assistant responses with assistant role
+      const role = EventTypeRegistry.getRoleForEvent(event.type);
+      if (role !== 'assistant') {
+        console.error(`[AssistantEventHandler] Expected assistant role but got ${role}, using 'assistant' as fallback`);
+      }
+      
       this.messageQueue.queueMessage('assistant', content, true);
     }
     // Handle response.delta event
