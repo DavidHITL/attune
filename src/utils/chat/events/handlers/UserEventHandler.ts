@@ -10,13 +10,16 @@ export class UserEventHandler {
   private lastTranscriptContent: string = '';
   private accumulatedDeltaContent: string = '';
   private lastProcessedTimestamp: number = 0;
+  private debugEnabled: boolean = true;
   
   constructor(private messageQueue: MessageQueue) {
     console.log('[UserEventHandler] Initialized');
   }
   
   handleEvent(event: any): void {
-    console.log(`[UserEventHandler] Processing user event: ${event.type}`);
+    if (this.debugEnabled) {
+      console.log(`[UserEventHandler] Processing event type: ${event.type}`);
+    }
     
     // Verify this is actually a user event
     if (!EventTypeRegistry.isUserEvent(event.type)) {
@@ -55,20 +58,70 @@ export class UserEventHandler {
         forcedRole: forcedRole
       });
     }
-    else if (event.type === 'response.audio_transcript.delta' && event.delta?.text) {
-      // Accumulate delta content instead of saving immediately
-      this.accumulatedDeltaContent += event.delta.text;
-      isDelta = true;
-      console.log(`[UserEventHandler] Accumulating delta: "${event.delta.text}" (total: ${this.accumulatedDeltaContent.length} chars)`);
+    else if (event.type === 'response.audio_transcript.delta') {
+      // IMPROVED DELTA HANDLING: Check multiple properties where text might be found
+      let deltaText = null;
       
-      // Only process accumulated deltas if enough time has passed
-      const now = Date.now();
-      if (now - this.lastProcessedTimestamp > 2000 && this.accumulatedDeltaContent.trim() !== '') {
-        transcriptContent = this.accumulatedDeltaContent;
-        this.lastProcessedTimestamp = now;
-        console.log(`[UserEventHandler] Processing accumulated deltas: "${transcriptContent.substring(0, 50)}..."`);
+      // Log complete delta structure for debugging
+      if (this.debugEnabled) {
+        console.log('[UserEventHandler] Delta event structure:', JSON.stringify(event, null, 2));
+      }
+      
+      // Check multiple possible paths for text content
+      if (event.delta?.text) {
+        deltaText = event.delta.text;
+        console.log(`[UserEventHandler] Found text in delta.text: "${deltaText}"`);
+      } 
+      else if (event.text) {
+        deltaText = event.text;
+        console.log(`[UserEventHandler] Found text directly in event.text: "${deltaText}"`);
+      }
+      else if (event.transcript?.text) {
+        deltaText = event.transcript.text;
+        console.log(`[UserEventHandler] Found text in transcript.text: "${deltaText}"`);
+      }
+      else if (event.content?.text) {
+        deltaText = event.content.text;
+        console.log(`[UserEventHandler] Found text in content.text: "${deltaText}"`);
+      }
+      else if (typeof event.transcript === 'string') {
+        deltaText = event.transcript;
+        console.log(`[UserEventHandler] Found text in transcript string: "${deltaText}"`);
+      }
+      
+      // If no text was found in common places, try to extract from the raw event
+      if (!deltaText) {
+        // Log warning about no text found in expected places
+        console.warn('[UserEventHandler] ⚠️ No text found in expected delta properties, checking full event');
+        
+        // Last resort - try to find any text property by traversing the object
+        const textProperty = this.findTextProperty(event);
+        if (textProperty) {
+          deltaText = textProperty;
+          console.log(`[UserEventHandler] Found text through deep search: "${deltaText}"`);
+        } else {
+          console.warn('[UserEventHandler] ⚠️ No text content found anywhere in delta event');
+        }
+      }
+      
+      // Only continue if we found text content
+      if (deltaText) {
+        this.accumulatedDeltaContent += deltaText;
+        isDelta = true;
+        console.log(`[UserEventHandler] Accumulating delta: "${deltaText}" (total: ${this.accumulatedDeltaContent.length} chars)`);
+        
+        // IMPROVED: More aggressive processing of accumulated deltas - reduced time threshold
+        const now = Date.now();
+        if (now - this.lastProcessedTimestamp > 1000 && this.accumulatedDeltaContent.trim() !== '') {
+          transcriptContent = this.accumulatedDeltaContent;
+          this.lastProcessedTimestamp = now;
+          console.log(`[UserEventHandler] Processing accumulated deltas: "${transcriptContent.substring(0, 50)}..."`);
+        } else {
+          // Wait for more deltas or the "done" event
+          return;
+        }
       } else {
-        // Wait for more deltas or the "done" event
+        console.warn('[UserEventHandler] Empty transcript in delta event, skipping');
         return;
       }
     }
@@ -108,9 +161,46 @@ export class UserEventHandler {
     }
   }
   
+  /**
+   * Helper to find any text property in an object (deep search)
+   */
+  private findTextProperty(obj: any, depth = 0): string | null {
+    // Prevent infinite recursion
+    if (depth > 5) return null;
+    
+    if (!obj || typeof obj !== 'object') return null;
+    
+    // Direct text properties
+    if (typeof obj.text === 'string' && obj.text.trim() !== '') {
+      return obj.text;
+    }
+    
+    // Check transcript property
+    if (typeof obj.transcript === 'string' && obj.transcript.trim() !== '') {
+      return obj.transcript;
+    }
+    
+    // Recursively check nested objects
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        if (typeof obj[key] === 'object' && obj[key] !== null) {
+          const result = this.findTextProperty(obj[key], depth + 1);
+          if (result) return result;
+        } else if (key.includes('text') && typeof obj[key] === 'string' && obj[key].trim() !== '') {
+          return obj[key];
+        }
+      }
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Flush accumulated transcript even if time threshold hasn't been met
+   */
   flushAccumulatedTranscript(): void {
     if (this.accumulatedDeltaContent && this.accumulatedDeltaContent.trim() !== '') {
-      console.log(`[UserEventHandler] Flushing accumulated transcript: "${this.accumulatedDeltaContent.substring(0, 50)}..."`);
+      console.log(`[UserEventHandler] Forcing flush of accumulated transcript: "${this.accumulatedDeltaContent.substring(0, 50)}..."`);
       this.messageQueue.queueMessage('user', this.accumulatedDeltaContent, true);
       this.lastTranscriptContent = this.accumulatedDeltaContent;
       this.accumulatedDeltaContent = '';

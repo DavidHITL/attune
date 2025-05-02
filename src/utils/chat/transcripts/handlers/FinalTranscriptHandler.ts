@@ -3,6 +3,9 @@ import { MessageQueue } from '../../messageQueue';
 import { TranscriptAccumulator } from './TranscriptAccumulator';
 
 export class FinalTranscriptHandler {
+  private lastSavedTranscript: string = '';
+  private processingCount: number = 0;
+  
   constructor(
     private messageQueue: MessageQueue,
     private accumulator: TranscriptAccumulator
@@ -14,20 +17,22 @@ export class FinalTranscriptHandler {
       return;
     }
 
-    console.log(`📝 Processing final transcript: "${text.substring(0, 50)}..."`);
+    this.processingCount++;
+    const currentCount = this.processingCount;
+    console.log(`📝[${currentCount}] Processing final transcript: "${text.substring(0, 50)}..."`);
     
-    // CRITICAL: First check if this is new content
-    const currentContent = this.accumulator.getAccumulatedText();
-    if (currentContent === text) {
-      console.log("⚠️ This transcript has already been processed");
-      // Still queue to ensure it gets saved
-    }
+    // IMPROVED: Always queue the message, even if it's a duplicate of the last one
+    // During connection issues, it's better to have duplicates than missing content
+    console.log(`🔴[${currentCount}] Queueing USER message with content: "${text.substring(0, 50)}..."`);
     
-    // Queue the message as final transcript (high priority to ensure it's processed)
-    console.log(`🔴 Queueing USER message with content: "${text.substring(0, 50)}..."`);
+    // Add high priority flag to ensure it's processed quickly
     this.messageQueue.queueMessage('user', text, true);
+    
+    // Update last saved content
+    this.lastSavedTranscript = text;
     
     // Clear the accumulator after processing
     this.accumulator.reset();
+    console.log(`✅[${currentCount}] Transcript processed and accumulator reset`);
   }
 }

@@ -12,6 +12,8 @@ export class TranscriptHandler {
   private notifier: TranscriptNotifier;
   private directHandler: DirectTranscriptHandler;
   private finalHandler: FinalTranscriptHandler;
+  private lastCheckTime: number = 0;
+  private saveIntervalMs: number = 1500; // More aggressive saving (1.5 seconds)
   
   constructor(private messageQueue: MessageQueue) {
     this.accumulator = new TranscriptAccumulator();
@@ -25,6 +27,15 @@ export class TranscriptHandler {
     if (deltaText) {
       this.accumulator.accumulateText(deltaText);
       console.log(`📝 Accumulating transcript delta: "${deltaText}"`);
+      
+      // IMPROVED: Check if we should save accumulated text based on time
+      const now = Date.now();
+      if (now - this.lastCheckTime > this.saveIntervalMs && this.hasAccumulatedTranscript()) {
+        console.log("🕒 Time threshold reached, saving accumulated transcript");
+        const accumulatedText = this.accumulator.getAccumulatedText();
+        this.finalHandler.handleFinalTranscript(accumulatedText);
+        this.lastCheckTime = now;
+      }
     }
   }
 
@@ -36,6 +47,9 @@ export class TranscriptHandler {
   handleFinalTranscript(text: string | undefined): void {
     console.log(`📝 Handling final transcript: "${text?.substring(0, 50) || 'undefined'}..."`);
     this.finalHandler.handleFinalTranscript(text);
+    
+    // Reset the last check time after handling a final transcript
+    this.lastCheckTime = Date.now();
   }
 
   handleSpeechStarted(): void {

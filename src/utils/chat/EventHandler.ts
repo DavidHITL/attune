@@ -40,7 +40,7 @@ export class EventHandler {
       // First check for connection close events to force transcript saving
       if (isEventType(event, EventType.ConnectionClosed) || 
           isEventType(event, EventType.SessionDisconnected)) {
-        console.log(`[EventHandler] Connection event detected: ${event.type}`);
+        console.log(`[EventHandler] Connection event detected: ${event.type}, forcing flush of all pending content`);
         this.flushPendingMessages();
       }
       
@@ -73,8 +73,8 @@ export class EventHandler {
     this.speechEventHandler.flushPendingTranscript();
     
     // Also tell user event handler to flush any accumulated transcript
-    if (this.userEventHandler instanceof UserEventHandler) {
-      (this.userEventHandler as any).flushAccumulatedTranscript?.();
+    if (this.userEventHandler) {
+      this.userEventHandler.flushAccumulatedTranscript();
     }
     
     // Force queue to process any pending messages
