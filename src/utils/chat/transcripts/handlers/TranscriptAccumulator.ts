@@ -95,6 +95,13 @@ export class TranscriptAccumulator {
   }
   
   /**
+   * Get the last transcript update time
+   */
+  getLastTranscriptTime(): number {
+    return this.lastUpdateTime;
+  }
+  
+  /**
    * Get the most recent history item other than current
    */
   getMostRecentHistoryText(): string | null {
