@@ -5,6 +5,9 @@ import { FinalTranscriptHandler } from './handlers/FinalTranscriptHandler';
 import { TranscriptAccumulator } from './handlers/TranscriptAccumulator';
 import { SpeechStateTracker } from './handlers/SpeechStateTracker';
 import { TranscriptNotifier } from './handlers/TranscriptNotifier';
+import { SafetyMechanismHandler } from './handlers/SafetyMechanismHandler';
+import { TranscriptStalenessMonitor } from './handlers/TranscriptStalenessMonitor';
+import { PeriodicTranscriptChecker } from './handlers/PeriodicTranscriptChecker';
 
 export class TranscriptHandler {
   private accumulator: TranscriptAccumulator;
@@ -12,16 +15,9 @@ export class TranscriptHandler {
   private notifier: TranscriptNotifier;
   private directHandler: DirectTranscriptHandler;
   private finalHandler: FinalTranscriptHandler;
-  private lastCheckTime: number = 0;
-  // IMPROVED: More aggressive saving (300ms)
-  private saveIntervalMs: number = 300; 
-  private lastSaveTime: number = 0;
-  private forceSaveAfterMs: number = 800; // Force save after 800ms without saves
-  // SAFETY ADDITIONS
-  private emergencySaveTimer: NodeJS.Timeout | null = null;
-  private emergencySaveIntervalMs: number = 1500; // Emergency save every 1.5 seconds if speech detected
-  private failsafeBackupContent: string = '';
-  private safetyChecksEnabled: boolean = true;
+  private safetyHandler: SafetyMechanismHandler;
+  private stalenessMonitor: TranscriptStalenessMonitor;
+  private periodicChecker: PeriodicTranscriptChecker;
   private debugId: string = `TH-${Date.now().toString(36)}`;
   
   constructor(private messageQueue: MessageQueue) {
@@ -31,22 +27,24 @@ export class TranscriptHandler {
     this.directHandler = new DirectTranscriptHandler(messageQueue);
     this.finalHandler = new FinalTranscriptHandler(messageQueue, this.accumulator);
     
-    // Set up periodic check for stale transcripts
-    if (typeof window !== 'undefined') {
-      setInterval(() => this.checkForStalledTranscripts(), 800);
-      
-      // Add page unload handler to save any pending content
-      window.addEventListener('beforeunload', () => {
-        this.performEmergencyContentSave('page-unload');
-      });
-      
-      // Add visibility change handler to save content when tab becomes hidden
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') {
-          this.performEmergencyContentSave('visibility-change');
-        }
-      });
-    }
+    // Initialize the new helper components
+    this.safetyHandler = new SafetyMechanismHandler(
+      () => this.flushPendingTranscript(),
+      this.debugId
+    );
+    
+    this.stalenessMonitor = new TranscriptStalenessMonitor(
+      this.accumulator,
+      this.speechTracker,
+      () => this.flushPendingTranscript(),
+      this.debugId
+    );
+    
+    this.periodicChecker = new PeriodicTranscriptChecker(
+      this.accumulator,
+      (text) => this.finalHandler.handleFinalTranscript(text),
+      this.debugId
+    );
     
     console.log(`[TranscriptHandler ${this.debugId}] Initialized with safety mechanisms`);
   }
@@ -57,49 +55,43 @@ export class TranscriptHandler {
       console.log(`[TranscriptHandler ${this.debugId}] 📝 Accumulating transcript delta: "${deltaText}"`);
       
       // Create a backup of the content
-      this.updateFailsafeBackup();
+      this.safetyHandler.updateFailsafeBackup(this.accumulator.getAccumulatedText());
       
-      // IMPROVED: Check if we should save accumulated text based on time
-      const now = Date.now();
-      if (now - this.lastCheckTime > this.saveIntervalMs && this.hasAccumulatedTranscript()) {
-        console.log(`[TranscriptHandler ${this.debugId}] 🕒 Time threshold reached, saving accumulated transcript`);
-        const accumulatedText = this.accumulator.getAccumulatedText();
-        this.finalHandler.handleFinalTranscript(accumulatedText);
-        this.lastCheckTime = now;
-        this.lastSaveTime = now;
-      }
+      // Check if we should save accumulated text based on time
+      this.periodicChecker.checkAndSaveIfNeeded();
+      this.stalenessMonitor.updateLastSaveTime();
       
       // Start emergency save timer if not already running
-      this.startEmergencySaveTimer();
+      this.safetyHandler.startEmergencySaveTimer();
     }
   }
 
   handleDirectTranscript(transcript: string): void {
     console.log(`[TranscriptHandler ${this.debugId}] 📝 Handling direct transcript: "${transcript.substring(0, 50)}..."`);
     this.directHandler.handleDirectTranscript(transcript);
-    this.lastSaveTime = Date.now();
+    this.stalenessMonitor.updateLastSaveTime();
     
     // Update backup on direct transcript
-    this.failsafeBackupContent = transcript;
+    this.safetyHandler.updateFailsafeBackup(transcript);
   }
 
   handleFinalTranscript(text: string | undefined): void {
     console.log(`[TranscriptHandler ${this.debugId}] 📝 Handling final transcript: "${text?.substring(0, 50) || 'undefined'}..."`);
     
     // If no text provided but we have backup content, use that
-    if (!text && this.failsafeBackupContent) {
-      console.log(`[TranscriptHandler ${this.debugId}] ⚠️ No text provided, using failsafe backup (${this.failsafeBackupContent.length} chars)`);
-      text = this.failsafeBackupContent;
+    if (!text && this.safetyHandler.hasFailsafeBackupContent()) {
+      console.log(`[TranscriptHandler ${this.debugId}] ⚠️ No text provided, using failsafe backup (${this.safetyHandler.getFailsafeBackupContent().length} chars)`);
+      text = this.safetyHandler.getFailsafeBackupContent();
     }
     
     this.finalHandler.handleFinalTranscript(text);
     
     // Reset the last check time after handling a final transcript
-    this.lastCheckTime = Date.now();
-    this.lastSaveTime = Date.now();
+    this.periodicChecker.updateLastCheckTime();
+    this.stalenessMonitor.updateLastSaveTime();
     
     // Reset emergency timer since we just saved
-    this.resetEmergencySaveTimer();
+    this.safetyHandler.resetEmergencySaveTimer();
   }
 
   handleSpeechStarted(): void {
@@ -107,7 +99,7 @@ export class TranscriptHandler {
     console.log(`[TranscriptHandler ${this.debugId}] 🎙️ User speech started - preparing to capture transcript`);
     
     // Start emergency save timer when speech starts
-    this.startEmergencySaveTimer();
+    this.safetyHandler.startEmergencySaveTimer();
   }
 
   handleSpeechStopped(): void {
@@ -120,10 +112,10 @@ export class TranscriptHandler {
         
         // Save immediately when speech stops
         this.finalHandler.handleFinalTranscript(accumulatedText);
-      } else if (this.failsafeBackupContent) {
+      } else if (this.safetyHandler.hasFailsafeBackupContent()) {
         // Use failsafe backup if we have no accumulated text
-        console.log(`[TranscriptHandler ${this.debugId}] ⚠️ Speech stopped without transcript but failsafe available (${this.failsafeBackupContent.length} chars)`);
-        this.finalHandler.handleFinalTranscript(this.failsafeBackupContent);
+        console.log(`[TranscriptHandler ${this.debugId}] ⚠️ Speech stopped without transcript but failsafe available (${this.safetyHandler.getFailsafeBackupContent().length} chars)`);
+        this.finalHandler.handleFinalTranscript(this.safetyHandler.getFailsafeBackupContent());
       } else {
         console.log(`[TranscriptHandler ${this.debugId}] ⚠️ Speech stopped but no transcript accumulated and no backup available`);
       }
@@ -132,10 +124,10 @@ export class TranscriptHandler {
       this.speechTracker.reset();
     }
     
-    this.lastSaveTime = Date.now();
+    this.stalenessMonitor.updateLastSaveTime();
     
     // Stop emergency timer since speech has stopped
-    this.resetEmergencySaveTimer();
+    this.safetyHandler.resetEmergencySaveTimer();
   }
 
   handleAudioBufferCommitted(): void {
@@ -148,10 +140,10 @@ export class TranscriptHandler {
       const accumulatedText = this.accumulator.getAccumulatedText();
       console.log(`[TranscriptHandler ${this.debugId}] 📝 Saving stale transcript on buffer commit: "${accumulatedText.substring(0, 50)}..."`);
       this.finalHandler.handleFinalTranscript(accumulatedText);
-      this.lastSaveTime = Date.now();
+      this.stalenessMonitor.updateLastSaveTime();
       
       // Update backup
-      this.updateFailsafeBackup();
+      this.safetyHandler.updateFailsafeBackup(accumulatedText);
     }
   }
 
@@ -160,17 +152,17 @@ export class TranscriptHandler {
       const accumulatedText = this.accumulator.getAccumulatedText();
       console.log(`[TranscriptHandler ${this.debugId}] 🔴 FLUSHING PENDING TRANSCRIPT: "${accumulatedText.substring(0, 50)}..."`);
       this.finalHandler.handleFinalTranscript(accumulatedText);
-      this.lastSaveTime = Date.now();
-    } else if (this.failsafeBackupContent) {
+      this.stalenessMonitor.updateLastSaveTime();
+    } else if (this.safetyHandler.hasFailsafeBackupContent()) {
       // If no current content but we have a backup, use that as a safety measure
-      console.log(`[TranscriptHandler ${this.debugId}] 🔄 No current transcript to flush, using failsafe backup (${this.failsafeBackupContent.length} chars)`);
-      this.finalHandler.handleFinalTranscript(this.failsafeBackupContent);
+      console.log(`[TranscriptHandler ${this.debugId}] 🔄 No current transcript to flush, using failsafe backup (${this.safetyHandler.getFailsafeBackupContent().length} chars)`);
+      this.finalHandler.handleFinalTranscript(this.safetyHandler.getFailsafeBackupContent());
     } else {
       console.log(`[TranscriptHandler ${this.debugId}] No pending transcript or backup to flush`);
     }
     
     // Reset emergency save timer
-    this.resetEmergencySaveTimer();
+    this.safetyHandler.resetEmergencySaveTimer();
   }
 
   private hasAccumulatedTranscript(): boolean {
@@ -184,7 +176,7 @@ export class TranscriptHandler {
 
   clearTranscript(): void {
     // Save the content to backup before clearing
-    this.updateFailsafeBackup();
+    this.safetyHandler.updateFailsafeBackup(this.accumulator.getAccumulatedText());
     
     // Clear the actual transcript
     this.accumulator.reset();
@@ -192,101 +184,5 @@ export class TranscriptHandler {
 
   isUserSpeechDetected(): boolean {
     return this.speechTracker.isSpeechDetected();
-  }
-  
-  // ADDED: Safety mechanisms
-  
-  /**
-   * Update the failsafe backup with current content if available
-   */
-  private updateFailsafeBackup(): void {
-    const currentText = this.accumulator.getAccumulatedText();
-    if (currentText && currentText.trim() !== '') {
-      if (currentText.length > this.failsafeBackupContent.length) {
-        this.failsafeBackupContent = currentText;
-        console.log(`[TranscriptHandler ${this.debugId}] ✅ Updated failsafe backup (${this.failsafeBackupContent.length} chars)`);
-      }
-    }
-  }
-  
-  /**
-   * Start the emergency save timer if not already running
-   */
-  private startEmergencySaveTimer(): void {
-    if (this.emergencySaveTimer === null && this.safetyChecksEnabled && typeof window !== 'undefined') {
-      console.log(`[TranscriptHandler ${this.debugId}] 🔄 Starting emergency save timer (interval: ${this.emergencySaveIntervalMs}ms)`);
-      this.emergencySaveTimer = setInterval(() => {
-        this.performEmergencySave();
-      }, this.emergencySaveIntervalMs);
-    }
-  }
-  
-  /**
-   * Reset/stop the emergency save timer
-   */
-  private resetEmergencySaveTimer(): void {
-    if (this.emergencySaveTimer !== null) {
-      clearInterval(this.emergencySaveTimer);
-      this.emergencySaveTimer = null;
-      console.log(`[TranscriptHandler ${this.debugId}] 🛑 Emergency save timer stopped`);
-    }
-  }
-  
-  /**
-   * Perform an emergency save if needed
-   */
-  private performEmergencySave(): void {
-    if (this.speechTracker.isSpeechDetected() && this.hasAccumulatedTranscript()) {
-      const accumulatedText = this.accumulator.getAccumulatedText();
-      console.log(`[TranscriptHandler ${this.debugId}] 🚨 EMERGENCY SAVE: Speech active for ${this.speechTracker.getSpeechDurationMs()}ms, saving transcript (${accumulatedText.length} chars)`);
-      
-      // Save with priority flag
-      this.finalHandler.handleFinalTranscript(accumulatedText);
-      this.lastSaveTime = Date.now();
-    }
-  }
-  
-  /**
-   * Emergency save for critical situations like page unload
-   */
-  private performEmergencyContentSave(trigger: string): void {
-    if (this.hasAccumulatedTranscript()) {
-      const accumulatedText = this.accumulator.getAccumulatedText();
-      console.log(`[TranscriptHandler ${this.debugId}] 🚨 CRITICAL EMERGENCY SAVE (${trigger}): Saving transcript (${accumulatedText.length} chars)`);
-      
-      // Force immediate save
-      if (this.messageQueue) {
-        this.messageQueue.queueMessage('user', accumulatedText, true);
-      }
-    } else if (this.failsafeBackupContent) {
-      console.log(`[TranscriptHandler ${this.debugId}] 🚨 CRITICAL EMERGENCY SAVE (${trigger}): No current content, using failsafe (${this.failsafeBackupContent.length} chars)`);
-      
-      // Force immediate save of backup
-      if (this.messageQueue) {
-        this.messageQueue.queueMessage('user', this.failsafeBackupContent, true);
-      }
-    }
-  }
-  
-  // ADDED: Periodic check for stalled transcripts
-  private checkForStalledTranscripts(): void {
-    const now = Date.now();
-    // If we have accumulated transcript and it's been more than our force save threshold since last save
-    if (this.hasAccumulatedTranscript() && 
-        (now - this.lastSaveTime > this.forceSaveAfterMs)) {
-      console.log(`[TranscriptHandler ${this.debugId}] ⚠️ Found stalled transcript (${now - this.lastSaveTime}ms since last save), force saving`);
-      this.flushPendingTranscript();
-    }
-    
-    // Check if speech has been active for a long time without saving
-    if (this.speechTracker.isSpeechDetected() && 
-        this.speechTracker.getSpeechDurationMs() > 5000 && 
-        (now - this.lastSaveTime > 2000)) {
-      console.log(`[TranscriptHandler ${this.debugId}] ⚠️ Speech active for ${this.speechTracker.getSpeechDurationMs()}ms without recent save, forcing save`);
-      this.flushPendingTranscript();
-    }
-    
-    // Update backup if needed
-    this.updateFailsafeBackup();
   }
 }
