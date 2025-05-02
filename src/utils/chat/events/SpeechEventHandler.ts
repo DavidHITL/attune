@@ -46,12 +46,20 @@ export class SpeechEventHandler {
     if (isEventType(event, EventType.AudioBufferCommitted)) {
       this.transcriptHandler.handleAudioBufferCommitted();
     }
+    
+    // Handle disconnection events
+    if (isEventType(event, EventType.SessionDisconnected) || 
+        isEventType(event, EventType.ConnectionClosed)) {
+      console.log("CONNECTION CLOSED/DISCONNECTED - Saving any pending transcript");
+      this.flushPendingTranscript();
+    }
   }
 
   /**
    * For cleanup - save any pending transcript
    */
   flushPendingTranscript(): void {
+    console.log("FLUSHING PENDING TRANSCRIPT FROM EVENT HANDLER");
     this.transcriptHandler.flushPendingTranscript();
   }
 }

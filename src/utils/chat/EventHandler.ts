@@ -1,60 +1,85 @@
 
 import { MessageQueue } from './messageQueue';
 import { ResponseParser } from './ResponseParser';
-import { MessageCallback } from '../types';
 import { EventDispatcher } from './events/EventDispatcher';
 import { UserEventHandler } from './events/handlers/UserEventHandler';
 import { AssistantEventHandler } from './events/handlers/AssistantEventHandler';
-import { EventMonitor } from './events/EventMonitor';
+import { SpeechEventHandler } from './events/SpeechEventHandler';
+import { TranscriptHandler } from './transcripts/TranscriptHandler';
+import { EventTypeRegistry } from './events/EventTypeRegistry';
+import { EventType, isEventType } from './events/EventTypes';
 
 export class EventHandler {
   private eventDispatcher: EventDispatcher;
+  private speechEventHandler: SpeechEventHandler;
+  private transcriptHandler: TranscriptHandler;
   private userEventHandler: UserEventHandler;
-  private assistantEventHandler: AssistantEventHandler;
-  private eventMonitor: EventMonitor;
 
   constructor(
-    messageQueue: MessageQueue,
-    private responseParserInstance: ResponseParser,
-    private messageCallback: MessageCallback
+    private messageQueue: MessageQueue, 
+    private responseParser: ResponseParser,
+    private messageCallback: (event: any) => void
   ) {
-    // Create specialized handlers
     this.userEventHandler = new UserEventHandler(messageQueue);
-    this.assistantEventHandler = new AssistantEventHandler(messageQueue, responseParserInstance);
+    const assistantEventHandler = new AssistantEventHandler(messageCallback);
     
-    // Create the central event dispatcher
     this.eventDispatcher = new EventDispatcher(
       this.userEventHandler,
-      this.assistantEventHandler
+      assistantEventHandler
     );
     
-    this.eventMonitor = new EventMonitor();
-  }
-
-  handleMessage = (event: any): void => {
-    // Log and pass the event to the general message callback
-    this.responseParserInstance.logEvent(event);
-    this.messageCallback(event);
-    
-    // Track audio-related events for debugging purposes
-    this.eventMonitor.trackAudioEvent(event);
-    
-    // Use the event dispatcher to route the event
-    this.eventDispatcher.dispatchEvent(event);
-  }
-
-  // For cleanup - save any pending messages
-  flushPendingMessages(): void {
-    const diagnostics = this.eventMonitor.getDiagnostics();
-    console.log("Flushing pending messages, audio events detected:", diagnostics.audioEvents.join(", "));
-    console.log("Speech was detected during this session:", diagnostics.speechDetected);
-    
-    // Flush any pending assistant response
-    this.assistantEventHandler.flushPendingResponse();
+    this.transcriptHandler = new TranscriptHandler(messageQueue);
+    this.speechEventHandler = new SpeechEventHandler(this.transcriptHandler);
   }
   
-  // Expose the response parser for access in the component
-  get responseParser(): ResponseParser {
-    return this.responseParserInstance;
+  /**
+   * Main message handler for events from the WebRTC connection
+   */
+  handleMessage = (event: any): void => {
+    try {
+      // First check for connection close events to force transcript saving
+      if (isEventType(event, EventType.ConnectionClosed) || 
+          isEventType(event, EventType.SessionDisconnected)) {
+        console.log(`[EventHandler] Connection event detected: ${event.type}`);
+        this.flushPendingMessages();
+      }
+      
+      // Process speech events
+      this.speechEventHandler.handleSpeechEvents(event);
+      
+      // Handle text parsing - primarily for assistant responses
+      if (EventTypeRegistry.isAssistantEvent(event.type)) {
+        this.responseParser.parseEvent(event);
+      }
+      
+      // Dispatch event to appropriate handler based on role
+      this.eventDispatcher.dispatchEvent(event);
+      
+      // Forward all events to message callback
+      this.messageCallback(event);
+      
+    } catch (error) {
+      console.error("[EventHandler] Error handling event:", error);
+    }
+  };
+  
+  /**
+   * Flush any pending messages before disconnection
+   */
+  flushPendingMessages(): void {
+    console.log("[EventHandler] Force flushing pending messages before disconnection");
+    
+    // Flush any pending speech transcript
+    this.speechEventHandler.flushPendingTranscript();
+    
+    // Also tell user event handler to flush any accumulated transcript
+    if (this.userEventHandler instanceof UserEventHandler) {
+      (this.userEventHandler as any).flushAccumulatedTranscript?.();
+    }
+    
+    // Force queue to process any pending messages
+    if (this.messageQueue) {
+      this.messageQueue.forceFlushQueue();
+    }
   }
 }

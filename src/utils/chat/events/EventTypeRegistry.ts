@@ -1,72 +1,76 @@
 
 /**
- * Registry of event types and their role mappings
- * This is the single source of truth for event type categorization
+ * Registry for event types and their roles
  */
 export class EventTypeRegistry {
-  // Assistant events are response events from the AI
-  private static readonly ASSISTANT_EVENTS = [
-    'response.done',
-    'response.delta',
-    'response.content_part.done',
-    'response.created'
-  ];
-
-  // User events are transcript and speech events 
-  private static readonly USER_EVENTS = [
-    'transcript',
-    'response.audio_transcript.delta',
-    'response.audio_transcript.done',
-    'input_audio_buffer.speech_started',
-    'input_audio_buffer.speech_stopped'
-  ];
+  // Map of event types to their associated roles
+  private static eventRoleMap: Record<string, 'user' | 'assistant' | null> = {
+    // User events
+    'transcript': 'user',
+    'response.audio_transcript.delta': 'user',
+    'response.audio_transcript.done': 'user',
+    'input_audio_buffer.speech_started': 'user',
+    'input_audio_buffer.speech_stopped': 'user',
+    'input_audio_buffer.committed': 'user',
+    'input_audio_buffer.append': 'user',
+    'input_audio_activity_started': 'user',
+    'input_audio_activity_stopped': 'user',
+    
+    // Assistant events
+    'response.done': 'assistant',
+    'response.created': 'assistant',
+    'response.delta': 'assistant',
+    'response.content_part.done': 'assistant',
+    'response.content_part.added': 'assistant',
+    'response.output_item.added': 'assistant',
+    
+    // Session events - no role
+    'session.created': null,
+    'session.disconnected': null,
+    'connection.closed': null,
+    'conversation.item.created': null,
+    'rate_limits.updated': null,
+    'output_audio_buffer.started': null
+  };
 
   /**
-   * Check if an event type belongs to assistant responses
-   */
-  static isAssistantEvent(eventType: string): boolean {
-    // More strict matching for assistant events
-    return this.ASSISTANT_EVENTS.includes(eventType) || 
-           (eventType.includes('response') && 
-            !eventType.includes('audio') && 
-            !eventType.includes('transcript'));
-  }
-
-  /**
-   * Check if an event type belongs to user transcripts
+   * Check if an event is considered a user event
    */
   static isUserEvent(eventType: string): boolean {
-    return this.USER_EVENTS.includes(eventType) || 
-           eventType.includes('audio_transcript') ||
-           eventType.includes('transcript');
+    return this.getRoleForEvent(eventType) === 'user';
   }
-
+  
   /**
-   * Get role for an event type
+   * Check if an event is considered an assistant event
+   */
+  static isAssistantEvent(eventType: string): boolean {
+    return this.getRoleForEvent(eventType) === 'assistant';
+  }
+  
+  /**
+   * Get the role for a specific event type
    */
   static getRoleForEvent(eventType: string): 'user' | 'assistant' | null {
-    if (this.isAssistantEvent(eventType)) {
-      console.log(`[EventTypeRegistry] Event ${eventType} classified as ASSISTANT event`);
-      return 'assistant';
+    // Check if we have a specific mapping for this event type
+    if (eventType in this.eventRoleMap) {
+      return this.eventRoleMap[eventType];
     }
     
-    if (this.isUserEvent(eventType)) {
-      console.log(`[EventTypeRegistry] Event ${eventType} classified as USER event`);
+    // Fallback to pattern matching for unknown event types
+    if (eventType.includes('audio_transcript') || 
+        eventType.includes('input_audio')) {
+      console.log(`[EventTypeRegistry] Pattern-matched unknown event ${eventType} as user event`);
       return 'user';
     }
     
-    console.log(`[EventTypeRegistry] Event ${eventType} could not be classified, returning null`);
-    return null;
-  }
-
-  /**
-   * Debug method to log event type classification
-   */
-  static debugEventClassification(eventType: string): void {
-    const role = this.getRoleForEvent(eventType);
-    const isAssistant = this.isAssistantEvent(eventType);
-    const isUser = this.isUserEvent(eventType);
+    if (eventType.includes('response') && 
+        !eventType.includes('audio_transcript')) {
+      console.log(`[EventTypeRegistry] Pattern-matched unknown event ${eventType} as assistant event`);
+      return 'assistant';
+    }
     
-    console.log(`[EventType Debug] ${eventType}: role=${role}, isAssistant=${isAssistant}, isUser=${isUser}`);
+    // Unknown event type
+    console.log(`[EventTypeRegistry] Unknown event type: ${eventType}`);
+    return null;
   }
 }

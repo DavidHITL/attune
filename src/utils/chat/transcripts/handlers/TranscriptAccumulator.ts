@@ -50,14 +50,21 @@ export class TranscriptAccumulator {
    * Get the timestamp of the last transcript update
    */
   getLastTranscriptTime(): number {
-    return this.lastTranscriptTime;
+    return Math.max(this.lastTranscriptTime, this.lastDeltaTime);
   }
   
   /**
    * Check if the transcript is considered stale based on timing
    */
   isTranscriptStale(staleThresholdMs: number = 1500): boolean {
-    return Date.now() - Math.max(this.lastTranscriptTime, this.lastDeltaTime) > staleThresholdMs;
+    const timeSinceLastUpdate = Date.now() - this.getLastTranscriptTime();
+    const isStale = timeSinceLastUpdate > staleThresholdMs;
+    
+    if (isStale && this.userTranscript.trim() !== '') {
+      console.log(`[TranscriptAccumulator] Transcript is stale (${timeSinceLastUpdate}ms since last update)`);
+    }
+    
+    return isStale;
   }
   
   /**

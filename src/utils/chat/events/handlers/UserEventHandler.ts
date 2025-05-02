@@ -8,6 +8,8 @@ import { toast } from 'sonner';
 
 export class UserEventHandler {
   private lastTranscriptContent: string = '';
+  private accumulatedDeltaContent: string = '';
+  private lastProcessedTimestamp: number = 0;
   
   constructor(private messageQueue: MessageQueue) {
     console.log('[UserEventHandler] Initialized');
@@ -26,6 +28,7 @@ export class UserEventHandler {
     const forcedRole = 'user';
     
     let transcriptContent: string | null = null;
+    let isDelta = false;
     
     // Extract content based on event type
     if (event.type === 'transcript' && typeof event.transcript === 'string') {
@@ -51,6 +54,23 @@ export class UserEventHandler {
         timestamp: new Date().toISOString(),
         forcedRole: forcedRole
       });
+    }
+    else if (event.type === 'response.audio_transcript.delta' && event.delta?.text) {
+      // Accumulate delta content instead of saving immediately
+      this.accumulatedDeltaContent += event.delta.text;
+      isDelta = true;
+      console.log(`[UserEventHandler] Accumulating delta: "${event.delta.text}" (total: ${this.accumulatedDeltaContent.length} chars)`);
+      
+      // Only process accumulated deltas if enough time has passed
+      const now = Date.now();
+      if (now - this.lastProcessedTimestamp > 2000 && this.accumulatedDeltaContent.trim() !== '') {
+        transcriptContent = this.accumulatedDeltaContent;
+        this.lastProcessedTimestamp = now;
+        console.log(`[UserEventHandler] Processing accumulated deltas: "${transcriptContent.substring(0, 50)}..."`);
+      } else {
+        // Wait for more deltas or the "done" event
+        return;
+      }
     }
     
     // Skip empty transcripts
@@ -81,5 +101,19 @@ export class UserEventHandler {
       description: transcriptContent.substring(0, 50) + (transcriptContent.length > 50 ? "..." : ""),
       duration: 2000
     });
+    
+    // Reset accumulated content if this was final or we just processed accumulated deltas
+    if (!isDelta || transcriptContent === this.accumulatedDeltaContent) {
+      this.accumulatedDeltaContent = '';
+    }
+  }
+  
+  flushAccumulatedTranscript(): void {
+    if (this.accumulatedDeltaContent && this.accumulatedDeltaContent.trim() !== '') {
+      console.log(`[UserEventHandler] Flushing accumulated transcript: "${this.accumulatedDeltaContent.substring(0, 50)}..."`);
+      this.messageQueue.queueMessage('user', this.accumulatedDeltaContent, true);
+      this.lastTranscriptContent = this.accumulatedDeltaContent;
+      this.accumulatedDeltaContent = '';
+    }
   }
 }

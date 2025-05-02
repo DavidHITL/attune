@@ -1,3 +1,4 @@
+
 import { MessageQueue } from '../messageQueue';
 import { DirectTranscriptHandler } from './handlers/DirectTranscriptHandler';
 import { FinalTranscriptHandler } from './handlers/FinalTranscriptHandler';
@@ -23,14 +24,17 @@ export class TranscriptHandler {
   handleTranscriptDelta(deltaText: string): void {
     if (deltaText) {
       this.accumulator.accumulateText(deltaText);
+      console.log(`📝 Accumulating transcript delta: "${deltaText}"`);
     }
   }
 
   handleDirectTranscript(transcript: string): void {
+    console.log(`📝 Handling direct transcript: "${transcript.substring(0, 50)}..."`);
     this.directHandler.handleDirectTranscript(transcript);
   }
 
   handleFinalTranscript(text: string | undefined): void {
+    console.log(`📝 Handling final transcript: "${text?.substring(0, 50) || 'undefined'}..."`);
     this.finalHandler.handleFinalTranscript(text);
   }
 
@@ -40,20 +44,27 @@ export class TranscriptHandler {
   }
 
   handleSpeechStopped(): void {
+    console.log("🎤 User speech stopped - checking for transcript");
+    
     if (this.speechTracker.isSpeechDetected()) {
-      console.log("🎤 User speech stopped - checking for transcript");
-      
       if (this.hasAccumulatedTranscript()) {
         const accumulatedText = this.accumulator.getAccumulatedText();
         console.log(`🔴 SPEECH STOPPED WITH TRANSCRIPT: "${accumulatedText}"`);
         
+        // Save after a short delay to allow any final deltas to arrive
         setTimeout(() => {
           if (this.hasAccumulatedTranscript()) {
             const currentText = this.accumulator.getAccumulatedText();
+            console.log(`🔴 SAVING ACCUMULATED TRANSCRIPT AFTER SPEECH STOP: "${currentText}"`);
             this.finalHandler.handleFinalTranscript(currentText);
           }
         }, 300);
+      } else {
+        console.log("⚠️ Speech stopped but no transcript accumulated");
       }
+      
+      // Reset speech tracking after handling
+      this.speechTracker.reset();
     }
   }
 
@@ -65,6 +76,7 @@ export class TranscriptHandler {
         this.accumulator.isTranscriptStale()) {
       
       const accumulatedText = this.accumulator.getAccumulatedText();
+      console.log(`📝 Saving stale transcript on buffer commit: "${accumulatedText}"`);
       this.finalHandler.handleFinalTranscript(accumulatedText);
     }
   }
@@ -72,7 +84,10 @@ export class TranscriptHandler {
   flushPendingTranscript(): void {
     if (this.hasAccumulatedTranscript()) {
       const accumulatedText = this.accumulator.getAccumulatedText();
+      console.log(`🔴 FLUSHING PENDING TRANSCRIPT: "${accumulatedText}"`);
       this.finalHandler.handleFinalTranscript(accumulatedText);
+    } else {
+      console.log("No pending transcript to flush");
     }
   }
 

@@ -16,7 +16,15 @@ export class FinalTranscriptHandler {
 
     console.log(`📝 Processing final transcript: "${text.substring(0, 50)}..."`);
     
+    // CRITICAL: First check if this is new content
+    const currentContent = this.accumulator.getAccumulatedText();
+    if (currentContent === text) {
+      console.log("⚠️ This transcript has already been processed");
+      // Still queue to ensure it gets saved
+    }
+    
     // Queue the message as final transcript (high priority to ensure it's processed)
+    console.log(`🔴 Queueing USER message with content: "${text.substring(0, 50)}..."`);
     this.messageQueue.queueMessage('user', text, true);
     
     // Clear the accumulator after processing
