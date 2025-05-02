@@ -13,6 +13,7 @@ export class UserEventProcessor {
   private transcriptExtractor: TranscriptContentExtractor;
   private transcriptProcessor: TranscriptProcessor;
   private debugEnabled: boolean;
+  private eventCounter: number = 0;
   
   constructor(private messageQueue: MessageQueue, debugEnabled: boolean = true) {
     this.deltaAccumulator = new DeltaAccumulator();
@@ -20,17 +21,24 @@ export class UserEventProcessor {
     this.transcriptProcessor = new TranscriptProcessor(messageQueue);
     this.debugEnabled = debugEnabled;
     
-    console.log('[UserEventProcessor] Initialized');
+    console.log('[UserEventProcessor] Initialized with debug mode:', debugEnabled);
   }
   
   processEvent(event: any): void {
+    this.eventCounter++;
+    const eventId = this.eventCounter;
+    
     if (this.debugEnabled) {
-      console.log(`[UserEventProcessor] Processing event type: ${event.type}`);
+      console.log(`[UserEventProcessor] #${eventId} Processing event type: ${event.type}`, {
+        timestamp: new Date().toISOString(),
+        eventType: event.type,
+        eventId
+      });
     }
     
     // Verify this is actually a user event
     if (!EventTypeRegistry.isUserEvent(event.type)) {
-      console.log(`[UserEventProcessor] Event ${event.type} is not a user event, skipping`);
+      console.log(`[UserEventProcessor] #${eventId} Event ${event.type} is not a user event, skipping`);
       return;
     }
     
@@ -43,7 +51,12 @@ export class UserEventProcessor {
     // For delta events, accumulate content
     if (isDelta && transcriptContent) {
       this.deltaAccumulator.accumulateDelta(transcriptContent);
-      console.log(`[UserEventProcessor] Accumulating delta: "${transcriptContent}" (total: ${this.deltaAccumulator.getAccumulatedContent().length} chars)`);
+      console.log(`[UserEventProcessor] #${eventId} Accumulating delta: "${transcriptContent}" (total: ${this.deltaAccumulator.getAccumulatedContent().length} chars)`, {
+        deltaLength: transcriptContent.length,
+        totalAccumulated: this.deltaAccumulator.getAccumulatedContent().length,
+        timestamp: new Date().toISOString(),
+        eventId
+      });
       
       // Check if we should process accumulated deltas
       if (this.deltaAccumulator.shouldProcessAccumulated() || 
@@ -52,7 +65,12 @@ export class UserEventProcessor {
         const accumulatedContent = this.deltaAccumulator.getAccumulatedContent();
         this.deltaAccumulator.markProcessed();
         
-        console.log(`[UserEventProcessor] Processing accumulated deltas: "${accumulatedContent.substring(0, 50)}..."`);
+        console.log(`[UserEventProcessor] #${eventId} Processing accumulated deltas: "${accumulatedContent.substring(0, 50)}${accumulatedContent.length > 50 ? '...' : ''}"`, {
+          contentLength: accumulatedContent.length,
+          timestamp: new Date().toISOString(),
+          eventId,
+          contentSample: accumulatedContent.substring(0, 100)
+        });
         this.transcriptProcessor.saveUserMessage(accumulatedContent, forcedRole);
       }
       
@@ -61,17 +79,26 @@ export class UserEventProcessor {
     
     // Skip empty transcripts
     if (!transcriptContent || transcriptContent.trim() === '') {
-      console.log(`[UserEventProcessor] Empty transcript in ${event.type}, skipping`);
+      console.log(`[UserEventProcessor] #${eventId} Empty transcript in ${event.type}, skipping`);
       return;
     }
     
     // Skip duplicate transcripts
     if (this.transcriptProcessor.isDuplicate(transcriptContent)) {
-      console.log(`[UserEventProcessor] Duplicate transcript, skipping`);
+      console.log(`[UserEventProcessor] #${eventId} Duplicate transcript, skipping: "${transcriptContent.substring(0, 50)}${transcriptContent.length > 50 ? '...' : ''}"`, {
+        contentLength: transcriptContent.length,
+        timestamp: new Date().toISOString(),
+        eventId
+      });
       return;
     }
     
     // Process and save the transcript
+    console.log(`[UserEventProcessor] #${eventId} Processing direct transcript: "${transcriptContent.substring(0, 50)}${transcriptContent.length > 50 ? '...' : ''}"`, {
+      contentLength: transcriptContent.length,
+      timestamp: new Date().toISOString(),
+      eventId
+    });
     this.transcriptProcessor.saveUserMessage(transcriptContent, forcedRole);
   }
   
@@ -85,7 +112,12 @@ export class UserEventProcessor {
     // Enhanced logic to force-save even minimal content
     if (accumulatedContent) {
       // Log the force flush with content preview
-      console.log(`[UserEventProcessor] Forcing flush of accumulated transcript: "${accumulatedContent.substring(0, 50)}${accumulatedContent.length > 50 ? '...' : ''}"`);
+      console.log(`[UserEventProcessor] Forcing flush of accumulated transcript: "${accumulatedContent.substring(0, 50)}${accumulatedContent.length > 50 ? '...' : ''}"`, {
+        contentLength: accumulatedContent.length,
+        timestamp: new Date().toISOString(),
+        contentWords: accumulatedContent.split(' ').length,
+        contentSample: accumulatedContent.substring(0, 100)
+      });
       
       // Save with high priority flag to ensure immediate processing
       this.transcriptProcessor.saveUserMessage(accumulatedContent, 'user', true);

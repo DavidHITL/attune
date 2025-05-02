@@ -9,13 +9,23 @@ export class DeltaAccumulator {
   private lastProcessedTimestamp: number = 0;
   private saveThresholdMs: number = 300;
   
-  constructor() {}
+  constructor() {
+    console.log('[DeltaAccumulator] Initialized');
+  }
   
   /**
    * Add content to the accumulator
    */
   accumulateDelta(deltaText: string): void {
+    const contentBefore = this.accumulatedContent.length;
     this.accumulatedContent += deltaText;
+    
+    console.log(`[DeltaAccumulator] Added delta text: "${deltaText}" (${deltaText.length} chars)`, {
+      contentBefore: contentBefore,
+      contentAfter: this.accumulatedContent.length,
+      deltaLength: deltaText.length,
+      timestamp: new Date().toISOString()
+    });
   }
   
   /**
@@ -30,8 +40,15 @@ export class DeltaAccumulator {
    */
   shouldProcessAccumulated(): boolean {
     const now = Date.now();
-    return now - this.lastProcessedTimestamp > this.saveThresholdMs && 
-           this.accumulatedContent.trim() !== '';
+    const timeSinceLastProcess = now - this.lastProcessedTimestamp;
+    const hasContent = this.accumulatedContent.trim() !== '';
+    const shouldProcess = timeSinceLastProcess > this.saveThresholdMs && hasContent;
+    
+    if (shouldProcess) {
+      console.log(`[DeltaAccumulator] Time threshold met (${timeSinceLastProcess}ms) with content length: ${this.accumulatedContent.length}`);
+    }
+    
+    return shouldProcess;
   }
   
   /**
@@ -39,8 +56,13 @@ export class DeltaAccumulator {
    * even if the time threshold hasn't been met
    */
   hasSubstantialContent(): boolean {
-    return this.accumulatedContent.length > 20 && 
-           this.accumulatedContent.includes(" ");
+    const isSubstantial = this.accumulatedContent.length > 20 && this.accumulatedContent.includes(" ");
+    
+    if (isSubstantial) {
+      console.log(`[DeltaAccumulator] Substantial content detected (${this.accumulatedContent.length} chars): "${this.accumulatedContent.substring(0, 50)}${this.accumulatedContent.length > 50 ? '...' : ''}"`);
+    }
+    
+    return isSubstantial;
   }
   
   /**
@@ -49,6 +71,7 @@ export class DeltaAccumulator {
   markProcessed(): string {
     const content = this.accumulatedContent;
     this.lastProcessedTimestamp = Date.now();
+    console.log(`[DeltaAccumulator] Marked content as processed at ${new Date(this.lastProcessedTimestamp).toISOString()}: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}" (${content.length} chars)`);
     return content;
   }
   
@@ -56,6 +79,15 @@ export class DeltaAccumulator {
    * Reset the accumulator
    */
   reset(): void {
+    const hadContent = this.accumulatedContent.length > 0;
+    const contentPreview = this.accumulatedContent.substring(0, 50);
+    
     this.accumulatedContent = '';
+    
+    if (hadContent) {
+      console.log(`[DeltaAccumulator] Reset accumulator. Discarded content: "${contentPreview}${contentPreview.length > 50 ? '...' : ''}" (total chars discarded: ${this.accumulatedContent.length})`);
+    } else {
+      console.log('[DeltaAccumulator] Reset accumulator (was empty)');
+    }
   }
 }

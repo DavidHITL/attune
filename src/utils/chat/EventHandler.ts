@@ -14,6 +14,7 @@ export class EventHandler {
   private speechEventHandler: SpeechEventHandler;
   private transcriptHandler: TranscriptHandler;
   private userEventHandler: UserEventHandler;
+  private eventCounter: number = 0;
 
   constructor(
     private messageQueue: MessageQueue, 
@@ -30,6 +31,8 @@ export class EventHandler {
     
     this.transcriptHandler = new TranscriptHandler(messageQueue);
     this.speechEventHandler = new SpeechEventHandler(this.transcriptHandler);
+    
+    console.log('[EventHandler] Initialized event handling system');
   }
   
   /**
@@ -37,10 +40,25 @@ export class EventHandler {
    */
   handleMessage = (event: any): void => {
     try {
+      this.eventCounter++;
+      const eventId = this.eventCounter;
+      const eventTime = new Date().toISOString();
+      
+      // Log basic event information
+      console.log(`[EventHandler] #${eventId} Received event type: ${event.type}`, {
+        timestamp: eventTime,
+        eventId,
+        eventType: event.type
+      });
+      
       // First check for connection close events to force transcript saving
       if (isEventType(event, EventType.ConnectionClosed) || 
           isEventType(event, EventType.SessionDisconnected)) {
-        console.log(`[EventHandler] Connection event detected: ${event.type}, forcing flush of all pending content`);
+        console.log(`[EventHandler] #${eventId} Connection event detected: ${event.type}, forcing flush of all pending content`, {
+          timestamp: eventTime,
+          eventType: event.type,
+          forceSave: true
+        });
         this.flushPendingMessages();
       }
       
@@ -67,19 +85,34 @@ export class EventHandler {
    * Flush any pending messages before disconnection
    */
   flushPendingMessages(): void {
-    console.log("[EventHandler] Force flushing pending messages before disconnection");
+    const startTime = Date.now();
+    console.log("[EventHandler] Force flushing pending messages before disconnection", {
+      timestamp: new Date(startTime).toISOString(),
+      operation: 'flushPendingMessages'
+    });
     
     // Flush any pending speech transcript
+    console.log("[EventHandler] Flushing speech event handler pending transcript");
     this.speechEventHandler.flushPendingTranscript();
     
     // Also tell user event handler to flush any accumulated transcript
     if (this.userEventHandler) {
+      console.log("[EventHandler] Flushing user event handler accumulated transcript");
       this.userEventHandler.flushAccumulatedTranscript();
     }
     
     // Force queue to process any pending messages
     if (this.messageQueue) {
+      console.log("[EventHandler] Force flushing message queue");
       this.messageQueue.forceFlushQueue();
     }
+    
+    // Log completion time
+    const completionTime = Date.now();
+    console.log("[EventHandler] Flush operation completed", {
+      totalTimeMs: completionTime - startTime,
+      timestamp: new Date(completionTime).toISOString()
+    });
   }
 }
+
