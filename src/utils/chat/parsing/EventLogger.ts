@@ -1,4 +1,3 @@
-
 /**
  * Handles logging and tracking of events
  */
@@ -16,27 +15,18 @@ export class EventLogger {
     }
     this.eventCounts[event.type]++;
     
-    // Log all events but limit console spam
-    const isKeyEvent = [
+    // Log only key events to avoid console spam
+    const keyEvents = [
       'session.created', 
       'response.created', 
       'response.done',
       'response.audio_transcript.done',
       'conversation.item.truncated',
-      'response.content_part.done',
-      'transcript',
-      'input_audio_buffer.speech_started',
-      'input_audio_buffer.speech_stopped'
-    ].includes(event.type);
+      'response.content_part.done'
+    ];
     
-    const eventCount = this.eventCounts[event.type];
-    const timestamp = new Date().toISOString();
-    
-    if (isKeyEvent) {
-      console.log(`📊 EVENT [${event.type}] #${eventCount} at ${timestamp}`);
-    } else if (eventCount <= 5 || eventCount % 10 === 0) {
-      // Log less frequent events or occasionally for repeated events
-      console.log(`📊 EVENT [${event.type}] #${eventCount} at ${timestamp}`);
+    if (keyEvents.includes(event.type)) {
+      console.log(`EVENT [${event.type}] #${this.eventCounts[event.type]} at ${new Date().toISOString()}`);
     }
     
     const eventInfo = {
@@ -47,13 +37,8 @@ export class EventLogger {
     // Add content preview for certain events
     if (event.delta?.content) {
       eventInfo.contentPreview = event.delta.content.substring(0, 30);
-      console.log(`📋 Content delta preview: "${eventInfo.contentPreview}..."`);
     } else if (event.transcript?.text) {
       eventInfo.contentPreview = event.transcript.text.substring(0, 30);
-      console.log(`📋 Transcript preview: "${eventInfo.contentPreview}..."`);
-    } else if (typeof event.transcript === 'string') {
-      eventInfo.contentPreview = event.transcript.substring(0, 30);
-      console.log(`📋 Direct transcript preview: "${eventInfo.contentPreview}..."`);
     }
     
     this.eventLog.push(eventInfo);
@@ -76,25 +61,5 @@ export class EventLogger {
    */
   getEventCounts(): Record<string, number> {
     return this.eventCounts;
-  }
-  
-  /**
-   * Log general event statistics 
-   */
-  logEventStats(): void {
-    const totalEvents = Object.values(this.eventCounts).reduce((sum, count) => sum + count, 0);
-    const uniqueEventTypes = Object.keys(this.eventCounts).length;
-    
-    console.log(`📊 Event Statistics: ${totalEvents} total events of ${uniqueEventTypes} different types`);
-    
-    // Get top 5 most frequent event types
-    const sortedEvents = Object.entries(this.eventCounts)
-      .sort(([, countA], [, countB]) => countB - countA)
-      .slice(0, 5);
-    
-    console.log('📊 Top 5 most frequent event types:');
-    sortedEvents.forEach(([type, count]) => {
-      console.log(`   - ${type}: ${count} occurrences`);
-    });
   }
 }

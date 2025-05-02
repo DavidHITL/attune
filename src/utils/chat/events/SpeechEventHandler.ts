@@ -4,12 +4,9 @@ import { TranscriptHandler } from '../transcripts/TranscriptHandler';
 
 /**
  * Handler for speech and transcript-related events
- * This is the PRIMARY handler for speech-related processing in the modern system
  */
 export class SpeechEventHandler {
-  constructor(private transcriptHandler: TranscriptHandler) {
-    console.log('[SpeechEventHandler] ✅ Initialized as PRIMARY speech event processor');
-  }
+  constructor(private transcriptHandler: TranscriptHandler) {}
 
   /**
    * Process speech and transcript events
@@ -17,7 +14,6 @@ export class SpeechEventHandler {
   handleSpeechEvents(event: any): void {
     // Handle speech started events
     if (isEventType(event, EventType.SpeechStarted)) {
-      console.log('[SpeechEventHandler] 🎙️ Speech started detected');
       this.transcriptHandler.handleSpeechStarted();
     }
     
@@ -31,19 +27,18 @@ export class SpeechEventHandler {
     
     // Direct transcript handling (high priority)
     if (isEventType(event, EventType.DirectTranscript)) {
-      console.log("[SpeechEventHandler] 💬 DIRECT TRANSCRIPT RECEIVED:", event.transcript?.substring(0, 50));
+      console.log("DIRECT TRANSCRIPT EVENT RECEIVED:", event.transcript);
       this.transcriptHandler.handleDirectTranscript(event.transcript);
     }
     
     // Handle speech stopped events
     if (isEventType(event, EventType.SpeechStopped)) {
-      console.log('[SpeechEventHandler] 🔇 Speech stopped detected');
       this.transcriptHandler.handleSpeechStopped();
     }
     
     // Handle final transcript completions
     if (isEventType(event, EventType.AudioTranscriptDone)) {
-      console.log("[SpeechEventHandler] ✅ FINAL TRANSCRIPT RECEIVED:", event.transcript?.text?.substring(0, 50));
+      console.log("FINAL TRANSCRIPT EVENT RECEIVED:", event.transcript?.text);
       this.transcriptHandler.handleFinalTranscript(event.transcript?.text);
     }
     
@@ -57,7 +52,6 @@ export class SpeechEventHandler {
    * For cleanup - save any pending transcript
    */
   flushPendingTranscript(): void {
-    console.log('[SpeechEventHandler] 📝 Flushing any pending transcript');
     this.transcriptHandler.flushPendingTranscript();
   }
 }

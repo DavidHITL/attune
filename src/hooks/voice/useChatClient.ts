@@ -1,4 +1,3 @@
-
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useConversation } from '@/hooks/useConversation';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
@@ -8,11 +7,11 @@ import { useVoiceChatLogger } from '@/hooks/voice/useVoiceChatLogger';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { useVoiceStateManagement } from '@/hooks/voice/useVoiceStateManagement';
-import { useVoiceEventHandler } from '@/hooks/voice/useVoiceEventHandler';
+import { useVoiceEvents } from '@/hooks/voice/useVoiceEvents';
 import { useVoiceChatAnalysis } from '@/hooks/voice/useVoiceChatAnalysis';
 
 /**
- * Main hook for chat client functionality, refactored to eliminate legacy pathways
+ * Main hook for chat client functionality, refactored for improved modularity and reliability
  */
 export const useChatClient = () => {
   // Initialize refs and basic state
@@ -41,19 +40,24 @@ export const useChatClient = () => {
   // Set up background analysis when voice chat sessions end
   useVoiceChatAnalysis(isConnected);
 
-  // Use the enhanced voice event handler for all voice events
-  const { handleVoiceEvent } = useVoiceEventHandler(chatClientRef);
+  // Get enhanced voice event handling with unified transcript processing
+  const { handleVoiceEvent } = useVoiceEvents(chatClientRef, setVoiceActivityState);
   
-  // Combined message handler that uses only the modern event dispatcher system
+  // Combined message handler for all event types
   const combinedMessageHandler = useCallback((event: any) => {
-    // Process all events through our unified handler
+    // Process voice events (speech, transcripts)
     handleVoiceEvent(event);
     
-    // Process session creation events separately
+    // Process session creation events
     handleSessionCreated(event);
+    
+    // Log the last few event types for debugging
+    if (event.type && event.type !== 'input_audio_buffer.append') {
+      console.log(`EVENT [${event.type}] #${Math.floor(Math.random() * 10)} at ${new Date().toISOString()}`);
+    }
   }, [handleVoiceEvent, handleSessionCreated]);
   
-  // Initialize connection manager with event handling
+  // Initialize connection manager with more robust message handling
   const { startConversation, endConversation } = useConnectionManager(
     chatClientRef,
     combinedMessageHandler,
@@ -98,7 +102,7 @@ export const useChatClient = () => {
     }
   }, [startConversation, isConnected, setConnectionError]);
   
-  // Cleanup effect on unmount
+  // Cleanup effect on unmount with enhanced reliability
   useEffect(() => {
     return () => {
       console.log("Cleaning up chat client");

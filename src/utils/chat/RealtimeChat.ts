@@ -1,4 +1,3 @@
-
 import { ConnectionManager } from './ConnectionManager';
 import { MessageQueue } from './messageQueue';
 import { ResponseParser } from './ResponseParser';
@@ -16,8 +15,6 @@ export class RealtimeChat {
   private messageEventProcessor: MessageEventProcessor;
   private conversationInitializer: ConversationInitializer;
   private microphoneManager: MicrophoneControlManager;
-  private processedMessageHashes: Set<string> = new Set();
-  private isFlushingMessages: boolean = false;
   
   constructor(
     private messageCallback: MessageCallback,
@@ -37,11 +34,6 @@ export class RealtimeChat {
     
     this.conversationInitializer = new ConversationInitializer(this.statusCallback, this.messageQueue);
     this.microphoneManager = new MicrophoneControlManager(this.connectionManager);
-    
-    // Make message queue available globally
-    if (typeof window !== 'undefined') {
-      window.attuneMessageQueue = this.messageQueue;
-    }
   }
 
   async init(): Promise<boolean> {
@@ -105,25 +97,6 @@ export class RealtimeChat {
       return Promise.resolve();
     }
     
-    // Generate a hash for the content
-    const contentHash = `${content.substring(0, 30)}-${content.length}`;
-    
-    // Skip if we've already processed this message
-    if (this.processedMessageHashes.has(contentHash)) {
-      console.log(`[RealtimeChat] Skipping duplicate user message`);
-      return Promise.resolve();
-    }
-    
-    // Add to processed set
-    this.processedMessageHashes.add(contentHash);
-    
-    // Limit processed set size
-    if (this.processedMessageHashes.size > 100) {
-      this.processedMessageHashes = new Set(
-        Array.from(this.processedMessageHashes).slice(-50)
-      );
-    }
-    
     // Log that we're explicitly saving a user message
     console.log(`[RealtimeChat] saveUserMessage called with content length ${content.length}, first 50 chars: "${content.substring(0, 50)}..."`);
     
@@ -136,56 +109,21 @@ export class RealtimeChat {
     return this.userMessageHandler.saveUserMessage(content);
   }
 
-  /**
-   * Flushes any pending messages in a coordinated way to prevent duplicate saves
-   * This is a critical path for cleanup, so we need to prevent redundant flush operations
-   */
   flushPendingMessages(): void {
-    // Prevent recursive or duplicate flush operations
-    if (this.isFlushingMessages) {
-      console.log("[RealtimeChat] Already flushing messages, skipping redundant flush request");
-      return;
-    }
-
-    this.isFlushingMessages = true;
-    console.log("[RealtimeChat] Starting coordinated message flush operation");
-    
-    try {
-      // First, check if there are any pending messages in the message processor
-      // This ensures that any buffered assistant messages are processed first
-      this.messageEventProcessor.flushPendingMessages();
-      
-      // After the event processor has flushed its pending responses,
-      // flush the message queue to handle any queued messages
-      if (this.messageQueue) {
-        console.log("[RealtimeChat] Flushing message queue");
-        this.messageQueue.flushQueue().catch(err => {
-          console.error("[RealtimeChat] Error flushing message queue:", err);
-        });
-      }
-      
-      // Finally, save any remaining transcript from the user message handler
-      // This is typically for incomplete user utterances that weren't sent yet
-      this.userMessageHandler.saveTranscriptIfNotEmpty();
-      
-    } finally {
-      // Always reset the flushing flag when complete
-      this.isFlushingMessages = false;
-      console.log("[RealtimeChat] Completed coordinated message flush operation");
-    }
+    console.log("Forcing flush of all pending messages");
+    this.messageQueue?.flushQueue().catch(err => {
+      console.error("Error flushing message queue:", err);
+    });
+    this.messageEventProcessor.flushPendingMessages();
+    this.userMessageHandler.saveTranscriptIfNotEmpty();
   }
 
   disconnect(): void {
-    console.log("[RealtimeChat] Disconnecting from chat...");
+    console.log("Disconnecting from chat...");
     this.statusCallback('Disconnected');
     
     this.conversationInitializer.cleanup();
-    
-    // Only flush messages if we haven't already done so
-    if (!this.isFlushingMessages) {
-      this.flushPendingMessages();
-    }
-    
+    this.flushPendingMessages();
     this.connectionManager?.disconnect();
     this.userMessageHandler.cleanupProcessedMessages();
   }

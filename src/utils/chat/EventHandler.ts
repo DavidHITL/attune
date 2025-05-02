@@ -5,14 +5,12 @@ import { MessageCallback } from '../types';
 import { EventDispatcher } from './events/EventDispatcher';
 import { UserEventHandler } from './events/handlers/UserEventHandler';
 import { AssistantEventHandler } from './events/handlers/AssistantEventHandler';
-import { SystemEventHandler } from './events/handlers/SystemEventHandler';
 import { EventMonitor } from './events/EventMonitor';
 
 export class EventHandler {
   private eventDispatcher: EventDispatcher;
   private userEventHandler: UserEventHandler;
   private assistantEventHandler: AssistantEventHandler;
-  private systemEventHandler: SystemEventHandler;
   private eventMonitor: EventMonitor;
 
   constructor(
@@ -23,13 +21,11 @@ export class EventHandler {
     // Create specialized handlers
     this.userEventHandler = new UserEventHandler(messageQueue);
     this.assistantEventHandler = new AssistantEventHandler(messageQueue, responseParserInstance);
-    this.systemEventHandler = new SystemEventHandler();
     
     // Create the central event dispatcher
     this.eventDispatcher = new EventDispatcher(
       this.userEventHandler,
-      this.assistantEventHandler,
-      this.systemEventHandler
+      this.assistantEventHandler
     );
     
     this.eventMonitor = new EventMonitor();
