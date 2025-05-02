@@ -29,19 +29,22 @@ export class EventDispatcher {
     
     // Log event routing for non-audio-buffer events
     if (event.type !== 'input_audio_buffer.append') {
-      console.log(`[EventDispatcher] Routing event: ${event.type}, role: ${role || 'unknown'}`);
+      console.log(`[EventDispatcher] Routing event: ${event.type}, role: ${role || 'unknown'}, timestamp: ${new Date().toISOString()}`);
     }
     
     // Route events to appropriate handlers based on their type
     if (EventTypeRegistry.isAssistantEvent(event.type)) {
+      console.log(`[EventDispatcher] → Sending to AssistantEventHandler: ${event.type}`);
       this.assistantEventHandler.handleEvent(event);
     } 
     else if (EventTypeRegistry.isUserEvent(event.type)) {
+      console.log(`[EventDispatcher] → Sending to UserEventHandler: ${event.type}`);
       this.userEventHandler.handleEvent(event);
     }
     else if (event.type !== 'input_audio_buffer.append') {
       // Log events that don't match known types (except audio buffer events)
-      console.log(`[EventDispatcher] Unhandled event type: ${event.type}`);
+      console.log(`[EventDispatcher] ⚠️ Unhandled event type: ${event.type}`);
     }
   }
 }
+

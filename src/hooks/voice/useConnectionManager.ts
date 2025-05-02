@@ -20,33 +20,34 @@ export const useConnectionManager = (
   setConnectionError: (error: string | null) => void
 ) => {
   const { user } = useAuth();
+  const connectionId = Math.random().toString(36).substring(2, 9);
   
   const startConversation = useCallback(async (): Promise<void> => {
     try {
-      console.log("Starting conversation, creating chat client...");
+      console.log(`[ConnectionManager ${connectionId}] Starting conversation, creating chat client...`);
       setConnectionError(null);
       
       // First cleanup any existing connection
       if (chatClientRef.current) {
-        console.log("Cleaning up previous chat client instance");
+        console.log(`[ConnectionManager ${connectionId}] Cleaning up previous chat client instance`);
         chatClientRef.current.disconnect();
         chatClientRef.current = null;
       }
       
-      console.log("Creating new RealtimeChatClient instance");
+      console.log(`[ConnectionManager ${connectionId}] Creating new RealtimeChatClient instance`);
       
       // Create a wrapper for the message handler to validate event types
       const validatedMessageHandler: MessageCallback = (event) => {
         // Verify event has a type before passing it to handlers
         if (!event || !event.type) {
-          console.log("Received event with no type, skipping");
+          console.log(`[ConnectionManager ${connectionId}] Received event with no type, skipping`);
           return;
         }
         
         // Log infrequent events for debugging (skip audio buffer events)
         if (event.type !== 'input_audio_buffer.append') {
           const role = EventTypeRegistry.getRoleForEvent(event.type);
-          console.log(`[ConnectionManager] Event: ${event.type}, Role: ${role || 'unknown'}`);
+          console.log(`[ConnectionManager ${connectionId}] Event: ${event.type}, Role: ${role || 'unknown'}, timestamp: ${new Date().toISOString()}`);
         }
         
         // Pass to the main event handler
@@ -60,17 +61,19 @@ export const useConnectionManager = (
         saveMessage
       );
       
-      console.log("Initializing chat connection");
+      console.log(`[ConnectionManager ${connectionId}] Initializing chat connection`);
+      const startTime = performance.now();
       await chatClientRef.current.init();
+      const endTime = performance.now();
       
-      console.log("Connection initialized successfully");
+      console.log(`[ConnectionManager ${connectionId}] Connection initialized successfully in ${Math.round(endTime - startTime)}ms`);
       setIsConnected(true);
       setIsMicOn(true);
       
       const mode = user ? "authenticated user" : "anonymous user";
       toast.success(`Connected successfully as ${mode}`);
     } catch (error) {
-      console.error('Failed to start conversation:', error);
+      console.error(`[ConnectionManager ${connectionId}] Failed to start conversation:`, error);
       const errorMessage = error instanceof Error ? error.message : "Unknown connection error";
       setConnectionError(errorMessage);
       
@@ -79,21 +82,40 @@ export const useConnectionManager = (
       setIsMicOn(false);
       throw error; // Re-throw to allow proper error handling
     }
-  }, [chatClientRef, handleMessageEvent, saveMessage, setStatus, setIsConnected, setIsMicOn, setConnectionError, user]);
+  }, [chatClientRef, handleMessageEvent, saveMessage, setStatus, setIsConnected, setIsMicOn, setConnectionError, user, connectionId]);
 
   const endConversation = useCallback(async () => {
-    console.log("Ending conversation");
+    console.log(`[ConnectionManager ${connectionId}] Ending conversation`);
     if (chatClientRef.current) {
       try {
         // Make sure we properly disconnect and clean up resources
+        console.log(`[ConnectionManager ${connectionId}] Flushing pending messages...`);
         if (typeof chatClientRef.current.flushPendingMessages === 'function') {
           await chatClientRef.current.flushPendingMessages();
+          console.log(`[ConnectionManager ${connectionId}] Messages flushed, now disconnecting...`);
+          // Give time for messages to be processed before disconnecting
+          setTimeout(() => {
+            if (chatClientRef.current) {
+              console.log(`[ConnectionManager ${connectionId}] Disconnecting...`);
+              chatClientRef.current.disconnect();
+              chatClientRef.current = null;
+              console.log(`[ConnectionManager ${connectionId}] Disconnected`);
+            }
+          }, 300);
+        } else {
+          console.warn(`[ConnectionManager ${connectionId}] flushPendingMessages method not available, falling back to direct disconnect`);
+          chatClientRef.current.disconnect();
+          chatClientRef.current = null;
         }
-        chatClientRef.current.disconnect();
-        chatClientRef.current = null;
       } catch (e) {
-        console.error("Error during disconnect:", e);
+        console.error(`[ConnectionManager ${connectionId}] Error during disconnect:`, e);
+        if (chatClientRef.current) {
+          chatClientRef.current.disconnect();
+          chatClientRef.current = null;
+        }
       }
+    } else {
+      console.log(`[ConnectionManager ${connectionId}] No chat client to disconnect`);
     }
     
     // Reset all states
@@ -105,21 +127,25 @@ export const useConnectionManager = (
     
     // Force releasing microphone
     try {
+      console.log(`[ConnectionManager ${connectionId}] Force releasing microphone...`);
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(stream => {
           // Stop all tracks to ensure microphone is fully released
           stream.getTracks().forEach(track => {
+            console.log(`[ConnectionManager ${connectionId}] Stopping track:`, track.kind, track.label);
             track.stop();
           });
+          console.log(`[ConnectionManager ${connectionId}] All microphone tracks stopped`);
         })
-        .catch(err => console.error("Error accessing microphone during cleanup:", err));
+        .catch(err => console.error(`[ConnectionManager ${connectionId}] Error accessing microphone during cleanup:`, err));
     } catch (e) {
-      console.error("Error during forced microphone cleanup:", e);
+      console.error(`[ConnectionManager ${connectionId}] Error during forced microphone cleanup:`, e);
     }
-  }, [chatClientRef, setIsConnected, setVoiceActivityState, setIsMicOn, setStatus, setConnectionError]);
+  }, [chatClientRef, setIsConnected, setVoiceActivityState, setIsMicOn, setStatus, setConnectionError, connectionId]);
 
   return {
     startConversation,
     endConversation
   };
 };
+

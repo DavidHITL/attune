@@ -10,8 +10,10 @@ export class MessageQueue {
   private queueState: QueueState;
   private queueProcessor: QueueProcessor;
   private queueInitializer: QueueInitializer;
+  private messageCounter: { user: number, assistant: number } = { user: 0, assistant: 0 };
   
   constructor(private saveMessageCallback: SaveMessageCallback) {
+    console.log('[MessageQueue] Initializing');
     this.queueState = new QueueState();
     this.queueProcessor = new QueueProcessor(saveMessageCallback);
     this.queueInitializer = new QueueInitializer(this.queueState, this.queueProcessor);
@@ -19,7 +21,7 @@ export class MessageQueue {
   
   queueMessage(role: 'user' | 'assistant', content: string, priority: boolean = false): void {
     if (!content || content.trim() === '') {
-      console.log(`Skipping empty ${role} message`);
+      console.log(`[MessageQueue] Skipping empty ${role} message`);
       return;
     }
 
@@ -29,7 +31,9 @@ export class MessageQueue {
       return;
     }
 
-    console.log(`[MessageQueue] Queueing ${role} message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}", priority: ${priority}`);
+    // Track message count by role
+    this.messageCounter[role]++;
+    console.log(`[MessageQueue] Queueing ${role} message #${this.messageCounter[role]}: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}", priority: ${priority}, timestamp: ${new Date().toISOString()}`);
 
     const isInitialized = this.checkInitialized();
     
@@ -40,7 +44,7 @@ export class MessageQueue {
     }
     
     if (!isInitialized) {
-      console.log(`[MessageQueue] Pre-initialization ${role} message received, queueing until conversation is ready`);
+      console.log(`[MessageQueue] Pre-initialization ${role} message #${this.messageCounter[role]} received, queueing until conversation is ready`);
       this.queueState.addPendingMessage(role, content, priority);
       return;
     }
@@ -54,10 +58,12 @@ export class MessageQueue {
     const hasConversationContext = typeof window !== 'undefined' && 
                                window.conversationContext?.conversationId ? true : false;
     
+    console.log(`[MessageQueue] Checking initialization: state=${isStateInitialized}, context=${hasConversationContext}`);
     return isStateInitialized || hasConversationContext;
   }
   
   setConversationInitialized(): void {
+    console.log(`[MessageQueue] Setting conversation as initialized`);
     this.queueInitializer.initializeConversation();
   }
   
@@ -66,8 +72,10 @@ export class MessageQueue {
   }
   
   async flushQueue(): Promise<void> {
+    console.log(`[MessageQueue] Flushing queue: state=${this.queueState.isInitialized()}, pending=${this.queueState.hasPendingMessages()}`);
+    
     if (!this.queueState.isInitialized() && this.queueState.hasPendingMessages()) {
-      console.log(`Forcing processing of pending pre-init messages during flush`);
+      console.log(`[MessageQueue] Forcing processing of pending pre-init messages during flush`);
       this.setConversationInitialized();
     }
     
@@ -75,15 +83,20 @@ export class MessageQueue {
   }
   
   getQueueStatus(): QueueStatus & { pendingPreInitMessages: number } {
-    return {
+    const status = {
       ...this.queueProcessor.getQueueStatus(),
       pendingPreInitMessages: this.queueState.getPendingMessageCount()
     };
+    
+    console.log(`[MessageQueue] Queue status: ${JSON.stringify(status)}`);
+    return status;
   }
   
   async forceFlushQueue(): Promise<void> {
+    console.log(`[MessageQueue] Force flushing queue`);
+    
     if (this.queueState.hasPendingMessages()) {
-      console.log(`Force-processing ${this.queueState.getPendingMessageCount()} pending pre-init messages`);
+      console.log(`[MessageQueue] Force-processing ${this.queueState.getPendingMessageCount()} pending pre-init messages`);
       this.queueInitializer.processPendingMessages();
       this.queueState.setInitialized(true); // Set initialized after processing messages
       this.queueState.clearPendingMessages(); // Clear any remaining pending messages
@@ -95,3 +108,4 @@ export class MessageQueue {
 
 export * from './types';
 export * from './QueueTypes';
+

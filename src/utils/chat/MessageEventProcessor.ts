@@ -30,6 +30,8 @@ export class MessageEventProcessor {
       this.userEventHandler,
       this.assistantEventHandler
     );
+    
+    console.log('[MessageEventProcessor] Initialized with handlers and dispatcher');
   }
   
   /**
@@ -48,7 +50,7 @@ export class MessageEventProcessor {
     // Log the event type and role for debugging
     if (event.type !== 'input_audio_buffer.append') {
       const role = EventTypeRegistry.getRoleForEvent(event.type);
-      console.log(`[MessageEventProcessor] Processing event: ${event.type}, role: ${role || 'unknown'}`);
+      console.log(`[MessageEventProcessor] Processing event: ${event.type}, role: ${role || 'unknown'}, time: ${new Date().toISOString()}`);
     }
     
     // Log more details for specific events
@@ -66,3 +68,4 @@ export class MessageEventProcessor {
     this.assistantEventHandler.flushPendingResponse();
   }
 }
+

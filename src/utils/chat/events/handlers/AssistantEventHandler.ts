@@ -10,11 +10,14 @@ import { toast } from 'sonner';
 export class AssistantEventHandler {
   private assistantResponse: string = '';
   private pendingResponse: boolean = false;
+  private messagesSaved: number = 0;
   
   constructor(
     private messageQueue: MessageQueue,
     private responseParser: ResponseParser
-  ) {}
+  ) {
+    console.log('[AssistantEventHandler] Initialized');
+  }
   
   handleEvent(event: any): void {
     console.log(`[AssistantEventHandler] Processing assistant event: ${event.type}`);
@@ -37,7 +40,11 @@ export class AssistantEventHandler {
       }
       
       if (content && content.trim()) {
-        console.log(`[AssistantEventHandler] Saving ASSISTANT response: "${content.substring(0, 50)}..."`);
+        console.log(`[AssistantEventHandler] Saving ASSISTANT response: "${content.substring(0, 50)}..."`, {
+          contentLength: content.length,
+          timestamp: new Date().toISOString(),
+          messageNumber: ++this.messagesSaved
+        });
         // Always save assistant responses with assistant role
         this.messageQueue.queueMessage('assistant', content, true);
         
@@ -54,7 +61,11 @@ export class AssistantEventHandler {
     // Handle content part done event
     else if (event.type === 'response.content_part.done' && event.content_part?.text) {
       const content = event.content_part.text;
-      console.log(`[AssistantEventHandler] Content part: "${content.substring(0, 50)}..."`);
+      console.log(`[AssistantEventHandler] Content part: "${content.substring(0, 50)}..."`, {
+        contentLength: content.length,
+        timestamp: new Date().toISOString(),
+        messageNumber: ++this.messagesSaved
+      });
       
       // Always save assistant responses with assistant role
       const role = EventTypeRegistry.getRoleForEvent(event.type);
@@ -71,6 +82,11 @@ export class AssistantEventHandler {
       if (deltaContent) {
         this.assistantResponse += deltaContent;
         this.pendingResponse = true;
+        
+        // Only log occasionally to avoid spam
+        if (this.assistantResponse.length % 100 === 0) {
+          console.log(`[AssistantEventHandler] Accumulating delta content (length: ${this.assistantResponse.length})`);
+        }
       }
     }
   }
@@ -80,10 +96,17 @@ export class AssistantEventHandler {
    */
   flushPendingResponse(): void {
     if (this.pendingResponse && this.assistantResponse.trim()) {
-      console.log(`[AssistantEventHandler] Flushing pending response: "${this.assistantResponse.substring(0, 50)}..."`);
+      console.log(`[AssistantEventHandler] Flushing pending response: "${this.assistantResponse.substring(0, 50)}..."`, {
+        contentLength: this.assistantResponse.length,
+        timestamp: new Date().toISOString(),
+        messageNumber: ++this.messagesSaved
+      });
       this.messageQueue.queueMessage('assistant', this.assistantResponse, true);
       this.assistantResponse = '';
       this.pendingResponse = false;
+    } else {
+      console.log('[AssistantEventHandler] No pending response to flush');
     }
   }
 }
+

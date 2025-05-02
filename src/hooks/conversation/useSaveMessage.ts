@@ -40,9 +40,10 @@ export const useSaveMessage = (
 ) => {
   const saveMessage = async (message: Partial<Message>): Promise<(Message & { conversation_id: string }) | null> => {
     const normalizedMessage = ensureValidMessageRole(message);
+    const saveId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     
     // Enhanced logging for message save attempts
-    console.log('📝 [Save Message] Attempt:', {
+    console.log(`📝 [Save Message ${saveId}] Attempt:`, {
       timestamp: new Date().toISOString(),
       userExists: !!user,
       userId: user?.id,
@@ -54,15 +55,15 @@ export const useSaveMessage = (
     });
     
     if (!isValidMessageContent(normalizedMessage.content)) {
-      console.warn('⚠️ [Save Message] Skipping empty message save attempt');
+      console.warn(`⚠️ [Save Message ${saveId}] Skipping empty message save attempt`);
       return null;
     }
     
     // For anonymous users, always return a local message without database saving
     if (!user) {
-      console.log(`👤 [Save Message] Anonymous user message processing: ${normalizedMessage.role}`);
+      console.log(`👤 [Save Message ${saveId}] Anonymous user message processing: ${normalizedMessage.role}`);
       const anonymousMessage = createAnonymousMessage(normalizedMessage.role, normalizedMessage.content);
-      console.log('Anonymous message created (not saved to database):', anonymousMessage);
+      console.log(`Anonymous message created (not saved to database): ${anonymousMessage.id}`);
       return { ...anonymousMessage, conversation_id: 'anonymous' };
     }
     
@@ -70,16 +71,16 @@ export const useSaveMessage = (
     
     // For authenticated users without an active conversation, create one
     if (!targetConversationId && normalizedMessage.role === 'user') {
-      console.log('🆕 [Save Message] No conversation ID found, creating new conversation...');
+      console.log(`🆕 [Save Message ${saveId}] No conversation ID found, creating new conversation...`);
       targetConversationId = await createNewConversation(user.id);
       
       if (!targetConversationId) {
-        console.error('❌ [Save Message] Failed to create conversation');
+        console.error(`❌ [Save Message ${saveId}] Failed to create conversation`);
         toast.error('Unable to start conversation. Please try again.');
         return { ...createAnonymousMessage(normalizedMessage.role, normalizedMessage.content), conversation_id: 'anonymous' };
       }
       
-      console.log('✅ [Save Message] Created new conversation:', targetConversationId);
+      console.log(`✅ [Save Message ${saveId}] Created new conversation: ${targetConversationId}`);
     }
     
     const insertData = {
@@ -89,42 +90,47 @@ export const useSaveMessage = (
       content: normalizedMessage.content
     };
     
-    console.log('💾 [Save Message] Inserting message:', {
+    console.log(`💾 [Save Message ${saveId}] Inserting message:`, {
       timestamp: new Date().toISOString(),
-      payload: insertData,
-      conversationContext: {
-        conversationId: targetConversationId,
-        userId: user.id,
-        role: normalizedMessage.role
+      payload: {
+        conversation_id: insertData.conversation_id,
+        user_id: insertData.user_id,
+        role: insertData.role,
+        contentPreview: insertData.content?.substring(0, 20) + '...',
       }
     });
     
     try {
       // Add additional debugging for insert operation
-      console.log(`[Save Message] Starting database insert with SQL: 
+      console.log(`[Save Message ${saveId}] Starting database insert with SQL: 
         INSERT INTO messages (conversation_id, user_id, role, content)
         VALUES ('${targetConversationId}', '${user.id}', '${normalizedMessage.role}', '${normalizedMessage.content?.substring(0, 20)}...')`);
       
+      const startTime = performance.now();
       const { data, error } = await supabase
         .from('messages')
         .insert([insertData])
         .select('id, role, content, created_at, conversation_id')
         .single();
+      const endTime = performance.now();
         
       if (error) {
-        console.error('❌ [Save Message] Database error during message insert:', {
+        console.error(`❌ [Save Message ${saveId}] Database error during message insert:`, {
           error,
           errorMessage: error.message,
           errorCode: error.code,
           details: error.details,
           hint: error.hint,
-          payload: insertData,
+          payload: {
+            conversation_id: insertData.conversation_id,
+            role: insertData.role,
+          },
           timestamp: new Date().toISOString()
         });
         throw error;
       }
       
-      console.log('✅ [Save Message] Message saved successfully:', {
+      console.log(`✅ [Save Message ${saveId}] Message saved successfully in ${Math.round(endTime - startTime)}ms:`, {
         messageId: data.id,
         conversationId: data.conversation_id,
         role: data.role,
@@ -150,7 +156,7 @@ export const useSaveMessage = (
       return savedMessage;
       
     } catch (error) {
-      console.error('❌ [Save Message] Error saving message:', {
+      console.error(`❌ [Save Message ${saveId}] Error saving message:`, {
         error: error instanceof Error ? error.message : "Unknown error",
         stack: error instanceof Error ? error.stack : undefined,
         timestamp: new Date().toISOString(),
@@ -170,3 +176,4 @@ export const useSaveMessage = (
 
   return { saveMessage };
 };
+

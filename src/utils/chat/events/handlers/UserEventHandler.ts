@@ -9,7 +9,9 @@ import { toast } from 'sonner';
 export class UserEventHandler {
   private lastTranscriptContent: string = '';
   
-  constructor(private messageQueue: MessageQueue) {}
+  constructor(private messageQueue: MessageQueue) {
+    console.log('[UserEventHandler] Initialized');
+  }
   
   handleEvent(event: any): void {
     console.log(`[UserEventHandler] Processing user event: ${event.type}`);
@@ -25,15 +27,24 @@ export class UserEventHandler {
     // Extract content based on event type
     if (event.type === 'transcript' && typeof event.transcript === 'string') {
       transcriptContent = event.transcript;
-      console.log(`[UserEventHandler] Direct transcript: "${transcriptContent.substring(0, 50)}..."`);
+      console.log(`[UserEventHandler] Direct transcript: "${transcriptContent.substring(0, 50)}..."`, {
+        length: transcriptContent.length,
+        timestamp: new Date().toISOString()
+      });
     } 
     else if (event.type === 'response.audio_transcript.done' && event.transcript?.text) {
       transcriptContent = event.transcript.text;
-      console.log(`[UserEventHandler] Final transcript: "${transcriptContent.substring(0, 50)}..."`);
+      console.log(`[UserEventHandler] Final transcript: "${transcriptContent.substring(0, 50)}..."`, {
+        length: transcriptContent.length,
+        timestamp: new Date().toISOString()
+      });
     }
     else if (event.type === 'response.audio_transcript.done' && event.delta?.text) {
       transcriptContent = event.delta.text;
-      console.log(`[UserEventHandler] Final delta transcript: "${transcriptContent.substring(0, 50)}..."`);
+      console.log(`[UserEventHandler] Final delta transcript: "${transcriptContent.substring(0, 50)}..."`, {
+        length: transcriptContent.length,
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Skip empty transcripts
@@ -56,7 +67,12 @@ export class UserEventHandler {
       console.error(`[UserEventHandler] Expected user role but got ${role}, using 'user' as fallback`);
     }
     
-    console.log(`[UserEventHandler] Saving USER transcript: "${transcriptContent.substring(0, 50)}..."`);
+    console.log(`[UserEventHandler] Saving USER transcript: "${transcriptContent.substring(0, 50)}..."`, {
+      contentLength: transcriptContent.length,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Add message to queue
     this.messageQueue.queueMessage('user', transcriptContent, true);
     
     // Show notification for user feedback
@@ -66,3 +82,4 @@ export class UserEventHandler {
     });
   }
 }
+
