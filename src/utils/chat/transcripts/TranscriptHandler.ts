@@ -13,7 +13,10 @@ export class TranscriptHandler {
   private directHandler: DirectTranscriptHandler;
   private finalHandler: FinalTranscriptHandler;
   private lastCheckTime: number = 0;
-  private saveIntervalMs: number = 1500; // More aggressive saving (1.5 seconds)
+  // IMPROVED: More aggressive saving (500ms)
+  private saveIntervalMs: number = 500; 
+  private lastSaveTime: number = 0;
+  private forceSaveAfterMs: number = 1000; // Force save after 1 second without saves
   
   constructor(private messageQueue: MessageQueue) {
     this.accumulator = new TranscriptAccumulator();
@@ -21,6 +24,11 @@ export class TranscriptHandler {
     this.notifier = new TranscriptNotifier();
     this.directHandler = new DirectTranscriptHandler(messageQueue);
     this.finalHandler = new FinalTranscriptHandler(messageQueue, this.accumulator);
+    
+    // Set up periodic check for stale transcripts
+    if (typeof window !== 'undefined') {
+      setInterval(() => this.checkForStalledTranscripts(), 1000);
+    }
   }
 
   handleTranscriptDelta(deltaText: string): void {
@@ -35,6 +43,7 @@ export class TranscriptHandler {
         const accumulatedText = this.accumulator.getAccumulatedText();
         this.finalHandler.handleFinalTranscript(accumulatedText);
         this.lastCheckTime = now;
+        this.lastSaveTime = now;
       }
     }
   }
@@ -42,6 +51,7 @@ export class TranscriptHandler {
   handleDirectTranscript(transcript: string): void {
     console.log(`📝 Handling direct transcript: "${transcript.substring(0, 50)}..."`);
     this.directHandler.handleDirectTranscript(transcript);
+    this.lastSaveTime = Date.now();
   }
 
   handleFinalTranscript(text: string | undefined): void {
@@ -50,6 +60,7 @@ export class TranscriptHandler {
     
     // Reset the last check time after handling a final transcript
     this.lastCheckTime = Date.now();
+    this.lastSaveTime = Date.now();
   }
 
   handleSpeechStarted(): void {
@@ -65,14 +76,8 @@ export class TranscriptHandler {
         const accumulatedText = this.accumulator.getAccumulatedText();
         console.log(`🔴 SPEECH STOPPED WITH TRANSCRIPT: "${accumulatedText}"`);
         
-        // Save after a short delay to allow any final deltas to arrive
-        setTimeout(() => {
-          if (this.hasAccumulatedTranscript()) {
-            const currentText = this.accumulator.getAccumulatedText();
-            console.log(`🔴 SAVING ACCUMULATED TRANSCRIPT AFTER SPEECH STOP: "${currentText}"`);
-            this.finalHandler.handleFinalTranscript(currentText);
-          }
-        }, 300);
+        // Save immediately when speech stops
+        this.finalHandler.handleFinalTranscript(accumulatedText);
       } else {
         console.log("⚠️ Speech stopped but no transcript accumulated");
       }
@@ -80,6 +85,8 @@ export class TranscriptHandler {
       // Reset speech tracking after handling
       this.speechTracker.reset();
     }
+    
+    this.lastSaveTime = Date.now();
   }
 
   handleAudioBufferCommitted(): void {
@@ -92,6 +99,7 @@ export class TranscriptHandler {
       const accumulatedText = this.accumulator.getAccumulatedText();
       console.log(`📝 Saving stale transcript on buffer commit: "${accumulatedText}"`);
       this.finalHandler.handleFinalTranscript(accumulatedText);
+      this.lastSaveTime = Date.now();
     }
   }
 
@@ -100,6 +108,7 @@ export class TranscriptHandler {
       const accumulatedText = this.accumulator.getAccumulatedText();
       console.log(`🔴 FLUSHING PENDING TRANSCRIPT: "${accumulatedText}"`);
       this.finalHandler.handleFinalTranscript(accumulatedText);
+      this.lastSaveTime = Date.now();
     } else {
       console.log("No pending transcript to flush");
     }
@@ -121,4 +130,16 @@ export class TranscriptHandler {
   isUserSpeechDetected(): boolean {
     return this.speechTracker.isSpeechDetected();
   }
+  
+  // ADDED: Periodic check for stalled transcripts
+  private checkForStalledTranscripts(): void {
+    const now = Date.now();
+    // If we have accumulated transcript and it's been more than 1 second since last save
+    if (this.hasAccumulatedTranscript() && 
+        (now - this.lastSaveTime > this.forceSaveAfterMs)) {
+      console.log(`⚠️ Found stalled transcript (${now - this.lastSaveTime}ms since last save), force saving`);
+      this.flushPendingTranscript();
+    }
+  }
 }
+

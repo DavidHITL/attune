@@ -12,6 +12,9 @@ export class UserEventHandler {
   private lastProcessedTimestamp: number = 0;
   private debugEnabled: boolean = true;
   
+  // UPDATED: Much more aggressive timing threshold (300ms instead of 1000ms)
+  private saveThresholdMs: number = 300;
+  
   constructor(private messageQueue: MessageQueue) {
     console.log('[UserEventHandler] Initialized');
   }
@@ -110,14 +113,28 @@ export class UserEventHandler {
         isDelta = true;
         console.log(`[UserEventHandler] Accumulating delta: "${deltaText}" (total: ${this.accumulatedDeltaContent.length} chars)`);
         
-        // IMPROVED: More aggressive processing of accumulated deltas - reduced time threshold
+        // IMPROVED: Much more aggressive processing of accumulated deltas - reduced time threshold
         const now = Date.now();
-        if (now - this.lastProcessedTimestamp > 1000 && this.accumulatedDeltaContent.trim() !== '') {
+        if (now - this.lastProcessedTimestamp > this.saveThresholdMs && this.accumulatedDeltaContent.trim() !== '') {
           transcriptContent = this.accumulatedDeltaContent;
           this.lastProcessedTimestamp = now;
-          console.log(`[UserEventHandler] Processing accumulated deltas: "${transcriptContent.substring(0, 50)}..."`);
+          console.log(`[UserEventHandler] Processing accumulated deltas after ${this.saveThresholdMs}ms: "${transcriptContent.substring(0, 50)}..."`);
+          
+          // ADDED: Save after each 300ms of accumulated content
+          this.saveUserMessage(transcriptContent, forcedRole);
+          return;
         } else {
           // Wait for more deltas or the "done" event
+          // ADDED: Even if under threshold, save if accumulated text is substantial
+          if (this.accumulatedDeltaContent.length > 20 && this.accumulatedDeltaContent.includes(" ")) {
+            transcriptContent = this.accumulatedDeltaContent;
+            this.lastProcessedTimestamp = now;
+            console.log(`[UserEventHandler] Processing lengthy accumulated deltas: "${transcriptContent.substring(0, 50)}..."`);
+            
+            this.saveUserMessage(transcriptContent, forcedRole);
+            return;
+          }
+          
           return;
         }
       } else {
@@ -132,12 +149,19 @@ export class UserEventHandler {
       return;
     }
     
-    // Only process new transcript content to avoid duplicates
+    // IMPROVED: Allow more similar content (only skip if 100% identical)
     if (this.lastTranscriptContent === transcriptContent) {
       console.log(`[UserEventHandler] Duplicate transcript, skipping`);
       return;
     }
     
+    this.saveUserMessage(transcriptContent, forcedRole);
+  }
+  
+  /**
+   * Save a user message to the queue
+   */
+  private saveUserMessage(transcriptContent: string, forcedRole: string): void {
     this.lastTranscriptContent = transcriptContent;
     
     console.log(`[UserEventHandler] Saving USER transcript: "${transcriptContent.substring(0, 50)}..."`, {
@@ -146,7 +170,7 @@ export class UserEventHandler {
       forcedRole: forcedRole
     });
     
-    // Add message to queue - always explicitly use 'user' role
+    // Add message to queue with highest priority
     this.messageQueue.queueMessage(forcedRole, transcriptContent, true);
     
     // Show notification for user feedback
@@ -154,11 +178,6 @@ export class UserEventHandler {
       description: transcriptContent.substring(0, 50) + (transcriptContent.length > 50 ? "..." : ""),
       duration: 2000
     });
-    
-    // Reset accumulated content if this was final or we just processed accumulated deltas
-    if (!isDelta || transcriptContent === this.accumulatedDeltaContent) {
-      this.accumulatedDeltaContent = '';
-    }
   }
   
   /**
@@ -207,3 +226,4 @@ export class UserEventHandler {
     }
   }
 }
+
