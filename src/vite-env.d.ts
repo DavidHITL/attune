@@ -16,7 +16,7 @@ interface AttuneMessageQueue {
   queueMessage: (role: 'user' | 'assistant', content: string, priority?: boolean) => void;
   isInitialized: () => boolean;
   forceFlushQueue: () => Promise<void>;
-  flushQueue: () => Promise<void>; // Added this line to include flushQueue method
+  flushQueue: () => Promise<void>; // Ensuring this method is properly defined
 }
 
 interface ConversationContext {

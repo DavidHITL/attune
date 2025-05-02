@@ -108,4 +108,3 @@ export class MessageQueue {
 
 export * from './types';
 export * from './QueueTypes';
-

@@ -128,6 +128,15 @@ export class MessageQueue {
   }
   
   /**
+   * Force the queue to process all pending messages - alias for forceFlushQueue
+   * to maintain compatibility with existing code
+   */
+  async flushQueue(): Promise<void> {
+    console.log(`[MessageQueue ${this.instanceId}] Flushing queue (alias method), ${this.queue.length} items`);
+    return this.forceFlushQueue();
+  }
+  
+  /**
    * Set the conversation initialized state
    */
   setConversationInitialized(): void {
