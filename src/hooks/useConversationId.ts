@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 // Extending Window interface to include our global variable
@@ -8,31 +9,36 @@ declare global {
 }
 
 export async function getOrCreateConversationId(userId: string) {
-  // return cached id if we already made one this session
-  if (window.__attuneConversationId) return window.__attuneConversationId;
-
-  // try to reuse an open conversation first (optional)
-  const { data: existing } = await supabase
-    .from('conversations')
-    .select('id')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (existing) {
-    window.__attuneConversationId = existing.id;
-    return existing.id;
+  // Return cached id if we already made one this session
+  if (window.__attuneConversationId) {
+    console.log(`[getOrCreateConversationId] Using cached conversation ID: ${window.__attuneConversationId}`);
+    return window.__attuneConversationId;
   }
 
-  // otherwise create
-  const { data, error } = await supabase
-    .from('conversations')
-    .insert({ user_id: userId })
-    .select('id')
-    .single();
+  try {
+    console.log(`[getOrCreateConversationId] Getting or creating conversation for user: ${userId}`);
+    
+    // Use the RPC function to get or create a conversation
+    const { data, error } = await supabase.rpc(
+      "get_or_create_conversation",
+      { p_user_id: userId }
+    );
 
-  if (error) throw error;
-  window.__attuneConversationId = data.id;
-  return data.id;
+    if (error) {
+      console.error(`[getOrCreateConversationId] Error from RPC:`, error);
+      throw error;
+    }
+
+    if (!data) {
+      console.error(`[getOrCreateConversationId] No data returned from RPC`);
+      throw new Error('Failed to get or create conversation');
+    }
+
+    console.log(`[getOrCreateConversationId] Successfully obtained conversation ID: ${data}`);
+    window.__attuneConversationId = data;
+    return data;
+  } catch (error) {
+    console.error(`[getOrCreateConversationId] Error:`, error);
+    throw error;
+  }
 }

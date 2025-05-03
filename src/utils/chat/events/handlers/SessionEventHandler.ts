@@ -14,7 +14,7 @@ export async function handleSessionCreated(evt: any) {
     
     if (!user) {
       console.warn('[SessionEventHandler] No authenticated user found, skipping conversation initialization');
-      return;
+      return null;
     }
     
     console.log('[SessionEventHandler] Initializing conversation for user:', user.id);
@@ -22,9 +22,14 @@ export async function handleSessionCreated(evt: any) {
     // Get or create a conversation ID for this session
     const conversationId = await getOrCreateConversationId(user.id);
     
+    if (!conversationId) {
+      console.error('[SessionEventHandler] Failed to get or create conversation ID');
+      return null;
+    }
+    
     console.log('[SessionEventHandler] Conversation initialized with ID:', conversationId);
     
-    // Store conversation context globally if needed
+    // Store conversation context globally
     if (typeof window !== 'undefined') {
       // Don't overwrite existing context if it exists, just update it
       if (!window.conversationContext) {
@@ -40,6 +45,8 @@ export async function handleSessionCreated(evt: any) {
         window.conversationContext.userId = user.id;
         window.conversationContext.isInitialized = true;
       }
+      
+      console.log('[SessionEventHandler] Updated global conversation context:', window.conversationContext);
     }
     
     return conversationId;

@@ -25,7 +25,14 @@ export const useConversationValidator = () => {
         
         // Show error for missing conversation
         if (!conversationId) {
-          toast.error("Cannot save message - no active conversation");
+          toast.error("Cannot save message - waiting for conversation initialization");
+          
+          // Update global context initialization flag
+          if (typeof window !== 'undefined' && window.conversationContext) {
+            window.conversationContext.isInitialized = false;
+          }
+          
+          return false;
         }
       }
       

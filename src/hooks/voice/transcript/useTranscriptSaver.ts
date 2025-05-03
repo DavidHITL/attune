@@ -36,7 +36,22 @@ export const useTranscriptSaver = () => {
     // Add validation of conversation context
     if (!validateConversationContext()) {
       console.error("❌ Cannot save transcript: Invalid conversation context");
-      return;
+      
+      // Queue user transcripts, but wait for proper initialization
+      if (role === 'user' && globalMessageQueue) {
+        console.log('⏱️ [TranscriptSaver] Queueing user transcript until conversation is initialized');
+        
+        // Add to queue but don't process yet
+        globalMessageQueue.queueMessage(role, transcript, false);
+        
+        toast.info("Your message has been received and will be saved when ready", {
+          duration: 3000
+        });
+        
+        return undefined;
+      }
+      
+      return undefined;
     }
 
     // Validate transcript content
