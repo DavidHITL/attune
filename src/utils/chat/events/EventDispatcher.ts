@@ -41,10 +41,13 @@ export class EventDispatcher {
     if (event.type === 'conversation.item.created') {
       console.log('[conversation.item.created] raw event →', event.item);
       const role = event.item?.role; // 'user' | 'assistant'
-      const raw = event.item?.content;
-      const text = typeof raw === 'string' ? raw.trim() :
-                   // many voice events wrap the text here:
-                   raw?.text ?? raw?.value ?? '';
+      
+      // CRITICAL FIX: Safely handle content regardless of type
+      // First check if content exists and then handle it based on type
+      const content = event.item?.content;
+      const text = typeof content === 'string' ? content.trim() :
+                   // Handle object formats that might contain text in different fields
+                   (content?.text || content?.value || '').toString().trim();
       
       if (!text) {
         console.warn('[EventDispatcher] No text in item.created, skipping');
