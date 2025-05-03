@@ -1,150 +1,144 @@
 
 /**
- * Handles accumulation of transcript text over time
- * with enhanced safety mechanisms
+ * Handles accumulating and tracking transcript pieces
  */
 export class TranscriptAccumulator {
-  private accumulatedText: string = '';
-  private lastUpdateTime: number = 0;
-  private staleThresholdMs: number = 1500; // Consider transcript stale after 1.5s
-  private textHistory: Array<{text: string, timestamp: number}> = [];
-  private maxHistoryItems: number = 5;
-  private debugId: string = `TA-${Date.now().toString(36)}`;
+  private userTranscript: string = '';
+  private lastTranscriptTime: number = 0;
+  private lastDeltaTime: number = 0;
+  private debugId: string;
+  private accumulationCount: number = 0;
   
   constructor() {
-    console.log(`[TranscriptAccumulator ${this.debugId}] Initialized with safety features`);
+    this.debugId = `TA-${Date.now().toString(36)}`;
+    console.log(`[TranscriptAccumulator ${this.debugId}] Initialized`);
   }
   
   /**
-   * Add content to transcript accumulator
+   * Add text to the accumulated transcript
    */
-  accumulateText(text: string): void {
-    if (!text) return;
-    
-    const now = Date.now();
-    const hadContentBefore = !!this.accumulatedText;
-    
-    // Add new content
-    this.accumulatedText += text;
-    this.lastUpdateTime = now;
-    
-    // Save to history for recovery if needed
-    this.addToHistory(this.accumulatedText);
-    
-    console.log(`[TranscriptAccumulator ${this.debugId}] Accumulated text (${this.accumulatedText.length} chars): "${this.accumulatedText.substring(0, 30)}${this.accumulatedText.length > 30 ? "..." : ""}" (delta: ${text.length} chars)`);
-  }
-  
-  /**
-   * Add current text to history for recovery
-   */
-  private addToHistory(text: string): void {
-    // Only add if text is meaningful
-    if (text && text.trim()) {
-      this.textHistory.push({
-        text,
-        timestamp: Date.now()
-      });
+  accumulateText(deltaText: string): void {
+    if (deltaText) {
+      this.accumulationCount++;
+      const prevLength = this.userTranscript.length;
+      this.userTranscript += deltaText;
+      this.lastDeltaTime = Date.now();
       
-      // Trim history if too large
-      if (this.textHistory.length > this.maxHistoryItems) {
-        this.textHistory.shift();
-      }
+      console.log(`[TranscriptAccumulator ${this.debugId}] #${this.accumulationCount} Accumulated text: "${deltaText}" (${deltaText.length} chars)`, {
+        previousTotalLength: prevLength,
+        newTotalLength: this.userTranscript.length,
+        deltaLength: deltaText.length,
+        totalAccumulations: this.accumulationCount,
+        timestamp: new Date(this.lastDeltaTime).toISOString(),
+        contentPreview: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? '...' : '')
+      });
     }
   }
   
   /**
-   * Get accumulated transcript
+   * Set or update transcript directly 
    */
-  getAccumulatedText(): string {
-    return this.accumulatedText;
+  setTranscript(text: string): void {
+    if (text && this.userTranscript !== text) {
+      const oldText = this.userTranscript;
+      this.userTranscript = text;
+      this.lastTranscriptTime = Date.now();
+      
+      console.log(`[TranscriptAccumulator ${this.debugId}] Set full transcript (${text.length} chars): "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`, {
+        oldLength: oldText.length,
+        newLength: text.length,
+        changed: text !== oldText,
+        timestamp: new Date(this.lastTranscriptTime).toISOString(),
+        oldPreview: oldText.length > 0 ? `${oldText.substring(0, 30)}...` : '(empty)',
+        newPreview: text.length > 0 ? `${text.substring(0, 30)}...` : '(empty)'
+      });
+    }
   }
   
   /**
-   * Clear accumulated transcript
+   * Reset the transcript accumulator
    */
   reset(): void {
-    // Save to history before clearing
-    if (this.accumulatedText) {
-      this.addToHistory(this.accumulatedText);
-      
-      console.log(`[TranscriptAccumulator ${this.debugId}] Resetting accumulator (was ${this.accumulatedText.length} chars): "${this.accumulatedText.substring(0, 50)}${this.accumulatedText.length > 50 ? "..." : ""}"`);
-    }
+    const hadContent = this.userTranscript.trim().length > 0;
+    const contentPreview = this.userTranscript.substring(0, 50);
+    const contentLength = this.userTranscript.length;
     
-    this.accumulatedText = '';
+    this.userTranscript = '';
+    this.lastTranscriptTime = 0;
+    this.lastDeltaTime = 0;
+    
+    console.log(`[TranscriptAccumulator ${this.debugId}] Resetting transcript`, {
+      hadContent,
+      contentLength,
+      contentPreview: hadContent ? contentPreview + (contentLength > 50 ? '...' : '') : '(empty)',
+      accumulationCount: this.accumulationCount,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Reset the accumulation counter
+    this.accumulationCount = 0;
   }
   
   /**
-   * Check if transcript is non-empty
+   * Get the current accumulated transcript
    */
-  hasContent(): boolean {
-    return !!this.accumulatedText && this.accumulatedText.trim() !== '';
+  getAccumulatedText(): string {
+    return this.userTranscript;
   }
   
   /**
-   * Check if transcript hasn't been updated recently
-   */
-  isTranscriptStale(): boolean {
-    return Date.now() - this.lastUpdateTime > this.staleThresholdMs;
-  }
-  
-  /**
-   * Get time since last update in ms
-   */
-  getTimeSinceLastUpdateMs(): number {
-    return Date.now() - this.lastUpdateTime;
-  }
-  
-  /**
-   * Get the last transcript update time
+   * Get the timestamp of the last transcript update
    */
   getLastTranscriptTime(): number {
-    return this.lastUpdateTime;
+    return Math.max(this.lastTranscriptTime, this.lastDeltaTime);
   }
   
   /**
-   * Get the most recent history item other than current
+   * Check if the transcript is considered stale based on timing
    */
-  getMostRecentHistoryText(): string | null {
-    if (this.textHistory.length === 0) return null;
+  isTranscriptStale(staleThresholdMs: number = 1500): boolean {
+    const timeSinceLastUpdate = Date.now() - this.getLastTranscriptTime();
+    const isStale = timeSinceLastUpdate > staleThresholdMs;
     
-    // Get most recent item
-    const mostRecent = this.textHistory[this.textHistory.length - 1];
-    return mostRecent.text;
-  }
-  
-  /**
-   * Attempt to recover text if current is empty
-   * Returns true if recovery was performed
-   */
-  recoverFromHistory(): boolean {
-    // Only recover if current text is empty
-    if (!this.hasContent() && this.textHistory.length > 0) {
-      const recoveryText = this.getMostRecentHistoryText();
-      
-      if (recoveryText) {
-        console.log(`[TranscriptAccumulator ${this.debugId}] Recovering text from history (${recoveryText.length} chars)`);
-        this.accumulatedText = recoveryText;
-        return true;
-      }
+    if (isStale && this.userTranscript.trim() !== '') {
+      console.log(`[TranscriptAccumulator ${this.debugId}] Transcript is stale (${timeSinceLastUpdate}ms since last update)`, {
+        contentLength: this.userTranscript.length,
+        contentPreview: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? '...' : ''),
+        lastUpdateTime: new Date(this.getLastTranscriptTime()).toISOString(),
+        currentTime: new Date().toISOString(),
+        staleThresholdMs
+      });
     }
     
-    return false;
+    return isStale;
   }
   
   /**
-   * Get debug information
+   * Check if there is meaningful content
+   */
+  hasContent(): boolean {
+    const hasContent = this.userTranscript.trim().length > 0;
+    
+    if (this.accumulationCount > 0 && !hasContent) {
+      console.log(`[TranscriptAccumulator ${this.debugId}] Warning: ${this.accumulationCount} accumulations but no meaningful content`);
+    }
+    
+    return hasContent;
+  }
+  
+  /**
+   * Get detailed debug information about the current state
    */
   getDebugInfo(): object {
     return {
       id: this.debugId,
-      textLength: this.accumulatedText.length,
+      contentLength: this.userTranscript.length,
+      contentWords: this.userTranscript.trim().split(/\s+/).length,
       hasContent: this.hasContent(),
-      isStale: this.isTranscriptStale(),
-      timeSinceUpdate: this.getTimeSinceLastUpdateMs(),
-      historyItems: this.textHistory.length,
-      preview: this.accumulatedText ? 
-        `${this.accumulatedText.substring(0, 30)}${this.accumulatedText.length > 30 ? "..." : ""}` : 
-        "(empty)"
+      accumulationCount: this.accumulationCount,
+      lastTranscriptTime: this.lastTranscriptTime > 0 ? new Date(this.lastTranscriptTime).toISOString() : 'never',
+      lastDeltaTime: this.lastDeltaTime > 0 ? new Date(this.lastDeltaTime).toISOString() : 'never',
+      contentPreview: this.userTranscript.substring(0, 100) + (this.userTranscript.length > 100 ? '...' : '')
     };
   }
 }

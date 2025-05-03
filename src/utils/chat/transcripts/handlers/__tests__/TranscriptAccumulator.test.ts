@@ -27,11 +27,11 @@ describe('TranscriptAccumulator', () => {
     accumulator.accumulateText('Hello');
     
     // Should not be stale immediately
-    expect(accumulator.isTranscriptStale()).toBe(false);
+    expect(accumulator.isTranscriptStale(100)).toBe(false);
     
     // Wait for staleness threshold
-    jest.advanceTimersByTime(1600);
-    expect(accumulator.isTranscriptStale()).toBe(true);
+    jest.advanceTimersByTime(150);
+    expect(accumulator.isTranscriptStale(100)).toBe(true);
   });
 
   it('should track last transcript time', () => {

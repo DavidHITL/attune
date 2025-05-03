@@ -8,9 +8,6 @@ export class DeltaAccumulator {
   private accumulatedContent: string = '';
   private lastProcessedTimestamp: number = 0;
   private saveThresholdMs: number = 300;
-  private backupContent: string = ''; // Backup copy of the content
-  private lastBackupTime: number = 0;
-  private backupIntervalMs: number = 2000; // Backup every 2 seconds
   
   constructor() {
     console.log('[DeltaAccumulator] Initialized');
@@ -29,21 +26,6 @@ export class DeltaAccumulator {
       deltaLength: deltaText.length,
       timestamp: new Date().toISOString()
     });
-    
-    // Create a backup of the content periodically
-    const now = Date.now();
-    if (now - this.lastBackupTime > this.backupIntervalMs) {
-      this.createBackup();
-    }
-  }
-  
-  /**
-   * Create a backup of the current accumulated content
-   */
-  private createBackup(): void {
-    this.backupContent = this.accumulatedContent;
-    this.lastBackupTime = Date.now();
-    console.log(`[DeltaAccumulator] Created content backup (${this.backupContent.length} chars) at ${new Date(this.lastBackupTime).toISOString()}`);
   }
   
   /**
@@ -51,13 +33,6 @@ export class DeltaAccumulator {
    */
   getAccumulatedContent(): string {
     return this.accumulatedContent;
-  }
-  
-  /**
-   * Get the backup content if available
-   */
-  getBackupContent(): string {
-    return this.backupContent;
   }
   
   /**
@@ -107,11 +82,6 @@ export class DeltaAccumulator {
     const hadContent = this.accumulatedContent.length > 0;
     const contentPreview = this.accumulatedContent.substring(0, 50);
     
-    // Create a final backup before reset
-    if (hadContent) {
-      this.createBackup();
-    }
-    
     this.accumulatedContent = '';
     
     if (hadContent) {
@@ -119,29 +89,5 @@ export class DeltaAccumulator {
     } else {
       console.log('[DeltaAccumulator] Reset accumulator (was empty)');
     }
-  }
-  
-  /**
-   * Check if backup is more recent or substantial than current content
-   */
-  hasMoreSubstantialBackup(): boolean {
-    // Backup is more substantial if it's longer and current content is empty
-    const currentIsEmpty = this.accumulatedContent.trim() === '';
-    const backupHasContent = this.backupContent.trim() !== '';
-    const backupIsLonger = this.backupContent.length > this.accumulatedContent.length;
-    
-    return backupHasContent && (currentIsEmpty || backupIsLonger);
-  }
-  
-  /**
-   * Restore from backup if needed
-   */
-  restoreFromBackupIfNeeded(): boolean {
-    if (this.hasMoreSubstantialBackup()) {
-      console.log(`[DeltaAccumulator] Restoring from backup (current: ${this.accumulatedContent.length} chars, backup: ${this.backupContent.length} chars)`);
-      this.accumulatedContent = this.backupContent;
-      return true;
-    }
-    return false;
   }
 }
