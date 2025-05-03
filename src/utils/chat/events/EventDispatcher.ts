@@ -29,13 +29,19 @@ export class EventDispatcher {
     // For user events, always set explicitRole to 'user'
     // This is the single source of truth for event roles
     
-    // Use registry to determine event type
+    // Use registry to determine event type - NO DEFAULTS
     const isAssistantEvent = EventTypeRegistry.isAssistantEvent(event.type);
     const isUserEvent = EventTypeRegistry.isUserEvent(event.type);
     
     // Enhanced logging with role information
     if (event.type !== 'input_audio_buffer.append') {
       console.log(`[EventDispatcher] Routing event: ${event.type}, isAssistant=${isAssistantEvent}, isUser=${isUserEvent}, timestamp: ${new Date().toISOString()}`);
+    }
+    
+    // Handle unclassified events
+    if (!isAssistantEvent && !isUserEvent && event.type !== 'input_audio_buffer.append') {
+      console.error(`[EventDispatcher] ⚠️ UNCLASSIFIED EVENT: ${event.type} - cannot route`);
+      return; // Skip unclassified events
     }
     
     // CRITICAL FIX: Route events with EXPLICIT role assignment
@@ -56,10 +62,6 @@ export class EventDispatcher {
       
       // Send to user handler
       this.userEventHandler.handleEvent(event);
-    }
-    else if (event.type !== 'input_audio_buffer.append') {
-      // Log events that don't match known types (except audio buffer events)
-      console.log(`[EventDispatcher] ⚠️ Unhandled event type: ${event.type}`);
     }
   }
 }

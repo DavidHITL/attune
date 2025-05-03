@@ -20,19 +20,22 @@ export class UserEventHandler {
   handleEvent(event: any): void {
     // Validate that we're handling the right event type
     if (event && event.type) {
-      const role = event.explicitRole || EventTypeRegistry.getRoleForEvent(event.type);
+      // CRITICAL FIX: Always force 'user' role in UserEventHandler
+      // First check if we have an explicit role from dispatcher
+      const explicitRole = event.explicitRole;
       
       // We should only be handling user events, log an error if not
-      if (role !== 'user') {
-        console.error(`[UserEventHandler] Received event with incorrect role: ${role}, type: ${event.type}`);
-        // Force correct role
-        event.explicitRole = 'user';
+      if (explicitRole && explicitRole !== 'user') {
+        console.error(`[UserEventHandler] Received event with incorrect explicit role: ${explicitRole}, type: ${event.type}`);
       }
       
-      // Log the role we're processing for debugging
-      console.log(`[UserEventHandler] Processing event with type ${event.type} and role ${role || 'unknown'}`);
+      // CRITICAL FIX: Always force correct role in user event handler
+      event.explicitRole = 'user';
       
-      // Process the event (role validation happens in UserEventProcessor)
+      // Log the role we're processing for debugging
+      console.log(`[UserEventHandler] Processing event with type ${event.type} and FORCED USER role`);
+      
+      // Process the event with forced 'user' role
       this.userEventProcessor.processEvent(event);
     } else {
       console.warn('[UserEventHandler] Received event with no type, skipping');

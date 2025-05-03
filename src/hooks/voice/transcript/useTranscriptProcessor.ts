@@ -10,7 +10,7 @@ export const useTranscriptProcessor = (
   
   const processTranscript = useCallback(async (
     transcript: string,
-    role: 'user' | 'assistant' = 'user' // Default to user for backward compatibility
+    role: 'user' | 'assistant'
   ) => {
     // CRITICAL FIX #1: Force validation of role to one of the only two allowed values
     if (role !== 'user' && role !== 'assistant') {

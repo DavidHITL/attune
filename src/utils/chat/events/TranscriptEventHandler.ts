@@ -47,7 +47,8 @@ export class TranscriptEventHandler {
         const messageQueue = getMessageQueue();
         if (messageQueue) {
           console.log('[TranscriptEventHandler] Using message queue to save user transcript');
-          messageQueue.queueMessage('user', finalTranscript, true); // Use high priority for user messages
+          // CRITICAL FIX: Explicitly set role to 'user' since this is a user transcript handler
+          messageQueue.queueMessage('user', finalTranscript, true);
         } else {
           console.log('[TranscriptEventHandler] No message queue available, using direct save');
           // Fall back to direct save method
