@@ -86,6 +86,12 @@ export const useSaveMessageHandler = (
             { p_user_id: currentUser.id }
           );
           
+          // Add the requested logging for debugging
+          console.log('[Conversation RPC] result →', newConversationId);   // TEMP
+          if(!newConversationId) {
+            throw new Error('get_or_create_conversation returned no id');
+          }
+          
           if (convError) {
             console.error("[useSaveMessageHandler] Error getting/creating conversation:", convError);
             throw convError;
