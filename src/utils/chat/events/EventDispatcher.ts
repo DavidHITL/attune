@@ -6,6 +6,7 @@
 import { UserEventHandler } from './handlers/UserEventHandler';
 import { AssistantEventHandler } from './handlers/AssistantEventHandler';
 import { EventTypeRegistry } from './EventTypeRegistry';
+import { getMessageQueue } from '../messageQueue/QueueProvider';
 
 export class EventDispatcher {
   constructor(
@@ -34,6 +35,24 @@ export class EventDispatcher {
         console.error(`[EventDispatcher] Error in registered handler for ${event.type}:`, error);
       }
       return;
+    }
+
+    // Handle conversation item created events specifically to queue messages
+    if (event.type === 'conversation.item.created') {
+      const role = event.item?.role; // 'user' | 'assistant'
+      const text = event.item?.content?.trim();
+      
+      if (text) {
+        // Get the message queue and queue the message with high priority
+        const messageQueue = getMessageQueue();
+        if (messageQueue) {
+          console.log(`[EventDispatcher] Queueing ${role} message from conversation item with HIGH PRIORITY`);
+          messageQueue.queueMessage(role, text, /*priority*/true);
+        } else {
+          console.error('[EventDispatcher] Cannot queue message - message queue not initialized');
+        }
+      }
+      return; // handled, don't fall through
     }
 
     // CRITICAL FIX: Clear, absolute role determination with no fallbacks
