@@ -6,24 +6,33 @@ import { UserEventHandler } from './events/handlers/UserEventHandler';
 import { AssistantEventHandler } from './events/handlers/AssistantEventHandler';
 import { SpeechEventHandler } from './events/SpeechEventHandler';
 import { TranscriptHandler } from './transcripts/TranscriptHandler';
-import { EventTypeRegistry } from './events/EventTypeRegistry';
-import { EventType, isEventType } from './events/EventTypes';
+import { LoggingHandler } from './handlers/LoggingHandler';
+import { EventIdentifier } from './handlers/EventIdentifier';
+import { FlushHandler } from './handlers/FlushHandler';
 
+/**
+ * Orchestrates event handling across the application
+ * Delegates specialized handling to focused handlers
+ */
 export class EventHandler {
   private eventDispatcher: EventDispatcher;
   private speechEventHandler: SpeechEventHandler;
   private transcriptHandler: TranscriptHandler;
   private userEventHandler: UserEventHandler;
-  private eventCounter: number = 0;
+  private loggingHandler: LoggingHandler;
+  private eventIdentifier: EventIdentifier;
+  private flushHandler: FlushHandler;
 
   constructor(
     private messageQueue: MessageQueue, 
     private responseParser: ResponseParser,
     private messageCallback: (event: any) => void
   ) {
+    // Initialize specialized handlers
     this.userEventHandler = new UserEventHandler(messageQueue);
     const assistantEventHandler = new AssistantEventHandler(messageQueue, responseParser);
     
+    // Initialize support services
     this.eventDispatcher = new EventDispatcher(
       this.userEventHandler,
       assistantEventHandler
@@ -31,6 +40,13 @@ export class EventHandler {
     
     this.transcriptHandler = new TranscriptHandler(messageQueue);
     this.speechEventHandler = new SpeechEventHandler(this.transcriptHandler);
+    this.loggingHandler = new LoggingHandler();
+    this.eventIdentifier = new EventIdentifier();
+    this.flushHandler = new FlushHandler(
+      this.speechEventHandler,
+      this.userEventHandler,
+      this.messageQueue
+    );
     
     console.log('[EventHandler] Initialized event handling system');
   }
@@ -40,37 +56,34 @@ export class EventHandler {
    */
   handleMessage = (event: any): void => {
     try {
-      this.eventCounter++;
-      const eventId = this.eventCounter;
-      const eventTime = new Date().toISOString();
-      
-      // Log basic event information
-      console.log(`[EventHandler] #${eventId} Received event type: ${event.type}`, {
-        timestamp: eventTime,
-        eventId,
-        eventType: event.type
-      });
+      // Skip events with no type
+      if (!event || !event.type) {
+        console.log('[EventHandler] Received event with no type, skipping');
+        return;
+      }
+
+      // Log the event with a unique identifier
+      const eventId = this.loggingHandler.logEvent(event, 'Received event type');
       
       // Enhanced logging for user speech events
-      const role = EventTypeRegistry.getRoleForEvent(event.type);
-      if (role === 'user' && this.isSpeechOrTranscriptEvent(event)) {
+      const role = this.eventIdentifier.getEventRole(event.type);
+      if (role === 'user' && this.eventIdentifier.isSpeechOrTranscriptEvent(event)) {
         console.log(`🎙️ [EVENT STRUCTURE DEBUG] #${eventId} User speech/transcript event detected:`, {
           eventType: event.type,
           role: role,
-          timestamp: eventTime,
+          timestamp: new Date().toISOString(),
           // Deep structure logging
-          structure: this.getEventStructure(event)
+          structure: this.loggingHandler.getEventStructure(event)
         });
         
         // Log potential text content paths
-        this.logPotentialTextPaths(event, eventId);
+        this.loggingHandler.logPotentialTextPaths(event, eventId);
       }
       
-      // First check for connection close events to force transcript saving
-      if (isEventType(event, EventType.ConnectionClosed) || 
-          isEventType(event, EventType.SessionDisconnected)) {
+      // Check for connection close events to force transcript saving
+      if (this.eventIdentifier.isConnectionEvent(event)) {
         console.log(`[EventHandler] #${eventId} Connection event detected: ${event.type}, forcing flush of all pending content`, {
-          timestamp: eventTime,
+          timestamp: new Date().toISOString(),
           eventType: event.type,
           forceSave: true
         });
@@ -79,11 +92,6 @@ export class EventHandler {
       
       // Process speech events
       this.speechEventHandler.handleSpeechEvents(event);
-      
-      // Handle text parsing - primarily for assistant responses
-      if (EventTypeRegistry.isAssistantEvent(event.type)) {
-        this.responseParser.parseEvent(event);
-      }
       
       // Dispatch event to appropriate handler based on role
       this.eventDispatcher.dispatchEvent(event);
@@ -97,142 +105,9 @@ export class EventHandler {
   };
   
   /**
-   * Check if an event is related to speech or transcript
-   */
-  private isSpeechOrTranscriptEvent(event: any): boolean {
-    return event.type.includes('transcript') || 
-           event.type.includes('speech') || 
-           event.type.includes('audio') ||
-           event.type === 'transcript';
-  }
-  
-  /**
-   * Get structured representation of event for debugging
-   */
-  private getEventStructure(event: any): any {
-    try {
-      // Create a clean copy without circular references
-      return this.sanitizeObject(event);
-    } catch (error) {
-      return `Error extracting structure: ${error.message}`;
-    }
-  }
-  
-  /**
-   * Sanitize object to avoid circular references and sensitive data
-   */
-  private sanitizeObject(obj: any, depth = 0, maxDepth = 5): any {
-    if (depth >= maxDepth) return "[Max Depth Reached]";
-    if (!obj || typeof obj !== 'object') return obj;
-    
-    const result: any = Array.isArray(obj) ? [] : {};
-    
-    for (const key in obj) {
-      if (Object.prototype.hasOwnProperty.call(obj, key)) {
-        const value = obj[key];
-        
-        // Skip functions and private props
-        if (typeof value === 'function' || key.startsWith('_')) {
-          continue;
-        }
-        
-        // Handle Buffer or ArrayBuffer specially
-        if (value instanceof ArrayBuffer || 
-           (typeof Buffer !== 'undefined' && value instanceof Buffer)) {
-          result[key] = `[Binary data: ${value.byteLength} bytes]`;
-          continue;
-        }
-        
-        if (typeof value === 'object' && value !== null) {
-          result[key] = this.sanitizeObject(value, depth + 1, maxDepth);
-        } else {
-          result[key] = value;
-        }
-      }
-    }
-    
-    return result;
-  }
-  
-  /**
-   * Log potential text content paths in the event structure
-   */
-  private logPotentialTextPaths(event: any, eventId: number): void {
-    try {
-      // First check direct text properties
-      if (event.text) {
-        console.log(`🎙️ [TEXT PATH] #${eventId} Direct 'text' property found:`, event.text.substring(0, 100));
-      } else if (event.transcript) {
-        console.log(`🎙️ [TEXT PATH] #${eventId} Direct 'transcript' property found:`, 
-          typeof event.transcript === 'string' 
-            ? event.transcript.substring(0, 100) 
-            : event.transcript);
-      }
-      
-      // Check deeper paths
-      if (event.delta && event.delta.text) {
-        console.log(`🎙️ [TEXT PATH] #${eventId} Path 'event.delta.text' found:`, event.delta.text.substring(0, 100));
-      }
-      
-      if (event.transcript && event.transcript.text) {
-        console.log(`🎙️ [TEXT PATH] #${eventId} Path 'event.transcript.text' found:`, event.transcript.text.substring(0, 100));
-      }
-      
-      if (event.content_part && event.content_part.text) {
-        console.log(`🎙️ [TEXT PATH] #${eventId} Path 'event.content_part.text' found:`, event.content_part.text.substring(0, 100));
-      }
-      
-      // Check for other common paths
-      const potentialPaths = [
-        'content', 'message', 'audio_transcript', 'transcript_text', 
-        'result', 'output', 'data'
-      ];
-      
-      potentialPaths.forEach(path => {
-        if (event[path]) {
-          if (typeof event[path] === 'string') {
-            console.log(`🎙️ [TEXT PATH] #${eventId} Path 'event.${path}' found:`, event[path].substring(0, 100));
-          } else if (event[path].text) {
-            console.log(`🎙️ [TEXT PATH] #${eventId} Path 'event.${path}.text' found:`, event[path].text.substring(0, 100));
-          }
-        }
-      });
-    } catch (error) {
-      console.error(`🎙️ [TEXT PATH] #${eventId} Error logging potential text paths:`, error);
-    }
-  }
-  
-  /**
    * Flush any pending messages before disconnection
    */
   flushPendingMessages(): void {
-    const startTime = Date.now();
-    console.log("[EventHandler] Force flushing pending messages before disconnection", {
-      timestamp: new Date(startTime).toISOString(),
-      operation: 'flushPendingMessages'
-    });
-    
-    // Flush any pending speech transcript
-    console.log("[EventHandler] Flushing speech event handler pending transcript");
-    this.speechEventHandler.flushPendingTranscript();
-    
-    // Also tell user event handler to flush any accumulated transcript
-    if (this.userEventHandler) {
-      console.log("[EventHandler] Flushing user event handler accumulated transcript");
-      this.userEventHandler.flushAccumulatedTranscript();
-    }
-    
-    // Force queue to process any pending messages
-    if (this.messageQueue) {
-      console.log("[EventHandler] Force flushing message queue");
-      this.messageQueue.forceFlushQueue();
-    }
-    
-    // Log completion time
-    const completionTime = Date.now();
-    console.log("[EventHandler] Flush operation completed", {
-      totalTimeMs: completionTime - startTime,
-      timestamp: new Date(completionTime).toISOString()
-    });
+    this.flushHandler.flushPendingMessages();
   }
 }
