@@ -66,7 +66,8 @@ export const useSaveMessageHandler = (
         id: message.id || `temp-${Date.now()}`,
         role: message.role as 'user' | 'assistant',
         content: message.content,
-        created_at: message.created_at || new Date().toISOString()
+        created_at: message.created_at || new Date().toISOString(),
+        // We don't assign user_id here as we'll pass it separately to the save function
       };
       
       // Use the central message service
@@ -140,17 +141,15 @@ export const useSaveMessageHandler = (
       }
       
       try {
-        // Add the conversation ID and user ID to the message
-        messageToSave.conversation_id = targetConversationId;
-        messageToSave.user_id = currentUser.id; // CRITICAL FIX: Ensure user_id is explicitly set
-        
+        // We don't set these properties on the messageToSave object directly
+        // Instead, we pass them separately to the messageSaveService
         console.log(`[useSaveMessageHandler] Saving message with conversation ID: ${targetConversationId} and user ID: ${currentUser.id}`);
         
         const result = await messageSaveService.saveMessageToDatabase({
           role: messageToSave.role,
           content: messageToSave.content,
           conversation_id: targetConversationId,
-          user_id: currentUser.id
+          user_id: currentUser.id  // Pass user_id separately here
         });
         
         if (result) {

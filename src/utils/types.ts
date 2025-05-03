@@ -1,4 +1,3 @@
-
 export interface UserInsight {
   id: string;
   user_id: string;
@@ -37,6 +36,7 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   conversation_id?: string;
+  user_id?: string;  // Add this property to fix the TypeScript error
 }
 
 export interface UseConversationReturn {
