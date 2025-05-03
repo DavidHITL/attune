@@ -32,13 +32,18 @@ export class EventTypeRegistry {
     'connection.closed': null,
     'conversation.item.created': null,
     'rate_limits.updated': null,
-    'output_audio_buffer.started': null
+    'output_audio_buffer.started': null,
+    'output_audio_buffer.stopped': null
   };
 
   // Map of event types to their associated handlers
   private static eventHandlerMap: Record<string, Function> = {
     // Session events
-    'session.created': handleSessionCreated
+    'session.created': handleSessionCreated,
+    // Harmless no-op handlers for system events
+    'output_audio_buffer.started': () => {},
+    'output_audio_buffer.stopped': () => {},
+    'rate_limits.updated': () => {}
   };
 
   /**

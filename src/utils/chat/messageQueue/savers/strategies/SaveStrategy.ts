@@ -9,7 +9,7 @@ export abstract class SaveStrategy {
   protected contentProcessor: ProcessedMessagesTracker;
   
   constructor() {
-    // Fix: Remove incorrect constructor argument
+    // Initialize the content processor without arguments
     this.contentProcessor = new ProcessedMessagesTracker();
   }
   
