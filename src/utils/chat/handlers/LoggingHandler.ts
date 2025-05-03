@@ -60,4 +60,40 @@ export class LoggingHandler {
     this.eventCounter++;
     return this.eventCounter;
   }
+  
+  /**
+   * Log potential text paths in an event for debugging
+   */
+  logPotentialTextPaths(event: any, eventId: number): void {
+    // Check common paths where text content might be found
+    const commonPaths = [
+      'transcript',
+      'transcript.text',
+      'delta.text',
+      'content',
+      'content_part.text',
+      'response.content'
+    ];
+    
+    // Log any found text content
+    for (const path of commonPaths) {
+      const pathParts = path.split('.');
+      let value = event;
+      
+      // Traverse the path
+      for (const part of pathParts) {
+        if (value && typeof value === 'object') {
+          value = value[part];
+        } else {
+          value = undefined;
+          break;
+        }
+      }
+      
+      // If we found a string value, log it
+      if (typeof value === 'string' && value.trim() !== '') {
+        console.log(`[EventHandler] #${eventId} Found text at path '${path}': "${value.substring(0, 50)}${value.length > 50 ? '...' : ''}"`);
+      }
+    }
+  }
 }
