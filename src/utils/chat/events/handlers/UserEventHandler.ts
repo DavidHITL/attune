@@ -18,7 +18,18 @@ export class UserEventHandler {
    * Handle incoming user events
    */
   handleEvent(event: any): void {
-    this.userEventProcessor.processEvent(event);
+    // Validate that we're handling the right event type
+    if (event && event.type) {
+      const role = event.explicitRole || EventTypeRegistry.getRoleForEvent(event.type);
+      
+      // Log the role we're processing for debugging
+      console.log(`[UserEventHandler] Processing event with type ${event.type} and role ${role || 'unknown'}`);
+      
+      // Process the event (role validation happens in UserEventProcessor)
+      this.userEventProcessor.processEvent(event);
+    } else {
+      console.warn('[UserEventHandler] Received event with no type, skipping');
+    }
   }
   
   /**

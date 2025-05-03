@@ -37,8 +37,14 @@ export class EventDispatcher {
       console.log(`[EventDispatcher] → Sending to AssistantEventHandler: ${event.type} (role: assistant)`);
       
       // Add explicit role to event to prevent misclassification later
-      if (!event.role) {
+      if (!event.explicitRole) {
         event.explicitRole = 'assistant';
+      }
+      
+      // Validate role consistency 
+      if (event.explicitRole !== 'assistant') {
+        console.warn(`[EventDispatcher] ⚠️ Role mismatch: Event type ${event.type} should be assistant but has explicitRole=${event.explicitRole}`);
+        event.explicitRole = 'assistant'; // Force correct role
       }
       
       this.assistantEventHandler.handleEvent(event);
@@ -47,8 +53,14 @@ export class EventDispatcher {
       console.log(`[EventDispatcher] → Sending to UserEventHandler: ${event.type} (role: user)`);
       
       // Add explicit role to event to prevent misclassification later
-      if (!event.role) {
+      if (!event.explicitRole) {
         event.explicitRole = 'user';
+      }
+      
+      // Validate role consistency
+      if (event.explicitRole !== 'user') {
+        console.warn(`[EventDispatcher] ⚠️ Role mismatch: Event type ${event.type} should be user but has explicitRole=${event.explicitRole}`);
+        event.explicitRole = 'user'; // Force correct role
       }
       
       this.userEventHandler.handleEvent(event);

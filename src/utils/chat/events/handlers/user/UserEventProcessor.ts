@@ -7,6 +7,7 @@ import { TextPropertyFinder } from './TextPropertyFinder';
 import { TranscriptProcessor } from './TranscriptProcessor';
 import { TranscriptContentExtractor } from './TranscriptContentExtractor';
 import { UserEventDebugger } from './UserEventDebugger';
+import { EventTypeRegistry } from '../../EventTypeRegistry';
 
 export class UserEventProcessor {
   private textPropertyFinder: TextPropertyFinder;
@@ -31,8 +32,11 @@ export class UserEventProcessor {
     this.processedCount++;
     const processId = this.processedCount;
     
+    // Get the correct role from the event type
+    const role = event.explicitRole || EventTypeRegistry.getRoleForEvent(event.type);
+    
     // Log incoming event for debugging
-    console.log(`[UserEventProcessor] #${processId} Processing event: ${event.type}`);
+    console.log(`[UserEventProcessor] #${processId} Processing event: ${event.type}, determined role: ${role || 'unknown'}`);
     
     try {
       // Debug the event structure before extraction
@@ -47,16 +51,28 @@ export class UserEventProcessor {
         const deepText = this.textPropertyFinder.findTextProperty(event);
         
         if (deepText) {
-          console.log(`[UserEventProcessor] #${processId} Deep search found text content: "${deepText.substring(0, 30)}${deepText.length > 30 ? '...' : ''}"`);
-          this.transcriptProcessor.saveUserMessage(deepText, 'user', true);
+          console.log(`[UserEventProcessor] #${processId} Deep search found text content: "${deepText.substring(0, 30)}${deepText.length > 30 ? '...' : ''}" with role: ${role || 'unknown'}`);
+          
+          // Only process if we have a valid role (assistant or user)
+          if (role === 'user' || role === 'assistant') {
+            this.transcriptProcessor.saveMessage(deepText, role, true);
+          } else {
+            console.warn(`[UserEventProcessor] #${processId} Skipping message with invalid role: ${role}`);
+          }
         } else {
           console.log(`[UserEventProcessor] #${processId} No text content found in event:`, 
             event.type, event.explicitRole || '(no explicit role)');
         }
       } else {
-        // Process the extracted content
-        console.log(`[UserEventProcessor] #${processId} Extracted content: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
-        this.transcriptProcessor.saveUserMessage(content, 'user', true);
+        // Process the extracted content with the correct role
+        console.log(`[UserEventProcessor] #${processId} Extracted content: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}" with role: ${role || 'unknown'}`);
+        
+        // Only process if we have a valid role (assistant or user)
+        if (role === 'user' || role === 'assistant') {
+          this.transcriptProcessor.saveMessage(content, role, true);
+        } else {
+          console.warn(`[UserEventProcessor] #${processId} Skipping message with invalid role: ${role}`);
+        }
       }
     } catch (error) {
       console.error(`[UserEventProcessor] #${processId} Error processing event:`, error);

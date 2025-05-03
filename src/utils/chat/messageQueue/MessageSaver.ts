@@ -31,7 +31,7 @@ export class MessageSaver {
     
     // CRITICAL FIX: Validate role is either 'user' or 'assistant'
     if (role !== 'user' && role !== 'assistant') {
-      console.error(`Invalid role provided: "${role}". Must be 'user' or 'assistant'. Aborting save.`);
+      console.error(`[MessageSaver] Invalid role provided: "${role}". Must be 'user' or 'assistant'. Aborting save.`);
       return null;
     }
     
@@ -87,7 +87,7 @@ export class MessageSaver {
     
     // CRITICAL FIX: Validate role is either 'user' or 'assistant'
     if (role !== 'user' && role !== 'assistant') {
-      console.error(`Invalid role provided: "${role}". Must be 'user' or 'assistant'. Aborting save.`);
+      console.error(`[MessageSaver] Invalid role provided: "${role}". Must be 'user' or 'assistant'. Aborting save.`);
       return null;
     }
     
