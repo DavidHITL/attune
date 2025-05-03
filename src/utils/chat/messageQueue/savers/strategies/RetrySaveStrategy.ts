@@ -3,17 +3,16 @@ import { Message } from '@/utils/types';
 import { SaveStrategy } from './SaveStrategy';
 import { ContentValidator } from '../validators/ContentValidator';
 import { RoleValidator } from '../validators/RoleValidator';
-import { ContentProcessor } from '../processors/ContentProcessor';
 import { toast } from 'sonner';
 import { messageSaveService } from '@/utils/chat/messaging/MessageSaveService';
+import { ProcessedMessagesTracker } from '../utils/ProcessedMessagesTracker';
 
 /**
  * Strategy for saving messages with retry capability
  */
-export class RetrySaveStrategy implements SaveStrategy {
+export class RetrySaveStrategy extends SaveStrategy {
   private contentValidator = new ContentValidator();
   private roleValidator = new RoleValidator();
-  private contentProcessor = new ContentProcessor();
   
   /**
    * Save a message with retry logic
@@ -115,9 +114,16 @@ export class RetrySaveStrategy implements SaveStrategy {
   }
   
   /**
-   * Reset processed messages tracking
+   * Get pending count (implementation required by abstract class)
    */
-  resetProcessedTracking(): void {
-    this.contentProcessor.reset();
+  getPendingCount(): number {
+    return 0;
+  }
+  
+  /**
+   * Get active saves count (implementation required by abstract class)
+   */
+  getActiveSavesCount(): number {
+    return 0;
   }
 }

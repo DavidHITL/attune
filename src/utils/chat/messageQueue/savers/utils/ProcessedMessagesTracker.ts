@@ -44,7 +44,21 @@ export class ProcessedMessagesTracker {
   /**
    * Normalize content for comparison
    */
-  private normalizeContent(content: string): string {
+  normalizeContent(content: string): string {
     return content.trim().toLowerCase();
+  }
+
+  /**
+   * Alias of reset() for backward compatibility
+   */
+  resetTracking(): void {
+    this.reset();
+  }
+  
+  /**
+   * Check if content is a duplicate
+   */
+  isDuplicate(role: 'user' | 'assistant', content: string): boolean {
+    return this.hasProcessed(role, content);
   }
 }

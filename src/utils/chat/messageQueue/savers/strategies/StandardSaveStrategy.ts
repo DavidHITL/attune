@@ -3,18 +3,17 @@ import { Message } from '@/utils/types';
 import { SaveStrategy } from './SaveStrategy';
 import { ContentValidator } from '../validators/ContentValidator';
 import { RoleValidator } from '../validators/RoleValidator';
-import { ContentProcessor } from '../processors/ContentProcessor';
 import { MessageTracker } from '../trackers/MessageTracker';
 import { toast } from 'sonner';
 import { messageSaveService } from '@/utils/chat/messaging/MessageSaveService';
+import { ProcessedMessagesTracker } from '../utils/ProcessedMessagesTracker';
 
 /**
  * Standard strategy for saving messages
  */
-export class StandardSaveStrategy implements SaveStrategy {
+export class StandardSaveStrategy extends SaveStrategy {
   private contentValidator = new ContentValidator();
-  private roleValidator = new RoleValidator();
-  private contentProcessor = new ContentProcessor();
+  private roleValidator = new RoleValidationHelper();
   private messageTracker = new MessageTracker();
   
   /**
@@ -33,7 +32,7 @@ export class StandardSaveStrategy implements SaveStrategy {
     
     try {
       // Validate role
-      if (!this.roleValidator.isValidRole(role)) {
+      if (!this.roleValidator.validateRole(role)) {
         console.error(`[StandardSaveStrategy] Invalid role: ${role}`);
         throw this.roleValidator.createInvalidRoleError(role);
       }
@@ -113,16 +112,26 @@ export class StandardSaveStrategy implements SaveStrategy {
   }
   
   /**
-   * Reset processed messages tracking
-   */
-  resetProcessedTracking(): void {
-    this.contentProcessor.reset();
-  }
-  
-  /**
    * Report any pending messages
    */
   reportPendingMessages(): void {
     this.messageTracker.reportPendingMessages();
+  }
+}
+
+// Export a helper for role validation
+class RoleValidationHelper {
+  /**
+   * Validate that the role is either 'user' or 'assistant'
+   */
+  validateRole(role: any): role is 'user' | 'assistant' {
+    return role === 'user' || role === 'assistant';
+  }
+  
+  /**
+   * Create an error for invalid role
+   */
+  createInvalidRoleError(role: any): Error {
+    return new Error(`Invalid role: ${role}. Must be 'user' or 'assistant'.`);
   }
 }
