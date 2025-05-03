@@ -5,7 +5,6 @@ import { useTranscriptNotifications } from './useTranscriptNotifications';
 import { Message } from '@/utils/types';
 import { toast } from 'sonner';
 import { messageSaveService } from '@/utils/chat/messaging/MessageSaveService';
-import { supabase } from '@/integrations/supabase/client';
 
 // Create a singleton MessageQueue instance or factory to ensure it's accessible anywhere
 let globalMessageQueue: any = null;
@@ -13,7 +12,6 @@ let globalMessageQueue: any = null;
 // Function to set the global message queue (called from main app initialization)
 export const setGlobalMessageQueue = (queue: any) => {
   globalMessageQueue = queue;
-  console.log('[TranscriptSaver] Global message queue has been set');
 };
 
 export const useTranscriptSaver = () => {
@@ -25,31 +23,21 @@ export const useTranscriptSaver = () => {
     role: 'user' | 'assistant',
     saveMessage: (msg: { role: 'user' | 'assistant'; content: string }) => Promise<Message | undefined>
   ) => {
-    // CRITICAL FIX #1: Force early validation at the entry point
+    // Force early validation at the entry point
     if (role !== 'user' && role !== 'assistant') {
-      console.error(`[TranscriptSaver] FATAL ERROR: Invalid role "${role}"`);
       throw new Error(`Invalid role: ${role}. Must be 'user' or 'assistant'.`);
     }
 
-    // Double-check role format before proceeding
-    console.log(`[TranscriptSaver] ⚠️ ROLE CHECKPOINT: role="${role}" (type=${typeof role})`);
-
     // Validate transcript content
     if (!transcript || transcript.trim() === '') {
-      console.warn("⚠️ Empty transcript received, not saving");
       return;
     }
-    
-    console.log(`🔍 [TranscriptSaver] Role validation passed - role="${role}"`);
-    console.log(`💾 [TranscriptSaver] TRANSCRIPT TO SAVE (ROLE=${role.toUpperCase()}):`, transcript.substring(0, 100) + (transcript.length > 100 ? '...' : ''));
     
     notifyTranscriptReceived(transcript);
     
     try {
       // UNIFIED PATH: Check if we have access to the global message queue
       if (globalMessageQueue) {
-        console.log(`[TranscriptSaver] Using message queue to save ${role} transcript`);
-        
         // Queue the message with high priority to ensure it gets processed
         globalMessageQueue.queueMessage(role, transcript, true);
         
@@ -69,12 +57,9 @@ export const useTranscriptSaver = () => {
           created_at: new Date().toISOString()
         } as Message;
       } else {
-        console.error(`[TranscriptSaver] No message queue available, using fallback save method`);
-        
         // Add validation of conversation context - now wait for the promise
         const contextValid = await validateConversationContext();
         if (!contextValid) {
-          console.error("❌ Cannot save transcript: Invalid conversation context");
           throw new Error("Invalid conversation context");
         }
         
@@ -91,7 +76,6 @@ export const useTranscriptSaver = () => {
         return savedMessage;
       }
     } catch (error) {
-      console.error(`❌ [TranscriptSaver] Failed to save ${role} transcript:`, error);
       notifyTranscriptError(error);
       
       toast.error(`Failed to save ${role === 'user' ? 'message' : 'response'}`, {

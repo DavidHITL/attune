@@ -16,14 +16,4 @@ export class RoleValidator {
   createInvalidRoleError(role: string): Error {
     return new Error(`Invalid role: "${role}". Must be 'user' or 'assistant'.`);
   }
-
-  /**
-   * Validate role or throw an error
-   */
-  validateRoleOrThrow(role: string): 'user' | 'assistant' {
-    if (!this.isValidRole(role)) {
-      throw this.createInvalidRoleError(role);
-    }
-    return role as 'user' | 'assistant';
-  }
 }

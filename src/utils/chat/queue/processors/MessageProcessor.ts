@@ -22,7 +22,6 @@ export class MessageProcessor {
         const messages = queueCore.getAll();
         const anyPriorityMessages = messages.some(item => item.priority);
         if (!anyPriorityMessages) {
-          console.log(`[MessageProcessor] Queue not initialized and no priority messages. Waiting.`);
           break;
         }
       }
@@ -32,14 +31,8 @@ export class MessageProcessor {
       
       // Double-check that role is still valid
       if (item.role !== 'user' && item.role !== 'assistant') {
-        console.error(`[MessageProcessor] CRITICAL ERROR: Invalid role in queue: ${item.role}. Skipping message.`);
         continue;
       }
-      
-      console.log(`[MessageProcessor] Processing ${item.role} message: "${item.content.substring(0, 30)}${item.content.length > 30 ? '...' : ''}"`, {
-        priority: item.priority,
-        timestamp: new Date().toISOString()
-      });
       
       try {
         // Use the central message save service and attach the conversation ID
@@ -49,7 +42,7 @@ export class MessageProcessor {
           conversation_id: typeof window !== 'undefined' ? window.__attuneConversationId : undefined
         });
       } catch (error) {
-        console.error(`[MessageProcessor] Error saving message:`, error);
+        console.error(`Error saving message:`, error);
       }
     }
   }

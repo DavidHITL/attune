@@ -4,30 +4,23 @@ import { useConversationValidator } from './useConversationValidator';
 import { useConversation } from '@/hooks/useConversation';
 import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 import { toast } from 'sonner';
+import { getMessageQueue } from '@/utils/chat/messageQueue/QueueProvider';
 
 export const useTranscriptHandler = () => {
   const { validateConversationContext } = useConversationValidator();
   const { saveMessage } = useConversation();
   
   const handleTranscriptEvent = useCallback((event: any) => {
-    console.log('🎯 Transcript Handler - Processing event:', {
-      type: event.type,
-      hasTranscript: !!event.transcript || !!(event.transcript?.text),
-      timestamp: new Date().toISOString()
-    });
-
     // IMPROVED: First determine role from the event type registry or explicit role
     // Prioritize explicitRole if available
     const messageRole = event.explicitRole || EventTypeRegistry.getRoleForEvent(event.type);
     
     if (!messageRole) {
-      console.log(`⚠️ Could not determine message role for event type: ${event.type}`);
       return;
     }
 
-    // Additional role validation - critical fix
+    // Additional role validation
     if (messageRole !== 'user' && messageRole !== 'assistant') {
-      console.error(`❌ Invalid role determined: ${messageRole}. Must be 'user' or 'assistant'. Skipping.`);
       return;
     }
 
@@ -52,52 +45,23 @@ export const useTranscriptHandler = () => {
     
     // Skip processing if no valid content was found
     if (!transcriptContent || transcriptContent.trim() === '') {
-      if (event.type === 'response.audio_transcript.done' || 
-          event.type === 'transcript' || 
-          event.type === 'response.done' || 
-          event.type === 'response.content_part.done') {
-        console.log("⚠️ No valid content found in event", event.type);
-      }
       return;
     }
 
-    // Log with explicit role for debugging
-    console.log(`📝 Processing ${messageRole} content:`, {
-      role: messageRole,
-      contentPreview: transcriptContent.substring(0, 50),
-      length: transcriptContent.length
+    // Get the message queue - our single source of truth
+    const messageQueue = getMessageQueue();
+    if (!messageQueue) {
+      return; // Early exit - no queue means no processing
+    }
+    
+    // Queue message with explicit role
+    messageQueue.queueMessage(messageRole, transcriptContent, true);
+    
+    // Show toast for user feedback
+    toast.success(messageRole === 'user' ? "Speech detected" : "AI response received", {
+      description: transcriptContent.substring(0, 50) + (transcriptContent.length > 50 ? "..." : ""),
+      duration: 3000
     });
-    
-    // Only process when we have a valid context or message queue
-    const hasValidContext = validateConversationContext();
-    const hasMessageQueue = typeof window !== 'undefined' && !!window.attuneMessageQueue;
-    
-    if (!hasValidContext && !hasMessageQueue) {
-      console.log('⚠️ No valid conversation context or message queue');
-      return;
-    }
-      
-    if (hasMessageQueue) {
-      console.log(`🔄 Queueing message with explicit role: ${messageRole}`);
-      window.attuneMessageQueue?.queueMessage(messageRole, transcriptContent, true);
-      
-      toast.success(messageRole === 'user' ? "Speech detected" : "AI response received", {
-        description: transcriptContent.substring(0, 50) + (transcriptContent.length > 50 ? "..." : ""),
-        duration: 3000
-      });
-      return;
-    }
-
-    // Direct save with explicit role
-    if (hasValidContext) {
-      console.log(`💾 Saving via direct save with role: ${messageRole}`);
-      saveMessage({
-        role: messageRole,
-        content: transcriptContent
-      }).catch(error => {
-        console.error(`Error saving message:`, error);
-      });
-    }
   }, [validateConversationContext, saveMessage]);
 
   return {

@@ -15,8 +15,6 @@ export class MessageQueue {
   private instanceId = Date.now().toString(36);
   
   constructor(private saveMessageCallback: SaveMessageCallback) {
-    console.log(`[MessageQueue ${this.instanceId}] Initialized`);
-    
     this.queueCore = new MessageQueueCore();
     this.processor = new MessageProcessor(saveMessageCallback);
     this.deduplicator = new MessageDeduplicator();
@@ -25,7 +23,6 @@ export class MessageQueue {
     // Monitor queue periodically
     setInterval(() => {
       if (this.queueCore.size() > 0 && !this.queueCore.isProcessing()) {
-        console.log(`[MessageQueue ${this.instanceId}] Found ${this.queueCore.size()} pending messages but not processing. Forcing process.`);
         this.processQueue();
       }
     }, 5000);
@@ -43,16 +40,11 @@ export class MessageQueue {
    * Queue a message with strict role validation and deduplication
    */
   queueMessage(role: 'user' | 'assistant', content: string, priority: boolean = false): void {
-    // CRITICAL FIX: Hard-stop if no conversationId before queuing
+    // Create conversation ID if needed
     if (typeof window !== 'undefined' && !window.__attuneConversationId && !this.initializer.isInitialized()) {
-      // Instead of aborting, ensure we have a conversation ID
       this.initializer.ensureConversationId().then(conversationId => {
         if (conversationId) {
-          console.log(`[MessageQueue ${this.instanceId}] Successfully created conversation ID: ${conversationId}`);
-          // Re-queue the message now that we have a conversation ID
           this.queueMessageInternal(role, content, priority);
-        } else {
-          console.error(`[MessageQueue ${this.instanceId}] Failed to create conversation ID, message will not be saved`);
         }
       });
       return;
@@ -65,38 +57,27 @@ export class MessageQueue {
    * Internal method to queue a message after validation
    */
   private queueMessageInternal(role: 'user' | 'assistant', content: string, priority: boolean): void {
-    // CRITICAL FIX: Validate role is one of the two allowed values - throw error instead of defaulting
+    // Validate role is one of the two allowed values
     if (role !== 'user' && role !== 'assistant') {
-      console.error(`[MessageQueue ${this.instanceId}] CRITICAL ERROR: Invalid role: ${role}. Must be 'user' or 'assistant'.`);
       throw new Error(`Invalid role: ${role}. Must be 'user' or 'assistant'.`);
     }
     
     // Skip empty content
     if (!content || content.trim() === '') {
-      console.log(`[MessageQueue ${this.instanceId}] Skipping empty ${role} message`);
       return;
     }
 
     // Check for duplicate messages
     if (this.deduplicator.isDuplicate(role, content)) {
-      console.log(`[MessageQueue ${this.instanceId}] Skipping duplicate ${role} message`);
       return;
     }
-    
-    console.log(`[MessageQueue ${this.instanceId}] Queueing ${role} message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`, {
-      priority,
-      queueLength: this.queueCore.size(),
-      timestamp: new Date().toISOString(),
-      role: role, // Log role for debugging
-      conversationId: window.__attuneConversationId // Log the conversation ID for debugging
-    });
     
     // Track this message to prevent duplicates
     this.deduplicator.markAsProcessed(role, content);
     
-    // Add message to queue with validated role and conversation_id
+    // Add message to queue with validated role
     this.queueCore.enqueue({
-      role, // Use validated role
+      role,
       content,
       priority,
       time: Date.now()
@@ -117,7 +98,6 @@ export class MessageQueue {
     }
     
     this.queueCore.setProcessing(true);
-    console.log(`[MessageQueue ${this.instanceId}] Starting queue processing, ${this.queueCore.size()} items in queue`);
     
     try {
       // Process all messages in queue
@@ -126,10 +106,9 @@ export class MessageQueue {
         this.initializer.isInitialized()
       );
     } catch (error) {
-      console.error(`[MessageQueue ${this.instanceId}] Error processing queue:`, error);
+      console.error(`Error processing queue:`, error);
     } finally {
       this.queueCore.setProcessing(false);
-      console.log(`[MessageQueue ${this.instanceId}] Queue processing complete, ${this.queueCore.size()} items remaining`);
     }
   }
 
@@ -137,7 +116,6 @@ export class MessageQueue {
    * Force the queue to process all pending messages
    */
   async forceFlushQueue(): Promise<void> {
-    console.log(`[MessageQueue ${this.instanceId}] Force flushing queue, ${this.queueCore.size()} items`);
     await this.processQueue();
   }
   
@@ -146,7 +124,6 @@ export class MessageQueue {
    * to maintain compatibility with existing code
    */
   async flushQueue(): Promise<void> {
-    console.log(`[MessageQueue ${this.instanceId}] Flushing queue (alias method), ${this.queueCore.size()} items`);
     return this.forceFlushQueue();
   }
   
@@ -154,7 +131,6 @@ export class MessageQueue {
    * Set the conversation initialized state
    */
   setConversationInitialized(): void {
-    console.log(`[MessageQueue ${this.instanceId}] Conversation initialized, enabling queue processing`);
     this.initializer.setInitialized(true);
     this.processQueue();
   }

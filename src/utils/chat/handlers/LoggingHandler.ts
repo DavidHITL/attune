@@ -58,64 +58,6 @@ export class LoggingHandler {
    */
   logEvent(event: any, description: string): number {
     this.eventCounter++;
-    const eventId = this.eventCounter;
-    const eventTime = new Date().toISOString();
-    
-    // Log basic event information
-    console.log(`[EventHandler] #${eventId} ${description}: ${event.type}`, {
-      timestamp: eventTime,
-      eventId,
-      eventType: event.type
-    });
-
-    return eventId;
-  }
-  
-  /**
-   * Log potential text content paths in the event structure
-   */
-  logPotentialTextPaths(event: any, eventId: number): void {
-    try {
-      // First check direct text properties
-      if (event.text) {
-        console.log(`🎙️ [TEXT PATH] #${eventId} Direct 'text' property found:`, event.text.substring(0, 100));
-      } else if (event.transcript) {
-        console.log(`🎙️ [TEXT PATH] #${eventId} Direct 'transcript' property found:`, 
-          typeof event.transcript === 'string' 
-            ? event.transcript.substring(0, 100) 
-            : event.transcript);
-      }
-      
-      // Check deeper paths
-      if (event.delta && event.delta.text) {
-        console.log(`🎙️ [TEXT PATH] #${eventId} Path 'event.delta.text' found:`, event.delta.text.substring(0, 100));
-      }
-      
-      if (event.transcript && event.transcript.text) {
-        console.log(`🎙️ [TEXT PATH] #${eventId} Path 'event.transcript.text' found:`, event.transcript.text.substring(0, 100));
-      }
-      
-      if (event.content_part && event.content_part.text) {
-        console.log(`🎙️ [TEXT PATH] #${eventId} Path 'event.content_part.text' found:`, event.content_part.text.substring(0, 100));
-      }
-      
-      // Check for other common paths
-      const potentialPaths = [
-        'content', 'message', 'audio_transcript', 'transcript_text', 
-        'result', 'output', 'data'
-      ];
-      
-      potentialPaths.forEach(path => {
-        if (event[path]) {
-          if (typeof event[path] === 'string') {
-            console.log(`🎙️ [TEXT PATH] #${eventId} Path 'event.${path}' found:`, event[path].substring(0, 100));
-          } else if (event[path].text) {
-            console.log(`🎙️ [TEXT PATH] #${eventId} Path 'event.${path}.text' found:`, event[path].text.substring(0, 100));
-          }
-        }
-      });
-    } catch (error) {
-      console.error(`🎙️ [TEXT PATH] #${eventId} Error logging potential text paths:`, error);
-    }
+    return this.eventCounter;
   }
 }

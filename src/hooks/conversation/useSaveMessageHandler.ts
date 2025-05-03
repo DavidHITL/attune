@@ -20,36 +20,20 @@ export const useSaveMessageHandler = (
         return;
       }
       
-      // CRITICAL FIX #1: Ensure role is valid before proceeding
+      // Ensure role is valid before proceeding
       if (message.role !== 'user' && message.role !== 'assistant') {
-        console.error(`Cannot save message: Invalid role "${message.role}". Must be 'user' or 'assistant'`);
         throw new Error(`Invalid message role: ${message.role}`);
       }
       
-      // CRITICAL FIX #2: Verify current auth state to ensure we have latest user
+      // Verify current auth state to ensure we have latest user
       let currentUser = user;
       if (!currentUser) {
-        console.log("[useSaveMessageHandler] No user in props, checking current auth state");
         const { data } = await supabase.auth.getUser();
         currentUser = data?.user;
-        
-        if (currentUser) {
-          console.log(`[useSaveMessageHandler] Retrieved current user from auth: ${currentUser.id}`);
-        }
       }
-      
-      console.log(`[useSaveMessageHandler] Saving ${message.role} message:`, {
-        role: message.role,
-        contentPreview: message.content.substring(0, 30) + '...',
-        hasConversationId: !!conversationId,
-        hasUser: !!currentUser,
-        userId: currentUser?.id,
-        timestamp: new Date().toISOString()
-      });
       
       // For anonymous users, handle locally
       if (!currentUser) {
-        console.log("Anonymous user detected, using local message only");
         const localMessage: Message = {
           id: `anon-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           role: message.role as 'user' | 'assistant',
@@ -61,47 +45,36 @@ export const useSaveMessageHandler = (
         return localMessage;
       }
       
-      // CRITICAL FIX #3: Create a clean object with explicitly assigned role
+      // Create a clean object with explicitly assigned role
       const messageToSave: Message = {
         id: message.id || `temp-${Date.now()}`,
         role: message.role as 'user' | 'assistant',
         content: message.content,
         created_at: message.created_at || new Date().toISOString(),
-        // We don't assign user_id here as we'll pass it separately to the save function
       };
-      
-      // Use the central message service
-      console.log(`[useSaveMessageHandler] Using central message service to save ${messageToSave.role} message`);
       
       // If no conversation ID, get or create one first before saving any messages
       let targetConversationId = conversationId;
       
       if (!targetConversationId) {
         try {
-          console.log("[useSaveMessageHandler] No conversation ID available. Obtaining one before saving message.");
-          
           // Get or create conversation using RPC function
           const { data: newConversationId, error: convError } = await supabase.rpc(
             "get_or_create_conversation",
             { p_user_id: currentUser.id }
           );
           
-          // Add the requested logging for debugging
-          console.log('[Conversation RPC] result →', newConversationId);   // TEMP
           if(!newConversationId) {
             throw new Error('get_or_create_conversation returned no id');
           }
           
           if (convError) {
-            console.error("[useSaveMessageHandler] Error getting/creating conversation:", convError);
             throw convError;
           }
           
-          // CRITICAL FIX: Store only the ID string, not the whole object
+          // Store only the ID string, not the whole object
           targetConversationId = newConversationId;
           setConversationId(targetConversationId);
-          
-          console.log(`[useSaveMessageHandler] Set new conversation ID: ${targetConversationId}`);
           
           // Update global context
           if (typeof window !== 'undefined') {
@@ -120,17 +93,14 @@ export const useSaveMessageHandler = (
           
           // Notify message queue
           if (typeof window !== 'undefined' && window.attuneMessageQueue) {
-            console.log('[useSaveMessageHandler] Updating message queue with new conversation ID');
             window.attuneMessageQueue.setConversationInitialized();
             
             // Flush any queued messages now that we have a conversation ID
             if (window.attuneMessageQueue.forceFlushQueue) {
-              console.log('[useSaveMessageHandler] Flushing pending message queue');
               window.attuneMessageQueue.forceFlushQueue();
             }
           }
         } catch (error) {
-          console.error('[useSaveMessageHandler] Error obtaining conversation ID:', error);
           toast.error("Failed to initialize conversation");
           throw error;
         }
@@ -138,21 +108,16 @@ export const useSaveMessageHandler = (
       
       // Now that we have a valid conversation ID, save the message
       if (!targetConversationId) {
-        console.error("[useSaveMessageHandler] Cannot save message: Still no conversation ID after attempt to get one");
         toast.error("Cannot save message - no active conversation");
         return undefined;
       }
       
       try {
-        // We don't set these properties on the messageToSave object directly
-        // Instead, we pass them separately to the messageSaveService
-        console.log(`[useSaveMessageHandler] Saving message with conversation ID: ${targetConversationId} and user ID: ${currentUser.id}`);
-        
         const result = await messageSaveService.saveMessageToDatabase({
           role: messageToSave.role,
           content: messageToSave.content,
           conversation_id: targetConversationId,
-          user_id: currentUser.id  // Pass user_id separately here
+          user_id: currentUser.id
         });
         
         if (result) {
@@ -160,7 +125,6 @@ export const useSaveMessageHandler = (
           return result;
         }
       } catch (error) {
-        console.error('[useSaveMessageHandler] Error saving message with conversation ID:', error);
         throw error;
       }
       
@@ -175,7 +139,6 @@ export const useSaveMessageHandler = (
         created_at: new Date().toISOString()
       };
       
-      console.log(`Created temporary message for ${message.role} due to save error`);
       setMessages(prev => [...prev, tempMessage]);
       return tempMessage;
     }

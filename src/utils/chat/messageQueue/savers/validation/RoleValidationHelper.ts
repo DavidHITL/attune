@@ -14,7 +14,7 @@ export class RoleValidationHelper {
    * Create a standardized error for invalid roles
    */
   createInvalidRoleError(role: string): Error {
-    return new Error(`[RoleValidationHelper] FATAL ERROR: Invalid role "${role}". Must be 'user' or 'assistant'.`);
+    return new Error(`Invalid role: ${role}. Must be 'user' or 'assistant'.`);
   }
 
   /**
