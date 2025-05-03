@@ -18,7 +18,7 @@ export class TranscriptContentExtractor {
   /**
    * Extract transcript content from different event types
    */
-  extractContent(event: any): { content: string | null, isDelta: boolean } {
+  extractContent(event: any): string | null {
     this.extractionCount++;
     const extractionId = this.extractionCount;
     let transcriptContent: string | null = null;
@@ -78,7 +78,7 @@ export class TranscriptContentExtractor {
       timestamp: new Date().toISOString()
     });
     
-    return { content: transcriptContent, isDelta };
+    return transcriptContent;
   }
   
   /**

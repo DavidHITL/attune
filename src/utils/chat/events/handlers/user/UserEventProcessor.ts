@@ -2,7 +2,7 @@
 /**
  * Component responsible for processing user events
  */
-import { MessageQueue } from '../../messageQueue';
+import { MessageQueue } from '../../../messageQueue';
 import { TextPropertyFinder } from './TextPropertyFinder';
 import { TranscriptProcessor } from './TranscriptProcessor';
 import { TranscriptContentExtractor } from './TranscriptContentExtractor';
@@ -39,7 +39,8 @@ export class UserEventProcessor {
       this.eventDebugger.analyzeEvent(event);
       
       // Extract content from the event using content extractor
-      const content = this.transcriptContentExtractor.extractContent(event);
+      const extractionResult = this.transcriptContentExtractor.extractContent(event);
+      const content = extractionResult?.content;
       
       // If no content found, try deeper search
       if (!content) {
