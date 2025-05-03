@@ -31,6 +31,13 @@ export class ResponseEventStore {
   }
   
   /**
+   * Append content to the message buffer
+   */
+  appendToBuffer(content: string): void {
+    this.assistantMessageBuffer += content;
+  }
+  
+  /**
    * Get all stored response events
    */
   getStoredEvents(): any[] {
