@@ -1,5 +1,5 @@
 
-import { MessageQueue } from '../messageQueue';
+import { MessageQueue } from '../queue/MessageQueue';
 import { SaveMessageCallback } from '../../types';
 
 // Singleton instance of the MessageQueue
