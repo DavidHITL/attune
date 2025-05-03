@@ -8,23 +8,57 @@ export const useConversationReady = (conversationId: string | null) => {
   const maxRetries = 10;
   const retryDelay = 300;
 
+  // Set up event listener for conversation ID ready event
   useEffect(() => {
+    // First check if we already have a conversation ID
     if (conversationId) {
       console.log('[ConversationReady] Conversation ID available:', conversationId);
       setIsReady(true);
-    } else {
-      console.log('[ConversationReady] No conversation ID yet');
-      setIsReady(false);
+      return;
     }
+    
+    // Next check if it exists in global context
+    if (typeof window !== 'undefined') {
+      if (window.__attuneConversationId) {
+        console.log('[ConversationReady] Found conversation ID in global context:', window.__attuneConversationId);
+        setIsReady(true);
+        return;
+      }
+    }
+
+    console.log('[ConversationReady] No conversation ID yet, setting up event listener');
+
+    // Set up listener for when conversation ID becomes ready
+    const handleConversationReady = (event: any) => {
+      const id = event.detail?.conversationId;
+      if (id) {
+        console.log('[ConversationReady] Received conversation ID from event:', id);
+        setIsReady(true);
+      }
+    };
+
+    document.addEventListener('conversationIdReady', handleConversationReady);
+
+    return () => {
+      document.removeEventListener('conversationIdReady', handleConversationReady);
+    };
   }, [conversationId]);
 
   /**
    * Wait until the conversation is ready (has a valid ID)
    */
-  const waitForConversation = useCallback(async (): Promise<void> => {
+  const waitForConversation = useCallback(async (): Promise<string | null> => {
+    // First, check if we already have conversationId in props
     if (isReady && conversationId) {
       console.log('[ConversationReady] Conversation already ready:', conversationId);
-      return Promise.resolve();
+      return conversationId;
+    }
+    
+    // Second, check if it's available in the global context
+    if (typeof window !== 'undefined' && window.__attuneConversationId) {
+      console.log('[ConversationReady] Found conversation ID in global context:', window.__attuneConversationId);
+      setIsReady(true);
+      return window.__attuneConversationId;
     }
 
     console.log('[ConversationReady] Waiting for conversation to be ready...');
@@ -34,10 +68,19 @@ export const useConversationReady = (conversationId: string | null) => {
       let currentRetries = 0;
       
       const checkIfReady = () => {
+        // Check props first
         if (conversationId) {
-          console.log('[ConversationReady] Conversation now ready:', conversationId);
+          console.log('[ConversationReady] Conversation now ready from props:', conversationId);
           setIsReady(true);
-          resolve();
+          resolve(conversationId);
+          return;
+        }
+        
+        // Check global context next
+        if (typeof window !== 'undefined' && window.__attuneConversationId) {
+          console.log('[ConversationReady] Conversation now ready from global:', window.__attuneConversationId);
+          setIsReady(true);
+          resolve(window.__attuneConversationId);
           return;
         }
 
@@ -58,7 +101,7 @@ export const useConversationReady = (conversationId: string | null) => {
 
       checkIfReady();
     });
-  }, [conversationId, isReady]);
+  }, [conversationId, isReady, maxRetries, retryDelay]);
 
   return {
     isConversationReady: isReady,

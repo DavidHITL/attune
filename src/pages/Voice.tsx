@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import RealtimeChat from '@/components/RealtimeChat';
 import { useAuth } from '@/context/AuthContext';
@@ -16,6 +16,8 @@ const Voice = () => {
   const { user, loading: authLoading } = useAuth();
   const { setBackgroundColor } = useBackground();
   const { loading: conversationLoading, conversationId, saveMessage } = useConversation();
+  // Add a ref to track whether initialization has been performed
+  const initializationDoneRef = useRef(false);
 
   // Set background color
   useEffect(() => {
@@ -37,11 +39,17 @@ const Voice = () => {
     }
   }, [authLoading, saveMessage]);
 
-  // Early conversation initialization
+  // Early conversation initialization - IMPROVED WITH IMMEDIATE RETRY
   useEffect(() => {
     const initializeVoiceChat = async () => {
       if (authLoading) {
         console.log('Waiting for authentication to complete...');
+        return;
+      }
+
+      // Skip if we've already initialized
+      if (initializationDoneRef.current) {
+        console.log('Voice chat initialization already completed');
         return;
       }
 
@@ -54,6 +62,7 @@ const Voice = () => {
           const conversationId = await getOrCreateConversationId(user.id);
           
           console.log(`Early conversation ID created: ${conversationId}`);
+          initializationDoneRef.current = true;
           
           // Store globally for immediate use by any component
           if (typeof window !== 'undefined') {
@@ -62,10 +71,33 @@ const Voice = () => {
             // Initialize the message queue if available
             if (window.attuneMessageQueue) {
               window.attuneMessageQueue.setConversationInitialized();
+              console.log('Message queue marked as initialized with conversation ID');
             }
+            
+            // Add to window.conversationContext for broader component access
+            window.conversationContext = {
+              ...window.conversationContext,
+              conversationId,
+              userId: user.id,
+              isInitialized: true,
+              messageCount: window.conversationContext?.messageCount || 0
+            };
           }
+          
+          // Notify components that might be waiting
+          document.dispatchEvent(new CustomEvent('conversationIdReady', { 
+            detail: { conversationId } 
+          }));
         } catch (error) {
           console.error('Error during early conversation initialization:', error);
+          
+          // Try again in a moment if failed
+          setTimeout(() => {
+            if (!initializationDoneRef.current) {
+              console.log('Retrying conversation initialization...');
+              initializeVoiceChat();
+            }
+          }, 1000);
         }
       }
       
