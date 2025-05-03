@@ -14,7 +14,12 @@ export class EventDispatcher {
   constructor(
     private userEventHandler: UserEventHandler,
     private assistantEventHandler: AssistantEventHandler
-  ) {}
+  ) {
+    // Clean up processed events periodically
+    setInterval(() => {
+      this.processedEvents.clear();
+    }, 300000); // Clear every 5 minutes
+  }
 
   /**
    * Main dispatch method that routes events to the appropriate handler
@@ -84,6 +89,18 @@ export class EventDispatcher {
         return;
       }
       
+      // Generate fingerprint for deduplication
+      const contentFingerprint = `${role}:${text.substring(0, 100)}`;
+      
+      // Skip if we've already processed this exact content
+      if (this.processedEvents.has(contentFingerprint)) {
+        console.log(`[EventDispatcher] Skipping duplicate ${role} content in conversation.item.created`);
+        return;
+      }
+      
+      // Mark as processed to prevent duplicates
+      this.processedEvents.add(contentFingerprint);
+      
       // Get the message queue and queue the message with high priority
       const messageQueue = getMessageQueue();
       if (messageQueue) {
@@ -117,6 +134,18 @@ export class EventDispatcher {
       // Set explicit role marker to prevent any confusion downstream
       event.explicitRole = 'assistant';
       
+      // Generate fingerprint for deduplication
+      const contentFingerprint = `assistant:${event.type}:${Date.now()}`;
+      
+      // Skip if we've already processed this exact event in this session
+      if (this.processedEvents.has(contentFingerprint)) {
+        console.log(`[EventDispatcher] Skipping duplicate assistant event: ${event.type}`);
+        return;
+      }
+      
+      // Mark as processed to prevent duplicates
+      this.processedEvents.add(contentFingerprint);
+      
       // Send to assistant handler
       this.assistantEventHandler.handleEvent(event);
     } 
@@ -125,6 +154,18 @@ export class EventDispatcher {
       
       // Set explicit role marker to prevent any confusion downstream
       event.explicitRole = 'user';
+      
+      // Generate fingerprint for deduplication
+      const contentFingerprint = `user:${event.type}:${Date.now()}`;
+      
+      // Skip if we've already processed this exact event in this session
+      if (this.processedEvents.has(contentFingerprint)) {
+        console.log(`[EventDispatcher] Skipping duplicate user event: ${event.type}`);
+        return;
+      }
+      
+      // Mark as processed to prevent duplicates
+      this.processedEvents.add(contentFingerprint);
       
       // Send to user handler
       this.userEventHandler.handleEvent(event);

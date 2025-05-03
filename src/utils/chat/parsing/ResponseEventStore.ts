@@ -5,13 +5,37 @@
 export class ResponseEventStore {
   private rawResponseEvents: any[] = [];
   private assistantMessageBuffer: string = '';
+  private processedEvents = new Set<string>();
+  
+  constructor() {
+    // Clean up processed events periodically
+    setInterval(() => {
+      this.processedEvents.clear();
+    }, 300000); // Clear every 5 minutes
+  }
   
   /**
    * Store a response event
    */
   storeEvent(event: any): void {
-    // Store raw events for response.* events
+    // Skip if no type
+    if (!event || !event.type) {
+      return;
+    }
+    
+    // Only store response.* events
     if (event.type.startsWith('response.')) {
+      // Generate a fingerprint for deduplication
+      const eventFingerprint = this.generateEventFingerprint(event);
+      
+      // Skip if we've already processed this exact event
+      if (this.processedEvents.has(eventFingerprint)) {
+        return;
+      }
+      
+      // Mark as processed to prevent duplicates
+      this.processedEvents.add(eventFingerprint);
+      
       this.rawResponseEvents.push({
         type: event.type,
         timestamp: Date.now(),
@@ -28,6 +52,32 @@ export class ResponseEventStore {
         this.rawResponseEvents.shift();
       }
     }
+  }
+  
+  /**
+   * Generate a fingerprint for an event to assist with deduplication
+   */
+  private generateEventFingerprint(event: any): string {
+    // For response.delta events, include the content in fingerprint
+    if (event.type === 'response.delta') {
+      const content = event.delta?.content || event.delta?.text || '';
+      return `${event.type}:${content.substring(0, 50)}`;
+    }
+    
+    // For response.done events, include content when available
+    if (event.type === 'response.done') {
+      const content = event.response?.content || '';
+      return `${event.type}:${content.substring(0, 50)}`;
+    }
+    
+    // For content_part events
+    if (event.type === 'response.content_part.done') {
+      const content = event.content_part?.text || '';
+      return `${event.type}:${content.substring(0, 50)}`;
+    }
+    
+    // For other events, use the event type and timestamp
+    return `${event.type}:${Date.now()}`;
   }
   
   /**

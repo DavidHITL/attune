@@ -40,7 +40,7 @@ export class ContentExtractor {
   /**
    * Extract completed response from done event
    */
-  extractCompletedResponseFromDoneEvent(event: any, eventLog: any[], rawResponseEvents: any[]): string | null {
+  extractCompletedResponseFromDoneEvent(event: any, eventLog: any[] = [], rawResponseEvents: any[] = []): string | null {
     try {
       console.log(`Extracting from response.done event received:`, JSON.stringify(event).substring(0, 500));
       
@@ -68,17 +68,22 @@ export class ContentExtractor {
         }
       }
       
-      // 2. Try direct transcript paths
+      // 2. Try direct response content
+      if (event.response?.content) {
+        return event.response.content;
+      }
+      
+      // 3. Try direct transcript paths
       if (event.transcript?.text) {
         return event.transcript.text;
       }
       
-      // 3. Try direct content paths
+      // 4. Try direct content paths
       if (event.text) {
         return event.text;
       }
       
-      // 4. Look for content parts in the response
+      // 5. Look for content parts in the response
       if (event.response?.content_parts) {
         const textParts = event.response.content_parts
           .filter((part: any) => part.type === 'text')
@@ -90,21 +95,23 @@ export class ContentExtractor {
         }
       }
       
-      // 5. Get response text from truncated conversation item if present
-      const truncatedEvent = eventLog.find(e => e.type === 'conversation.item.truncated');
-      if (truncatedEvent) {
-        console.log("Found truncated conversation item, looking for content");
-        const rawEvent = rawResponseEvents.find(e => 
-          e.type === 'conversation.item.truncated' || 
-          (e.data && e.data.type === 'conversation.item.truncated')
-        );
-        
-        if (rawEvent && rawEvent.data && rawEvent.data.item && rawEvent.data.item.content) {
-          const content = rawEvent.data.item.content;
-          if (Array.isArray(content)) {
-            return content.map(c => c.text || '').join('');
-          } else if (typeof content === 'string') {
-            return content;
+      // 6. Get response text from truncated conversation item if present
+      if (eventLog?.length > 0) {
+        const truncatedEvent = eventLog.find(e => e.type === 'conversation.item.truncated');
+        if (truncatedEvent) {
+          console.log("Found truncated conversation item, looking for content");
+          const rawEvent = rawResponseEvents?.find(e => 
+            e.type === 'conversation.item.truncated' || 
+            (e.data && e.data.type === 'conversation.item.truncated')
+          );
+          
+          if (rawEvent && rawEvent.data && rawEvent.data.item && rawEvent.data.item.content) {
+            const content = rawEvent.data.item.content;
+            if (Array.isArray(content)) {
+              return content.map(c => c.text || '').join('');
+            } else if (typeof content === 'string') {
+              return content;
+            }
           }
         }
       }

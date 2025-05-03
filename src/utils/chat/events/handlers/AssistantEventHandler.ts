@@ -5,6 +5,7 @@
 import { MessageQueue } from '../../messageQueue';
 import { ResponseParser } from '../../ResponseParser';
 import { EventTypeRegistry } from '../EventTypeRegistry';
+import { getMessageQueue } from '../../messageQueue/QueueProvider';
 
 export class AssistantEventHandler {
   private processedResponses = new Set<string>();
@@ -57,7 +58,7 @@ export class AssistantEventHandler {
         
         if (content && content.trim()) {
           // Generate a simple key for deduplication
-          const contentKey = content.substring(0, 100);
+          const contentKey = `${event.type}:${content.substring(0, 100)}`;
           
           // Skip if we've already processed this content
           if (this.processedResponses.has(contentKey)) {
@@ -69,8 +70,17 @@ export class AssistantEventHandler {
           this.processedResponses.add(contentKey);
           
           console.log(`[AssistantEventHandler] Saving assistant response: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`);
-          // Add the message to the queue with explicit 'assistant' role
-          this.messageQueue.queueMessage('assistant', content, true);
+          
+          // First try to use the global message queue
+          const globalMessageQueue = getMessageQueue();
+          if (globalMessageQueue) {
+            console.log('[AssistantEventHandler] Using global message queue');
+            globalMessageQueue.queueMessage('assistant', content, true);
+          } else {
+            console.log('[AssistantEventHandler] Using instance message queue');
+            // Fall back to the instance queue if global not available
+            this.messageQueue.queueMessage('assistant', content, true);
+          }
         }
       }
     } else {

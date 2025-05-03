@@ -30,6 +30,14 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
       if (event.type === 'transcript' || event.type.includes('audio_transcript')) {
         logTranscriptDetails(event);
       }
+      
+      // Skip any events that need special handling by system components
+      // Let them go through the normal message queue path
+      if (event.type === 'input_audio_buffer.append' || 
+          event.type === 'input_audio_activity_started' ||
+          event.type === 'input_audio_activity_stopped') {
+        return;
+      }
     }
     
     // Use our transcript handler to process the event
