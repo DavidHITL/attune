@@ -8,6 +8,7 @@ export class TranscriptContentExtractor {
   private textPropertyFinder: TextPropertyFinder;
   private debugEnabled: boolean;
   private extractionCount: number = 0;
+  private uiStreamBuffer: string = '';
   
   constructor(debugEnabled: boolean = true) {
     this.textPropertyFinder = new TextPropertyFinder();
@@ -85,81 +86,38 @@ export class TranscriptContentExtractor {
    * Handle delta events specifically
    */
   private handleDeltaEvent(event: any, extractionId: number): string | null {
-    let deltaText = null;
-    let propertyPath = 'not-found';
+    // Updated logic for delta events to handle streaming for UI
+    const snippet = event.delta?.content || event.data?.content;
+    if (!snippet) return null; // ignore empty control packets
     
-    // Log complete delta structure for debugging
-    if (this.debugEnabled) {
-      console.log(`[TranscriptExtractor] #${extractionId} Delta event structure:`, JSON.stringify(event, null, 2));
-    }
+    this.uiStreamBuffer += snippet;
     
-    // Check multiple possible paths for text content
-    if (event.delta?.text) {
-      deltaText = event.delta.text;
-      propertyPath = 'delta.text';
-      console.log(`[TranscriptExtractor] #${extractionId} Found text in delta.text: "${deltaText}"`, {
-        path: propertyPath,
-        length: deltaText.length,
-        timestamp: new Date().toISOString()
-      });
-    } 
-    else if (event.text) {
-      deltaText = event.text;
-      propertyPath = 'event.text';
-      console.log(`[TranscriptExtractor] #${extractionId} Found text directly in event.text: "${deltaText}"`, {
-        path: propertyPath,
-        length: deltaText.length,
-        timestamp: new Date().toISOString()
-      });
-    }
-    else if (event.transcript?.text) {
-      deltaText = event.transcript.text;
-      propertyPath = 'transcript.text';
-      console.log(`[TranscriptExtractor] #${extractionId} Found text in transcript.text: "${deltaText}"`, {
-        path: propertyPath,
-        length: deltaText.length,
-        timestamp: new Date().toISOString()
-      });
-    }
-    else if (event.content?.text) {
-      deltaText = event.content.text;
-      propertyPath = 'content.text';
-      console.log(`[TranscriptExtractor] #${extractionId} Found text in content.text: "${deltaText}"`, {
-        path: propertyPath,
-        length: deltaText.length,
-        timestamp: new Date().toISOString()
-      });
-    }
-    else if (typeof event.transcript === 'string') {
-      deltaText = event.transcript;
-      propertyPath = 'transcript-string';
-      console.log(`[TranscriptExtractor] #${extractionId} Found text in transcript string: "${deltaText}"`, {
-        path: propertyPath,
-        length: deltaText.length,
-        timestamp: new Date().toISOString()
-      });
-    }
+    console.log(`[TranscriptExtractor] #${extractionId} Delta snippet appended to UI stream buffer: "${snippet}"`, {
+      bufferLength: this.uiStreamBuffer.length,
+      timestamp: new Date().toISOString()
+    });
     
-    // If no text was found in common places, try to extract from the raw event
-    if (!deltaText) {
-      // Log warning about no text found in expected places
-      console.warn(`[TranscriptExtractor] #${extractionId} ⚠️ No text found in expected delta properties, checking full event`);
-      
-      // Last resort - try to find any text property by traversing the object
-      const textProperty = this.textPropertyFinder.findTextProperty(event);
-      if (textProperty) {
-        deltaText = textProperty;
-        propertyPath = 'deep-search';
-        console.log(`[TranscriptExtractor] #${extractionId} Found text through deep search: "${deltaText}"`, {
-          path: propertyPath,
-          length: deltaText.length,
-          timestamp: new Date().toISOString()
-        });
-      } else {
-        console.warn(`[TranscriptExtractor] #${extractionId} ⚠️ No text content found anywhere in delta event`);
-      }
-    }
-    
-    return deltaText;
+    return snippet;
+  }
+  
+  /**
+   * Get the current UI stream buffer content
+   */
+  getUIStreamBuffer(): string {
+    return this.uiStreamBuffer;
+  }
+  
+  /**
+   * Clear the UI stream buffer
+   */
+  clearUIStreamBuffer(): void {
+    this.uiStreamBuffer = '';
+  }
+  
+  /**
+   * Append to the UI stream buffer
+   */
+  appendToUIStreamBuffer(content: string): void {
+    this.uiStreamBuffer += content;
   }
 }
