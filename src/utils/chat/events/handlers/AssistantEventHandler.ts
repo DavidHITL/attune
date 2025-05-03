@@ -32,8 +32,25 @@ export class AssistantEventHandler {
       // CRITICAL FIX: Add debug logging
       console.log(`[AssistantEventHandler] Processing event: ${event.type}, role: ${role || 'unknown'}`);
       
-      // Process the event with the response parser
+      // Process the event with the response parser - pass 'assistant' as the guaranteed role
       this.responseParser.processEvent(event, 'assistant');
+      
+      // CRITICAL FIX: For done events, save the assistant response to the message queue
+      if (event.type === 'response.done' || event.type === 'response.content_part.done') {
+        let content = null;
+        
+        if (event.type === 'response.done') {
+          content = this.responseParser.extractCompletedResponseFromDoneEvent(event);
+        } else if (event.type === 'response.content_part.done' && event.content_part?.text) {
+          content = event.content_part.text;
+        }
+        
+        if (content && content.trim()) {
+          console.log(`[AssistantEventHandler] Saving assistant response: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`);
+          // Add the message to the queue with explicit 'assistant' role
+          this.messageQueue.queueMessage('assistant', content, true);
+        }
+      }
     } else {
       console.warn('[AssistantEventHandler] Received event with no type, skipping');
     }

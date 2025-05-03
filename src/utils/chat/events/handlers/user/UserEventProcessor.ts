@@ -40,7 +40,7 @@ export class UserEventProcessor {
     
     // CRITICAL FIX: Only process if this is a user event
     if (role !== 'user') {
-      console.warn(`[UserEventProcessor] #${processId} Received non-user event: ${event.type}, role: ${role}`);
+      console.error(`[UserEventProcessor] #${processId} CRITICAL ERROR: Received non-user event: ${event.type}, role: ${role}`);
       return;
     }
     

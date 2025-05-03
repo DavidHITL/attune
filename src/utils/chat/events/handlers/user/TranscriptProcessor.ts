@@ -27,7 +27,7 @@ export class TranscriptProcessor {
     // CRITICAL FIX: Validate role to prevent incorrect role assignments
     if (role !== 'user' && role !== 'assistant') {
       console.error(`[TranscriptProcessor ${this.debugId}] Invalid role provided: ${role}. Must be 'user' or 'assistant'. Skipping message.`);
-      return;
+      throw new Error(`Invalid role: ${role}. Must be 'user' or 'assistant'.`);
     }
     
     if (!transcriptContent || transcriptContent.trim() === '') {
@@ -72,15 +72,6 @@ export class TranscriptProcessor {
       processId,
       saveCount: this.processingCount
     });
-  }
-  
-  /**
-   * Backward compatibility: Alias for saveMessage with user role
-   * @deprecated Use saveMessage instead
-   */
-  saveUserMessage(transcriptContent: string, role: 'user' | 'assistant', priority: boolean = true): void {
-    console.warn(`[TranscriptProcessor] Warning: Using deprecated saveUserMessage, use saveMessage instead`);
-    this.saveMessage(transcriptContent, role, priority);
   }
   
   /**

@@ -22,6 +22,44 @@ export class ResponseParser {
     this.logEvent(event);
   }
   
+  // Process an incoming event - fix for missing method
+  processEvent(event: any, role: 'assistant' | 'user'): void {
+    // Log the event for debugging purposes
+    console.log(`[ResponseParser] Processing event with role ${role}:`, event.type);
+    this.logEvent(event);
+    
+    // Extract content if available
+    let content: string | null = null;
+    
+    if (event.type === 'response.delta') {
+      content = this.extractContentFromDelta(event);
+      if (content) {
+        console.log(`[ResponseParser] Extracted content from delta: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
+        // Store in buffer for later use
+        this.responseEventStore.appendToBuffer(content);
+      }
+    }
+    else if (event.type === 'response.done') {
+      content = this.extractCompletedResponseFromDoneEvent(event);
+      if (content) {
+        console.log(`[ResponseParser] Extracted content from done event: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
+      }
+    }
+  }
+  
+  // Flush any pending content - fix for missing method
+  flushPendingContent(): void {
+    const buffer = this.responseEventStore.getMessageBuffer();
+    if (buffer && buffer.trim()) {
+      console.log(`[ResponseParser] Flushing pending content: "${buffer.substring(0, 30)}${buffer.length > 30 ? '...' : ''}"`);
+    } else {
+      console.log('[ResponseParser] No pending content to flush');
+    }
+    
+    // Reset the buffer after flushing
+    this.responseEventStore.resetBuffer();
+  }
+  
   // Log event for debugging purposes
   logEvent(event: any): void {
     this.eventLogger.logEvent(event);

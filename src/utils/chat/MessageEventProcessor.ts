@@ -53,9 +53,6 @@ export class MessageEventProcessor {
       console.log(`[MessageEventProcessor] Processing event: ${event.type}, role: ${role || 'unknown'}, time: ${new Date().toISOString()}`);
     }
     
-    // Log more details for specific events
-    this.responseParser.logEvent(event);
-    
     // Use the central dispatcher to route the event
     this.eventDispatcher.dispatchEvent(event);
   }
@@ -66,5 +63,6 @@ export class MessageEventProcessor {
   flushPendingMessages(): void {
     console.log('[MessageEventProcessor] Flushing any pending messages');
     this.assistantEventHandler.flushPendingResponse();
+    this.messageQueue.flushQueue();
   }
 }

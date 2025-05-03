@@ -23,13 +23,13 @@ export class MessageQueue {
   }
 
   /**
-   * Queue a message with role validation
+   * Queue a message with strict role validation
    */
   queueMessage(role: 'user' | 'assistant', content: string, priority: boolean = false): void {
-    // Validate role is one of the two allowed values
+    // CRITICAL FIX: Validate role is one of the two allowed values - throw error instead of defaulting
     if (role !== 'user' && role !== 'assistant') {
-      console.error(`[MessageQueue ${this.instanceId}] Invalid role: ${role}. Must be 'user' or 'assistant'. Defaulting to 'user'.`);
-      role = 'user'; // Default to user if invalid
+      console.error(`[MessageQueue ${this.instanceId}] CRITICAL ERROR: Invalid role: ${role}. Must be 'user' or 'assistant'.`);
+      throw new Error(`Invalid role: ${role}. Must be 'user' or 'assistant'.`);
     }
     
     // Skip empty content
@@ -45,9 +45,9 @@ export class MessageQueue {
       role: role // Log role for debugging
     });
     
-    // Add message to queue
+    // Add message to queue with validated role
     this.queue.push({
-      role: role, // Ensure explicit role is used
+      role, // Use validated role
       content,
       priority,
       time: Date.now()
@@ -93,12 +93,12 @@ export class MessageQueue {
         if (!item) continue;
         
         // Double-check that role is still valid
-        const role = item.role === 'assistant' ? 'assistant' : 'user';
-        if (role !== item.role) {
-          console.warn(`[MessageQueue ${this.instanceId}] Role mismatch detected. Original: ${item.role}, Normalized: ${role}`);
+        if (item.role !== 'user' && item.role !== 'assistant') {
+          console.error(`[MessageQueue ${this.instanceId}] CRITICAL ERROR: Invalid role in queue: ${item.role}. Skipping message.`);
+          continue;
         }
         
-        console.log(`[MessageQueue ${this.instanceId}] Processing ${role} message: "${item.content.substring(0, 30)}${item.content.length > 30 ? '...' : ''}"`, {
+        console.log(`[MessageQueue ${this.instanceId}] Processing ${item.role} message: "${item.content.substring(0, 30)}${item.content.length > 30 ? '...' : ''}"`, {
           priority: item.priority,
           queueLength: this.queue.length,
           timestamp: new Date().toISOString()
@@ -106,7 +106,7 @@ export class MessageQueue {
         
         try {
           // Always pass the validated role to prevent role mix-up
-          await this.messageSaver.saveMessageDirectly(role, item.content);
+          await this.messageSaver.saveMessageDirectly(item.role, item.content);
         } catch (error) {
           console.error(`[MessageQueue ${this.instanceId}] Error saving message:`, error);
         }
@@ -152,3 +152,6 @@ export class MessageQueue {
     return this.initialized;
   }
 }
+
+// Export any necessary types
+export * from './messageQueue/types';
