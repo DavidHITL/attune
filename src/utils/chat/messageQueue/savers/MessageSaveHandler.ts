@@ -50,7 +50,7 @@ export class MessageSaveHandler {
         console.log(`[MessageSaveHandler] ⚠️ No result returned when saving ${role} message #${this.messageCounter[role]}`);
       }
       
-      return result;
+      return result || null;
     } catch (error) {
       console.error(`[MessageSaveHandler] ❌ Direct save failed for ${role} message #${this.messageCounter[role]}:`, error);
       throw error;
@@ -63,11 +63,22 @@ export class MessageSaveHandler {
         description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
         duration: 2000,
       });
+    } else if (role === 'assistant') {
+      toast.success("Response saved", {
+        description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
+        duration: 2000,
+      });
     }
   }
   
   // Add required methods to satisfy MessageSaver interface
   async saveMessageWithRetry(role: 'user' | 'assistant', content: string): Promise<Message | null> {
+    // CRITICAL FIX: Validate role
+    if (role !== 'user' && role !== 'assistant') {
+      console.error(`[MessageSaveHandler] FATAL ERROR in saveMessageWithRetry: Invalid role "${role}". Must be 'user' or 'assistant'.`);
+      throw new Error(`Invalid role: ${role}. Must be 'user' or 'assistant'.`);
+    }
+    
     // Track message count by role
     this.messageCounter[role]++;
     
@@ -82,13 +93,22 @@ export class MessageSaveHandler {
         attempts++;
         console.log(`[MessageSaveHandler] Attempt ${attempts}/${maxAttempts} for ${role} message #${this.messageCounter[role]}`);
         
-        const result = await this.saveMessageCallback({
-          role,
-          content
-        });
+        // CRITICAL FIX: Create a clean object for each retry attempt
+        const messageObj = {
+          role: role,
+          content: content
+        };
+        
+        console.log(`[MessageSaveHandler] ⚠️ RETRY ${attempts} PRE-SAVE ROLE CHECK: role="${messageObj.role}"`);
+        
+        const result = await this.saveMessageCallback(messageObj);
         
         if (result) {
-          console.log(`[MessageSaveHandler] ✅ Successfully saved ${role} message #${this.messageCounter[role]} with ID: ${result.id} on attempt ${attempts}`);
+          console.log(`[MessageSaveHandler] ✅ Successfully saved ${role} message #${this.messageCounter[role]} with ID: ${result.id} on attempt ${attempts}, FINAL ROLE: ${result.role}`);
+          
+          if (result.role !== role) {
+            console.error(`[MessageSaveHandler] ❌ ROLE MISMATCH DETECTED! Expected="${role}", Actual="${result.role}"`);
+          }
         }
         
         return result;
@@ -132,12 +152,24 @@ export class MessageSaveHandler {
   }
   
   markAsProcessed(role: 'user' | 'assistant', content: string): void {
+    // CRITICAL FIX: Validate role
+    if (role !== 'user' && role !== 'assistant') {
+      console.error(`[MessageSaveHandler] Invalid role in markAsProcessed: ${role}`);
+      return;
+    }
+    
     const key = `${role}-${content.substring(0, 20)}`;
     this.processedMessages.add(key);
     console.log(`[MessageSaveHandler] Marked as processed: ${role} message with key ${key}, total processed: ${this.processedMessages.size}`);
   }
   
   isDuplicateContent(role: 'user' | 'assistant', content: string): boolean {
+    // CRITICAL FIX: Validate role
+    if (role !== 'user' && role !== 'assistant') {
+      console.error(`[MessageSaveHandler] Invalid role in isDuplicateContent: ${role}`);
+      return false;
+    }
+    
     const key = `${role}-${content.substring(0, 20)}`;
     const isDuplicate = this.processedMessages.has(key);
     if (isDuplicate) {

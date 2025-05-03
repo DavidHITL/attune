@@ -68,4 +68,3 @@ export class MessageEventProcessor {
     this.assistantEventHandler.flushPendingResponse();
   }
 }
-

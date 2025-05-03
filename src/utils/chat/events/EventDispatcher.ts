@@ -24,45 +24,37 @@ export class EventDispatcher {
       return;
     }
 
-    // Determine role and event category
-    const role = EventTypeRegistry.getRoleForEvent(event.type);
+    // CRITICAL FIX: Clear, absolute role determination with no fallbacks
+    // For assistant events, always set explicitRole to 'assistant'
+    // For user events, always set explicitRole to 'user'
+    // This is the single source of truth for event roles
     
-    // Enhanced logging with clear role information
+    // Use registry to determine event type
+    const isAssistantEvent = EventTypeRegistry.isAssistantEvent(event.type);
+    const isUserEvent = EventTypeRegistry.isUserEvent(event.type);
+    
+    // Enhanced logging with role information
     if (event.type !== 'input_audio_buffer.append') {
-      console.log(`[EventDispatcher] Routing event: ${event.type}, role: ${role || 'unknown'}, timestamp: ${new Date().toISOString()}`);
+      console.log(`[EventDispatcher] Routing event: ${event.type}, isAssistant=${isAssistantEvent}, isUser=${isUserEvent}, timestamp: ${new Date().toISOString()}`);
     }
     
-    // Route events to appropriate handlers based on their type with explicit role checks
-    if (EventTypeRegistry.isAssistantEvent(event.type)) {
-      console.log(`[EventDispatcher] → Sending to AssistantEventHandler: ${event.type} (role: assistant)`);
+    // CRITICAL FIX: Route events with EXPLICIT role assignment
+    if (isAssistantEvent) {
+      console.log(`[EventDispatcher] ⚠️ FORCING Assistant role for event: ${event.type}`);
       
-      // Add explicit role to event to prevent misclassification later
-      if (!event.explicitRole) {
-        event.explicitRole = 'assistant';
-      }
+      // Set explicit role marker to prevent any confusion downstream
+      event.explicitRole = 'assistant';
       
-      // Validate role consistency 
-      if (event.explicitRole !== 'assistant') {
-        console.warn(`[EventDispatcher] ⚠️ Role mismatch: Event type ${event.type} should be assistant but has explicitRole=${event.explicitRole}`);
-        event.explicitRole = 'assistant'; // Force correct role
-      }
-      
+      // Send to assistant handler
       this.assistantEventHandler.handleEvent(event);
     } 
-    else if (EventTypeRegistry.isUserEvent(event.type)) {
-      console.log(`[EventDispatcher] → Sending to UserEventHandler: ${event.type} (role: user)`);
+    else if (isUserEvent) {
+      console.log(`[EventDispatcher] ⚠️ FORCING User role for event: ${event.type}`);
       
-      // Add explicit role to event to prevent misclassification later
-      if (!event.explicitRole) {
-        event.explicitRole = 'user';
-      }
+      // Set explicit role marker to prevent any confusion downstream
+      event.explicitRole = 'user';
       
-      // Validate role consistency
-      if (event.explicitRole !== 'user') {
-        console.warn(`[EventDispatcher] ⚠️ Role mismatch: Event type ${event.type} should be user but has explicitRole=${event.explicitRole}`);
-        event.explicitRole = 'user'; // Force correct role
-      }
-      
+      // Send to user handler
       this.userEventHandler.handleEvent(event);
     }
     else if (event.type !== 'input_audio_buffer.append') {

@@ -22,6 +22,13 @@ export class UserEventHandler {
     if (event && event.type) {
       const role = event.explicitRole || EventTypeRegistry.getRoleForEvent(event.type);
       
+      // We should only be handling user events, log an error if not
+      if (role !== 'user') {
+        console.error(`[UserEventHandler] Received event with incorrect role: ${role}, type: ${event.type}`);
+        // Force correct role
+        event.explicitRole = 'user';
+      }
+      
       // Log the role we're processing for debugging
       console.log(`[UserEventHandler] Processing event with type ${event.type} and role ${role || 'unknown'}`);
       

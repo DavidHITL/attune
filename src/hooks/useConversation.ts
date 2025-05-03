@@ -87,12 +87,12 @@ export const useConversation = (): UseConversationReturn => {
     }
   }, [conversationId, user, messages]);
 
-  // Enhanced saveMessage with conversation ID handling and message queuing awareness
-  const saveMessage = useCallback(async (message: Partial<Message>): Promise<Message | null> => {
+  // Enhanced saveMessage with conversation ID handling
+  const saveMessage = useCallback(async (message: Partial<Message>): Promise<Message | undefined> => {
     try {
       if (!message.role || !message.content) {
         console.error('Cannot save message: Missing role or content');
-        return null;
+        return;
       }
       
       // CRITICAL FIX #1: Ensure role is valid before proceeding
@@ -123,22 +123,38 @@ export const useConversation = (): UseConversationReturn => {
         return localMessage;
       }
       
-      // CRITICAL FIX #2: Log the exact message being sent to the database
-      console.log(`[useConversation] Sending message to database with role=${message.role}`, {
-        role: message.role,
-        content: message.content.substring(0, 50),
+      // CRITICAL FIX #2: Create a clean object with explicitly assigned role
+      const messageToSave: Message = {
+        id: message.id || `temp-${Date.now()}`,
+        role: message.role as 'user' | 'assistant',
+        content: message.content,
+        created_at: message.created_at || new Date().toISOString()
+      };
+      
+      // Log the exact message being sent to the database
+      console.log(`[useConversation] Sending message to database with role=${messageToSave.role}`, {
+        role: messageToSave.role,
+        content: messageToSave.content.substring(0, 50),
         conversationId,
         userId: user?.id
       });
       
-      const savedMessage = await saveMessageToDb(message as Message);
+      const savedMessage = await saveMessageToDb(messageToSave);
       
       if (savedMessage) {
-        console.log(`[useConversation] Successfully saved ${message.role} message:`, {
+        console.log(`[useConversation] Successfully saved ${messageToSave.role} message:`, {
           id: savedMessage.id,
           role: savedMessage.role,
           conversationId: savedMessage.conversation_id
         });
+        
+        // Verify that role was preserved
+        if (savedMessage.role !== messageToSave.role) {
+          console.error(`[useConversation] ❌ ROLE MISMATCH: Expected=${messageToSave.role}, Actual=${savedMessage.role}`);
+          toast.error(`Role mismatch error: ${messageToSave.role} → ${savedMessage.role}`, { 
+            duration: 5000 
+          });
+        }
         
         // Update conversation ID if a new one was created
         if (!conversationId && savedMessage.conversation_id) {
@@ -170,7 +186,7 @@ export const useConversation = (): UseConversationReturn => {
         setMessages(prev => [...prev, savedMessage]);
         return savedMessage;
       }
-      return null;
+      return undefined;
     
     } catch (error) {
       console.error('Error in saveMessage:', error);

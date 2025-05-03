@@ -80,6 +80,11 @@ export class MessageSaver {
         
         if (savedMessage.role !== role) {
           console.error(`[MessageSaver] ❌ ROLE MISMATCH DETECTED! Expected="${role}", Actual="${savedMessage.role}"`);
+          
+          // Add a toast notification for mismatched roles to make the issue visible
+          toast.error(`Role mismatch error: Expected=${role}, Actual=${savedMessage.role}`, {
+            duration: 5000,
+          });
         }
       }
       
@@ -133,6 +138,11 @@ export class MessageSaver {
         
         if (savedMessage.role !== role) {
           console.error(`[MessageSaver] ❌ ROLE MISMATCH DETECTED! Expected="${role}", Actual="${savedMessage.role}"`);
+          
+          // Add a toast notification for mismatched roles to make the issue visible
+          toast.error(`Role mismatch error: Expected=${role}, Actual=${savedMessage.role}`, {
+            duration: 5000,
+          });
         }
       }
       

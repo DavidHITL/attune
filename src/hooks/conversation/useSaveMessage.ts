@@ -16,10 +16,10 @@ export const useSaveMessage = (
    * Saves a message to the database 
    */
   const saveMessage = useCallback(
-    async (message: Message): Promise<Message> => {
+    async (message: Partial<Message>): Promise<Message | undefined> => {
       if (saving) {
         console.warn("Already saving a message, please wait");
-        return message;
+        return;
       }
 
       if (!message.content) {
@@ -37,7 +37,7 @@ export const useSaveMessage = (
         if (message.role !== 'user' && message.role !== 'assistant') {
           console.error(`Invalid role provided: ${message.role}. Converting to valid format.`);
           // Use validateRole to prevent any role corruption
-          validatedRole = validateRole(message.role);
+          validatedRole = validateRole(message.role as string);
         } else {
           validatedRole = message.role;
         }
@@ -100,7 +100,7 @@ export const useSaveMessage = (
 
         console.log(`✅ Successfully saved ${validatedRole} message:`, {
           id: savedMessage.id,
-          role: savedMessage.role,
+          role: savedMessage.role, // Log the role from the saved message
           created_at: savedMessage.created_at
         });
 

@@ -24,7 +24,7 @@ export class TranscriptProcessor {
    * @param priority Whether to prioritize this message in the queue
    */
   saveMessage(transcriptContent: string, role: 'user' | 'assistant', priority: boolean = true): void {
-    // Validate role to prevent incorrect role assignments
+    // CRITICAL FIX: Validate role to prevent incorrect role assignments
     if (role !== 'user' && role !== 'assistant') {
       console.error(`[TranscriptProcessor ${this.debugId}] Invalid role provided: ${role}. Must be 'user' or 'assistant'. Skipping message.`);
       return;
@@ -44,7 +44,8 @@ export class TranscriptProcessor {
     // Update the last content regardless (we'll save duplicates anyway for reliability)
     this.lastTranscriptContent = transcriptContent;
     
-    console.log(`[TranscriptProcessor ${this.debugId}] #${processId} Saving ${role} transcript: "${transcriptContent.substring(0, 50)}${transcriptContent.length > 50 ? '...' : ''}"`, {
+    console.log(`[TranscriptProcessor ${this.debugId}] #${processId} Saving ${role} transcript:`, {
+      contentPreview: transcriptContent.substring(0, 50) + (transcriptContent.length > 50 ? '...' : ''),
       contentLength: transcriptContent.length,
       wordCount: transcriptContent.trim().split(/\s+/).length,
       timestamp: new Date().toISOString(),
@@ -53,6 +54,9 @@ export class TranscriptProcessor {
       isDuplicate,
       processId
     });
+    
+    // CRITICAL FIX: Add pre-save role check
+    console.log(`[TranscriptProcessor ${this.debugId}] #${processId} PRE-SAVE ROLE CHECK: "${role}"`);
     
     // Add message to queue with specified priority and role
     this.messageQueue.queueMessage(role, transcriptContent, priority);

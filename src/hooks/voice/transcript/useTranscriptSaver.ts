@@ -60,12 +60,16 @@ export const useTranscriptSaver = () => {
         
         if (savedMsg.role !== role) {
           console.error(`❌ [TranscriptSaver] ROLE MISMATCH: Expected="${role}", Actual="${savedMsg.role}"`);
+          toast.error(`Role mismatch detected: Expected=${role}, Actual=${savedMsg.role}`, {
+            duration: 5000
+          });
         }
         
         notifyTranscriptSaved(savedMsg.id);
         
         toast.success(`${role === 'user' ? 'Message' : 'Response'} saved`, {
           description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
+          duration: 2000,
         });
       }
     } catch (error) {
@@ -74,6 +78,7 @@ export const useTranscriptSaver = () => {
       
       toast.error(`Failed to save ${role === 'user' ? 'message' : 'response'}`, {
         description: "Please try again",
+        duration: 3000,
       });
     }
   }, [validateConversationContext, notifyTranscriptReceived, notifyTranscriptSaved, notifyTranscriptError]);

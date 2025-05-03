@@ -32,44 +32,67 @@ export const useTranscriptAggregator = () => {
     let role: 'user' | 'assistant' | null = null;
     let transcriptContent: string | null = null;
     
-    // IMPORTANT DEBUG LOGGING - Log the incoming event type for role checking
+    // IMPORTANT DEBUG LOGGING - Log the incoming event type and explicit role
     console.log(`🔍 [TranscriptAggregator] Processing event type: ${event.type}, explicitRole: ${event.explicitRole || 'none'}`);
     
-    // Determine role and content based on event type
-    if (event.type === 'response.done' || 
-        event.type.includes('response.content_part') ||
-        (event.type === 'response.delta' && !event.type.includes('audio'))) {
-      role = 'assistant';
+    // First check if the event has an explicitly assigned role from EventDispatcher
+    if (event.explicitRole === 'assistant' || event.explicitRole === 'user') {
+      role = event.explicitRole;
+      console.log(`[TranscriptAggregator] Using explicit role from event: ${role}`);
+    }
+    // If no explicit role, determine based on event type
+    else {
+      // Determine role and content based on event type
+      if (event.type === 'response.done' || 
+          event.type.includes('response.content_part') ||
+          (event.type === 'response.delta' && !event.type.includes('audio'))) {
+        role = 'assistant';
+      }
+      // User speech events
+      else if (event.type === 'transcript' || 
+               event.type.includes('audio_transcript')) {
+        role = 'user';
+      }
       
+      console.log(`[TranscriptAggregator] Determined role from event type: ${role || 'undefined'}`);
+    }
+    
+    // CRITICAL CHECK: If we still don't have a role, log and skip processing
+    if (!role) {
+      console.log(`[TranscriptAggregator] ⚠️ Cannot process event with unknown role: ${event.type}`);
+      return;
+    }
+    
+    // Now extract content based on role and event type
+    // Assistant responses
+    if (role === 'assistant') {
       // Extract content from assistant responses
       if (event.type === 'response.done' && event.response?.content) {
         transcriptContent = event.response.content;
-        console.log("[TranscriptAggregator] Assistant response content:", transcriptContent?.substring(0, 50));
       } 
       else if (event.type === 'response.content_part.done' && event.content_part?.text) {
         transcriptContent = event.content_part.text;
-        console.log("[TranscriptAggregator] Assistant content part:", transcriptContent?.substring(0, 50));
+      }
+      
+      if (transcriptContent) {
+        console.log(`[TranscriptAggregator] Assistant content: ${transcriptContent.substring(0, 50)}`);
       }
     }
     // User speech events
-    else if (event.type === 'transcript' || 
-             event.type.includes('audio_transcript')) {
-      role = 'user';
-      
+    else if (role === 'user') {
       // Extract content from user transcripts
       if (event.type === 'transcript' && typeof event.transcript === 'string' && event.transcript.trim()) {
         transcriptContent = event.transcript;
-        console.log("[TranscriptAggregator] User transcript:", transcriptContent?.substring(0, 50));
       }
       else if (event.type === 'response.audio_transcript.done') {
         transcriptContent = event.transcript?.text || event.delta?.text || 
                           (typeof event.transcript === 'string' ? event.transcript : getAccumulatedText());
-        console.log("[TranscriptAggregator] User final transcript:", transcriptContent?.substring(0, 50));
+      }
+      
+      if (transcriptContent) {
+        console.log(`[TranscriptAggregator] User content: ${transcriptContent.substring(0, 50)}`);
       }
     }
-    
-    // CRITICAL DEBUG - Log the determined role
-    console.log(`🔍 [TranscriptAggregator] Determined role: ${role || 'undefined'} for event type: ${event.type}`);
     
     // Handle transcript delta events for accumulation (always user)
     if (event.type === 'response.audio_transcript.delta' && event.delta?.text) {
@@ -87,7 +110,6 @@ export const useTranscriptAggregator = () => {
                           (typeof event.transcript === 'string' ? event.transcript : getAccumulatedText());
       
       if (transcriptText && transcriptText.trim()) {
-        console.log("[TranscriptAggregator] Processing final user transcript:", transcriptText.substring(0, 50));
         console.log(`🔒 [TranscriptAggregator] Saving USER transcript with explicit role 'user'`);
         await processTranscript(transcriptText, 'user');
         resetAccumulator();
@@ -97,8 +119,6 @@ export const useTranscriptAggregator = () => {
     // Handle assistant responses
     else if ((event.type === 'response.done' || event.type === 'response.content_part.done') && 
              role === 'assistant' && transcriptContent) {
-      console.log("[TranscriptAggregator] Processing assistant response:", transcriptContent.substring(0, 50));
-      // CRITICAL FIX: Process with explicit assistant role
       console.log(`🔒 [TranscriptAggregator] Saving ASSISTANT transcript with explicit role 'assistant'`);
       await processTranscript(transcriptContent, 'assistant');
     }
@@ -115,6 +135,7 @@ export const useTranscriptAggregator = () => {
       
       const transcript = getAccumulatedText();
       if (transcript && transcript.trim()) {
+        console.log(`[TranscriptAggregator] Explicitly saving transcript with role: ${role}`);
         await processTranscript(transcript, role);
         resetAccumulator();
       }

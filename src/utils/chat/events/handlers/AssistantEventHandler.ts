@@ -5,13 +5,8 @@
 import { MessageQueue } from '../../messageQueue';
 import { ResponseParser } from '../../ResponseParser';
 import { EventTypeRegistry } from '../EventTypeRegistry';
-import { toast } from 'sonner';
 
 export class AssistantEventHandler {
-  private assistantResponse: string = '';
-  private pendingResponse: boolean = false;
-  private messagesSaved: number = 0;
-  
   constructor(
     private messageQueue: MessageQueue,
     private responseParser: ResponseParser
@@ -19,97 +14,36 @@ export class AssistantEventHandler {
     console.log('[AssistantEventHandler] Initialized');
   }
   
+  /**
+   * Handle incoming assistant events
+   */
   handleEvent(event: any): void {
-    console.log(`[AssistantEventHandler] Processing assistant event: ${event.type}`);
-    
-    // Verify this is actually an assistant event
-    if (!EventTypeRegistry.isAssistantEvent(event.type)) {
-      console.log(`[AssistantEventHandler] Event ${event.type} is not an assistant event, skipping`);
-      return;
-    }
-    
-    // Always force the correct role for any messages saved here
-    const forcedRole = 'assistant';
-    
-    // Handle response.done event
-    if (event.type === 'response.done') {
-      let content = '';
+    // Validate that we're handling the right event type
+    if (event && event.type) {
+      const role = event.explicitRole || EventTypeRegistry.getRoleForEvent(event.type);
       
-      if (event.response?.content) {
-        content = event.response.content;
-      } else {
-        content = this.responseParser.extractCompletedResponseFromDoneEvent(event) || 
-                  this.assistantResponse;
+      // We should only be handling assistant events, log an error if not
+      if (role !== 'assistant') {
+        console.error(`[AssistantEventHandler] Received event with incorrect role: ${role}, type: ${event.type}`);
+        // Force correct role
+        event.explicitRole = 'assistant';
       }
       
-      if (content && content.trim()) {
-        console.log(`[AssistantEventHandler] Saving ASSISTANT response: "${content.substring(0, 50)}..."`, {
-          contentLength: content.length,
-          timestamp: new Date().toISOString(),
-          messageNumber: ++this.messagesSaved,
-          forcedRole: forcedRole
-        });
-        
-        // Always explicitly save with assistant role - NEVER use event.role or any other source
-        this.messageQueue.queueMessage(forcedRole, content, true);
-        
-        toast.success("AI response received", { 
-          description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
-          duration: 2000
-        });
-      }
+      // CRITICAL FIX: Add debug logging
+      console.log(`[AssistantEventHandler] Processing event: ${event.type}, role: ${role || 'unknown'}`);
       
-      // Reset state after processing
-      this.assistantResponse = '';
-      this.pendingResponse = false;
-    }
-    // Handle content part done event
-    else if (event.type === 'response.content_part.done' && event.content_part?.text) {
-      const content = event.content_part.text;
-      console.log(`[AssistantEventHandler] Content part: "${content.substring(0, 50)}..."`, {
-        contentLength: content.length,
-        timestamp: new Date().toISOString(),
-        messageNumber: ++this.messagesSaved,
-        forcedRole: forcedRole
-      });
-      
-      // Always force assistant role - never derive from event or registry
-      this.messageQueue.queueMessage(forcedRole, content, true);
-    }
-    // Handle response.delta event
-    else if (event.type.includes('response.delta') && !event.type.includes('audio')) {
-      // Accumulate delta content
-      const deltaContent = this.responseParser.extractContentFromDelta(event);
-      if (deltaContent) {
-        this.assistantResponse += deltaContent;
-        this.pendingResponse = true;
-        
-        // Only log occasionally to avoid spam
-        if (this.assistantResponse.length % 100 === 0) {
-          console.log(`[AssistantEventHandler] Accumulating delta content (length: ${this.assistantResponse.length})`);
-        }
-      }
+      // Process the event with the response parser
+      this.responseParser.processEvent(event, 'assistant');
+    } else {
+      console.warn('[AssistantEventHandler] Received event with no type, skipping');
     }
   }
   
   /**
-   * Flush any pending response that hasn't been sent yet
+   * Flush any pending response content
    */
   flushPendingResponse(): void {
-    if (this.pendingResponse && this.assistantResponse.trim()) {
-      console.log(`[AssistantEventHandler] Flushing pending response: "${this.assistantResponse.substring(0, 50)}..."`, {
-        contentLength: this.assistantResponse.length,
-        timestamp: new Date().toISOString(),
-        messageNumber: ++this.messagesSaved,
-        forcedRole: 'assistant'
-      });
-      
-      // Always explicitly use 'assistant' role when flushing
-      this.messageQueue.queueMessage('assistant', this.assistantResponse, true);
-      this.assistantResponse = '';
-      this.pendingResponse = false;
-    } else {
-      console.log('[AssistantEventHandler] No pending response to flush');
-    }
+    console.log('[AssistantEventHandler] Flushing pending response');
+    this.responseParser.flushPendingContent();
   }
 }
