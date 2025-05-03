@@ -1,27 +1,57 @@
 
+import { ContentValidator } from './validators/ContentValidator';
+import { RoleValidator } from './validators/RoleValidator';
+
 /**
- * Handles validation and pre-processing of messages
+ * Handles validation and pre-processing of messages before saving
  */
 export class MessageProcessor {
+  private contentValidator: ContentValidator;
+  private roleValidator: RoleValidator;
+  private processedMessages: Set<string> = new Set();
   private minTimeBetweenMessages: number = 500; // ms
   private lastMessageSentTime: number = 0;
-  private processedMessages: Set<string> = new Set();
+  private messageCounters: Map<string, number> = new Map();
+  
+  constructor() {
+    this.contentValidator = new ContentValidator();
+    this.roleValidator = new RoleValidator();
+  }
   
   /**
-   * Check if content is valid
+   * Validate message content and role
    */
-  isValidContent(content: string): boolean {
-    return content && content.trim() !== '';
+  validateMessage(role: string, content: string): { 
+    valid: boolean, 
+    reason?: string 
+  } {
+    // Validate role first
+    if (!this.roleValidator.isValidRole(role)) {
+      return { 
+        valid: false, 
+        reason: `Invalid role: "${role}". Must be 'user' or 'assistant'.` 
+      };
+    }
+    
+    // Then validate content
+    if (!this.contentValidator.isValidContent(content)) {
+      return { 
+        valid: false, 
+        reason: `Empty or invalid content for ${role} message` 
+      };
+    }
+    
+    return { valid: true };
   }
   
   /**
    * Check if message is a duplicate based on recent activity
    */
-  isDuplicateContent(role: 'user' | 'assistant', content: string): boolean {
+  isDuplicateContent(role: string, content: string): boolean {
     // Check if we've saved the same message recently (debounce)
     const now = Date.now();
     if (now - this.lastMessageSentTime < this.minTimeBetweenMessages) {
-      console.log(`Message received too quickly after previous one, might be duplicate`);
+      console.log(`[MessageProcessor] Message received too quickly after previous one, might be duplicate`);
       return true;
     }
     
@@ -35,9 +65,15 @@ export class MessageProcessor {
   /**
    * Add message to processed set
    */
-  markAsProcessed(role: 'user' | 'assistant', content: string): void {
+  markAsProcessed(role: string, content: string): void {
     const contentFingerprint = `${role}:${content.substring(0, 50)}`;
     this.processedMessages.add(contentFingerprint);
+    
+    // Track message count by role
+    const count = (this.messageCounters.get(role) || 0) + 1;
+    this.messageCounters.set(role, count);
+    
+    console.log(`[MessageProcessor] Marked ${role} message #${count} as processed`);
   }
   
   /**
@@ -45,5 +81,13 @@ export class MessageProcessor {
    */
   resetProcessedMessages(): void {
     this.processedMessages.clear();
+    console.log('[MessageProcessor] Reset processed messages tracking');
+  }
+  
+  /**
+   * Get the current count for a role
+   */
+  getMessageCount(role: string): number {
+    return this.messageCounters.get(role) || 0;
   }
 }
