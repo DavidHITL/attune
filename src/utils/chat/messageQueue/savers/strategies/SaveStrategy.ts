@@ -1,17 +1,41 @@
 
-import { Message } from '@/utils/types';
+import { Message } from '../../../../types';
+import { ProcessedMessagesTracker } from '../utils/ProcessedMessagesTracker';
 
 /**
- * Interface for message saving strategies
+ * Abstract strategy for saving messages
  */
-export interface SaveStrategy {
-  saveMessage(
-    role: 'user' | 'assistant',
-    content: string,
-    options?: {
-      messageId?: string;
-      maxRetries?: number;
-      showNotification?: boolean;
-    }
+export abstract class SaveStrategy {
+  protected contentProcessor: ProcessedMessagesTracker;
+  
+  constructor() {
+    // Fix: Remove incorrect constructor argument
+    this.contentProcessor = new ProcessedMessagesTracker();
+  }
+  
+  /**
+   * Save a message using strategy-specific logic
+   */
+  abstract saveMessage(
+    role: 'user' | 'assistant', 
+    content: string, 
+    options?: any
   ): Promise<Message | null>;
+  
+  /**
+   * Reset processed messages tracker for this strategy
+   */
+  resetProcessedTracking(): void {
+    this.contentProcessor.resetProcessedMessages();
+  }
+  
+  /**
+   * Get the pending count
+   */
+  abstract getPendingCount(): number;
+
+  /**
+   * Get active saves count
+   */
+  abstract getActiveSavesCount(): number;
 }
