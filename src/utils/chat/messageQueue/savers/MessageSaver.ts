@@ -16,8 +16,8 @@ export class MessageSaver {
   
   constructor(private saveMessageCallback: SaveMessageCallback) {
     // Fix: Remove incorrect constructor arguments
-    this.standardStrategy = new StandardSaveStrategy(saveMessageCallback);
-    this.retryStrategy = new RetrySaveStrategy(saveMessageCallback);
+    this.standardStrategy = new StandardSaveStrategy();
+    this.retryStrategy = new RetrySaveStrategy();
     this.contentValidator = new ContentValidator();
     this.roleValidator = new RoleValidator();
     
