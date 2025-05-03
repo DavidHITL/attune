@@ -34,39 +34,6 @@ export const useTranscriptSaver = () => {
     // Double-check role format before proceeding
     console.log(`[TranscriptSaver] ⚠️ ROLE CHECKPOINT: role="${role}" (type=${typeof role})`);
 
-    // CRITICAL FIX #2: Get fresh user from auth state if needed
-    let currentUser = user;
-    if (!currentUser) {
-      const { data } = await supabase.auth.getUser();
-      currentUser = data.user;
-      
-      if (currentUser) {
-        console.log(`[TranscriptSaver] Retrieved current user from auth: ${currentUser.id}`);
-      }
-    }
-
-    // Add validation of conversation context - now wait for the promise
-    const contextValid = await validateConversationContext();
-    if (!contextValid) {
-      console.error("❌ Cannot save transcript: Invalid conversation context");
-      
-      // Queue user transcripts, but wait for proper initialization
-      if (role === 'user' && globalMessageQueue) {
-        console.log('⏱️ [TranscriptSaver] Queueing user transcript until conversation is initialized');
-        
-        // Add to queue but don't process yet
-        globalMessageQueue.queueMessage(role, transcript, false);
-        
-        toast.info("Your message has been received and will be saved when ready", {
-          duration: 3000
-        });
-        
-        return undefined;
-      }
-      
-      return undefined;
-    }
-
     // Validate transcript content
     if (!transcript || transcript.trim() === '') {
       console.warn("⚠️ Empty transcript received, not saving");
@@ -102,43 +69,27 @@ export const useTranscriptSaver = () => {
           created_at: new Date().toISOString()
         } as Message;
       } else {
-        // Use the central message save service
-        console.log(`[TranscriptSaver] Using central message save service for ${role} transcript`);
+        console.error(`[TranscriptSaver] No message queue available, using fallback save method`);
         
-        // CRITICAL FIX: Include the user ID explicitly if available
-        const messageData: any = {
+        // Add validation of conversation context - now wait for the promise
+        const contextValid = await validateConversationContext();
+        if (!contextValid) {
+          console.error("❌ Cannot save transcript: Invalid conversation context");
+          throw new Error("Invalid conversation context");
+        }
+        
+        // Fallback to direct save as a last resort
+        const savedMessage = await saveMessage({
           role: role,
           content: transcript
-        };
-        
-        if (currentUser) {
-          messageData.user_id = currentUser.id;
-        }
-        
-        const savedMessage = await messageSaveService.saveMessageToDatabase(messageData);
+        });
         
         if (savedMessage) {
-          console.log(`✅ [TranscriptSaver] Message saved successfully with ID=${savedMessage.id}, FINAL ROLE="${savedMessage.role}"`);
-          
-          if (savedMessage.role !== role) {
-            console.error(`❌ [TranscriptSaver] ROLE MISMATCH: Expected="${role}", Actual="${savedMessage.role}"`);
-            toast.error(`Role mismatch detected: Expected=${role}, Actual=${savedMessage.role}`, {
-              duration: 5000
-            });
-          }
-          
           notifyTranscriptSaved(savedMessage.id);
-          
-          toast.success(`${role === 'user' ? 'Message' : 'Response'} saved`, {
-            description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
-            duration: 2000,
-          });
-          
-          return savedMessage;
         }
+        
+        return savedMessage;
       }
-      
-      return undefined;
     } catch (error) {
       console.error(`❌ [TranscriptSaver] Failed to save ${role} transcript:`, error);
       notifyTranscriptError(error);

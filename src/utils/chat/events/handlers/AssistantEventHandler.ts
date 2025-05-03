@@ -7,11 +7,18 @@ import { ResponseParser } from '../../ResponseParser';
 import { EventTypeRegistry } from '../EventTypeRegistry';
 
 export class AssistantEventHandler {
+  private processedResponses = new Set<string>();
+  
   constructor(
     private messageQueue: MessageQueue,
     private responseParser: ResponseParser
   ) {
     console.log('[AssistantEventHandler] Initialized');
+    
+    // Clean up processed responses cache periodically
+    setInterval(() => {
+      this.processedResponses.clear();
+    }, 300000); // Clear every 5 minutes
   }
   
   /**
@@ -49,6 +56,18 @@ export class AssistantEventHandler {
         }
         
         if (content && content.trim()) {
+          // Generate a simple key for deduplication
+          const contentKey = content.substring(0, 100);
+          
+          // Skip if we've already processed this content
+          if (this.processedResponses.has(contentKey)) {
+            console.log(`[AssistantEventHandler] Skipping duplicate assistant response`);
+            return;
+          }
+          
+          // Mark as processed to prevent duplicates
+          this.processedResponses.add(contentKey);
+          
           console.log(`[AssistantEventHandler] Saving assistant response: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`);
           // Add the message to the queue with explicit 'assistant' role
           this.messageQueue.queueMessage('assistant', content, true);

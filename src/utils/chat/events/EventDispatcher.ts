@@ -40,7 +40,13 @@ export class EventDispatcher {
     // Handle conversation item created events specifically to queue messages
     if (event.type === 'conversation.item.created') {
       console.log('[conversation.item.created] raw event →', event.item);
+      
+      // Extract role from event - crucial for correct message handling
       const role = event.item?.role; // 'user' | 'assistant'
+      if (role !== 'user' && role !== 'assistant') {
+        console.error(`[EventDispatcher] Invalid role in conversation.item.created: ${role}`);
+        return;
+      }
       
       // CRITICAL FIX: Safely handle content regardless of type
       // First check if content exists and then handle it based on type
@@ -64,11 +70,6 @@ export class EventDispatcher {
       }
       return; // handled, don't fall through
     }
-
-    // CRITICAL FIX: Clear, absolute role determination with no fallbacks
-    // For assistant events, always set explicitRole to 'assistant'
-    // For user events, always set explicitRole to 'user'
-    // This is the single source of truth for event roles
     
     // Use registry to determine event type - NO DEFAULTS
     const isAssistantEvent = EventTypeRegistry.isAssistantEvent(event.type);

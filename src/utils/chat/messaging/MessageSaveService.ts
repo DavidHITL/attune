@@ -10,9 +10,15 @@ import { toast } from "sonner";
 export class MessageSaveService {
   private static instance: MessageSaveService;
   private activeInserts = 0;
+  private recentlySavedContent = new Set<string>();
   
   private constructor() {
     console.log("[MessageSaveService] Initialized central message saving service");
+    
+    // Clear recently saved content cache periodically
+    setInterval(() => {
+      this.recentlySavedContent.clear();
+    }, 60000); // Clear every minute
   }
   
   /**
@@ -39,7 +45,22 @@ export class MessageSaveService {
         throw new Error(`Invalid role: ${message.role}. Must be 'user' or 'assistant'.`);
       }
       
+      // Prevent duplicate saves - check content fingerprint
+      const contentKey = `${message.role}:${message.content.substring(0, 100)}`;
+      if (this.recentlySavedContent.has(contentKey)) {
+        console.log(`[MessageSaveService] Skipping duplicate save for ${message.role} message`);
+        return null;
+      }
+      
+      // Mark as being processed
+      this.recentlySavedContent.add(contentKey);
       this.activeInserts++;
+      
+      // CRITICAL FIX: If no explicit conversation_id is provided, try to get from global context
+      if (!message.conversation_id && typeof window !== 'undefined' && window.__attuneConversationId) {
+        console.log(`[MessageSaveService] Using global conversation ID: ${window.__attuneConversationId}`);
+        message.conversation_id = window.__attuneConversationId;
+      }
       
       // CRITICAL FIX: Ensure we have a valid user ID for authenticated users
       if (!message.user_id) {
@@ -64,6 +85,12 @@ export class MessageSaveService {
         activeInserts: this.activeInserts
       });
       
+      // CRITICAL FIX: Check if we have the required conversation_id
+      if (!message.conversation_id) {
+        console.error("[MessageSaveService] Cannot save message: Missing conversation_id");
+        throw new Error("Missing conversation_id");
+      }
+      
       // Create a clean message object to avoid reference issues
       const messageToSave = {
         role: message.role,
@@ -71,16 +98,6 @@ export class MessageSaveService {
         conversation_id: message.conversation_id,
         user_id: message.user_id
       };
-      
-      // CRITICAL FIX: Check if we have the required data
-      if (!messageToSave.conversation_id) {
-        console.error("[MessageSaveService] Cannot save message: Missing conversation_id");
-        throw new Error("Missing conversation_id");
-      }
-      
-      if (!messageToSave.user_id) {
-        console.warn("[MessageSaveService] Saving message without user_id");
-      }
       
       // Perform the database insert
       const { data: savedMessage, error } = await supabase

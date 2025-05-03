@@ -9,6 +9,7 @@ export class MessageQueue {
   private messageSaver: MessageSaver;
   private initialized = false;
   private instanceId = Date.now().toString(36);
+  private recentlyProcessedMessages = new Set<string>();
   
   constructor(private saveMessageCallback: SaveMessageCallback) {
     console.log(`[MessageQueue ${this.instanceId}] Initialized`);
@@ -21,6 +22,11 @@ export class MessageQueue {
         this.processQueue();
       }
     }, 5000);
+
+    // Clean recently processed messages every minute
+    setInterval(() => {
+      this.recentlyProcessedMessages.clear();
+    }, 60000);
   }
 
   /**
@@ -44,6 +50,15 @@ export class MessageQueue {
       console.log(`[MessageQueue ${this.instanceId}] Skipping empty ${role} message`);
       return;
     }
+
+    // Generate a simple hash for content deduplication
+    const contentKey = `${role}:${content.substring(0, 100)}`;
+    
+    // Deduplication: Skip if we just processed this exact message
+    if (this.recentlyProcessedMessages.has(contentKey)) {
+      console.log(`[MessageQueue ${this.instanceId}] Skipping duplicate ${role} message`);
+      return;
+    }
     
     console.log(`[MessageQueue ${this.instanceId}] Queueing ${role} message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`, {
       priority,
@@ -52,6 +67,9 @@ export class MessageQueue {
       role: role, // Log role for debugging
       conversationId: window.__attuneConversationId // Log the conversation ID for debugging
     });
+    
+    // Track this message to prevent duplicates
+    this.recentlyProcessedMessages.add(contentKey);
     
     // Add message to queue with validated role and conversation_id
     this.queue.push({
@@ -167,4 +185,3 @@ export class MessageQueue {
 
 // Export any necessary types
 export * from './messageQueue/types';
-
