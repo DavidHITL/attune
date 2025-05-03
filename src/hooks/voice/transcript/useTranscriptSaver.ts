@@ -11,6 +11,7 @@ export const useTranscriptSaver = () => {
 
   const saveTranscript = useCallback(async (
     transcript: string, 
+    role: 'user' | 'assistant',
     saveMessage: (msg: { role: 'user' | 'assistant'; content: string }) => Promise<Message | undefined>
   ) => {
     // CRITICAL FIX: Add explicit validation at the start
@@ -24,14 +25,21 @@ export const useTranscriptSaver = () => {
       console.warn("⚠️ Empty transcript received, not saving");
       return;
     }
+    
+    // CRITICAL FIX: Validate role
+    if (role !== 'user' && role !== 'assistant') {
+      console.error(`❌ Invalid role provided: ${role}. Must be 'user' or 'assistant'`);
+      role = 'user'; // Default to user as fallback
+    }
 
     // Log full transcript for debugging
-    console.log("💾 FULL TRANSCRIPT TO SAVE:", transcript);
+    console.log(`💾 FULL TRANSCRIPT TO SAVE (Role: ${role}):`, transcript);
     
     notifyTranscriptReceived(transcript);
     
     try {
-      console.log("💾 Saving transcript:", {
+      console.log(`💾 Saving ${role} transcript:`, {
+        role,
         preview: transcript.substring(0, 30),
         length: transcript.length,
         timestamp: new Date().toISOString()
@@ -49,12 +57,12 @@ export const useTranscriptSaver = () => {
         
         try {
           savedMsg = await saveMessage({
-            role: 'user',
+            role: role, // Use the role parameter instead of hardcoding 'user'
             content: transcript
           });
           
           if (savedMsg && savedMsg.id) {
-            console.log("✅ Successfully saved transcript with ID:", savedMsg.id);
+            console.log(`✅ Successfully saved ${role} transcript with ID:`, savedMsg.id);
             break;
           } else {
             console.warn(`⚠️ Save attempt ${attempt} returned no valid message ID`);
@@ -72,17 +80,17 @@ export const useTranscriptSaver = () => {
       
       if (savedMsg && savedMsg.id) {
         notifyTranscriptSaved(savedMsg?.id);
-        toast.success("Message saved", {
+        toast.success(`${role === 'user' ? 'Message' : 'Response'} saved`, {
           description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
         });
       } else {
         throw new Error(`Failed to save transcript after ${maxAttempts} attempts`);
       }
     } catch (error) {
-      console.error("❌ Failed to save transcript:", error);
+      console.error(`❌ Failed to save ${role} transcript:`, error);
       notifyTranscriptError(error);
-      toast.error("Failed to save message", {
-        description: "Please try speaking again",
+      toast.error(`Failed to save ${role === 'user' ? 'message' : 'response'}`, {
+        description: "Please try again",
       });
     }
   }, [validateConversationContext, notifyTranscriptReceived, notifyTranscriptSaved, notifyTranscriptError]);
