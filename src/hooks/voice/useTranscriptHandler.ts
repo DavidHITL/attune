@@ -4,6 +4,7 @@ import { useConversationValidator } from './transcript/useConversationValidator'
 import { useConversation } from '../useConversation';
 import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 import { toast } from 'sonner';
+import { getMessageQueue } from '@/utils/chat/messageQueue/QueueProvider';
 
 export const useTranscriptHandler = () => {
   const { validateConversationContext } = useConversationValidator();
@@ -15,6 +16,13 @@ export const useTranscriptHandler = () => {
       hasTranscript: !!event.transcript || !!(event.transcript?.text),
       timestamp: new Date().toISOString()
     });
+
+    // Get the message queue - our single source of truth
+    const messageQueue = getMessageQueue();
+    if (!messageQueue) {
+      console.warn('⚠️ No message queue available for transcript handling');
+      return; // Early exit - no queue means no processing
+    }
 
     // IMPROVED: First determine role from the event type registry - no defaults
     // If explicitRole is set, use that with higher priority
@@ -68,36 +76,16 @@ export const useTranscriptHandler = () => {
       length: transcriptContent.length
     });
     
-    // Only process when we have a valid context or message queue
-    const hasValidContext = validateConversationContext();
-    const hasMessageQueue = typeof window !== 'undefined' && !!window.attuneMessageQueue;
+    // DIRECTLY QUEUE MESSAGE - single source of truth
+    console.log(`🔄 Queueing message with explicit role: ${messageRole}`);
+    messageQueue.queueMessage(messageRole, transcriptContent, true);
     
-    if (!hasValidContext && !hasMessageQueue) {
-      console.log('⚠️ No valid conversation context or message queue');
-      return;
-    }
-      
-    if (hasMessageQueue) {
-      console.log(`🔄 Queueing message with explicit role: ${messageRole}`);
-      window.attuneMessageQueue?.queueMessage(messageRole, transcriptContent, true);
-      
-      toast.success(messageRole === 'user' ? "Speech detected" : "AI response received", {
-        description: transcriptContent.substring(0, 50) + (transcriptContent.length > 50 ? "..." : ""),
-        duration: 3000
-      });
-      return;
-    }
-
-    // Direct save with explicit role
-    if (hasValidContext) {
-      console.log(`💾 Saving via direct save with role: ${messageRole}`);
-      saveMessage({
-        role: messageRole,
-        content: transcriptContent
-      }).catch(error => {
-        console.error(`Error saving message:`, error);
-      });
-    }
+    // Show toast for user feedback
+    toast.success(messageRole === 'user' ? "Speech detected" : "AI response received", {
+      description: transcriptContent.substring(0, 50) + (transcriptContent.length > 50 ? "..." : ""),
+      duration: 3000
+    });
+    
   }, [validateConversationContext, saveMessage]);
 
   return {

@@ -1,11 +1,14 @@
 
 import { EventType, isEventType } from './EventTypes';
 import { TranscriptHandler } from '../transcripts/TranscriptHandler';
+import { getMessageQueue } from '../messageQueue/QueueProvider';
 
 /**
  * Handler for speech and transcript-related events
  */
 export class SpeechEventHandler {
+  private processedTranscripts = new Set<string>();
+  
   constructor(private transcriptHandler: TranscriptHandler) {}
 
   /**
@@ -17,29 +20,38 @@ export class SpeechEventHandler {
       this.transcriptHandler.handleSpeechStarted();
     }
     
-    // Process events for user messages
-    if (isEventType(event, EventType.AudioTranscriptDelta)) {
-      const deltaText = event.delta?.text;
-      if (deltaText) {
-        this.transcriptHandler.handleTranscriptDelta(deltaText);
+    // Process events for user messages - only if we don't have a message queue
+    // The primary transcript handling is now in useTranscriptHandler
+    const messageQueue = getMessageQueue();
+    const shouldProcessLocally = !messageQueue?.isInitialized();
+
+    if (shouldProcessLocally) {
+      console.log("No message queue available or not initialized, processing speech locally");
+      
+      // Process events for user messages
+      if (isEventType(event, EventType.AudioTranscriptDelta)) {
+        const deltaText = event.delta?.text;
+        if (deltaText) {
+          this.transcriptHandler.handleTranscriptDelta(deltaText);
+        }
+      }
+      
+      // Direct transcript handling (high priority)
+      if (isEventType(event, EventType.DirectTranscript)) {
+        console.log("DIRECT TRANSCRIPT EVENT RECEIVED:", event.transcript);
+        this.transcriptHandler.handleDirectTranscript(event.transcript);
+      }
+      
+      // Handle final transcript completions
+      if (isEventType(event, EventType.AudioTranscriptDone)) {
+        console.log("FINAL TRANSCRIPT EVENT RECEIVED:", event.transcript?.text);
+        this.transcriptHandler.handleFinalTranscript(event.transcript?.text);
       }
     }
     
-    // Direct transcript handling (high priority)
-    if (isEventType(event, EventType.DirectTranscript)) {
-      console.log("DIRECT TRANSCRIPT EVENT RECEIVED:", event.transcript);
-      this.transcriptHandler.handleDirectTranscript(event.transcript);
-    }
-    
-    // Handle speech stopped events
+    // Handle speech stopped events - always process this
     if (isEventType(event, EventType.SpeechStopped)) {
       this.transcriptHandler.handleSpeechStopped();
-    }
-    
-    // Handle final transcript completions
-    if (isEventType(event, EventType.AudioTranscriptDone)) {
-      console.log("FINAL TRANSCRIPT EVENT RECEIVED:", event.transcript?.text);
-      this.transcriptHandler.handleFinalTranscript(event.transcript?.text);
     }
     
     // Detect committed audio buffer events which may contain speech

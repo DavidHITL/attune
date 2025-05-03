@@ -9,6 +9,8 @@ import { EventTypeRegistry } from './EventTypeRegistry';
 import { getMessageQueue } from '../messageQueue/QueueProvider';
 
 export class EventDispatcher {
+  private processedEvents = new Set<string>();
+  
   constructor(
     private userEventHandler: UserEventHandler,
     private assistantEventHandler: AssistantEventHandler
@@ -23,6 +25,28 @@ export class EventDispatcher {
     if (!event || !event.type) {
       console.log('[EventDispatcher] Skipping event with no type');
       return;
+    }
+    
+    // Generate event fingerprint for deduplication
+    const eventFingerprint = this.generateEventFingerprint(event);
+    
+    // Skip if we've already processed this exact event
+    if (this.processedEvents.has(eventFingerprint)) {
+      // Only log this for important event types, not for frequent events like audio buffers
+      if (event.type !== 'input_audio_buffer.append') {
+        console.log(`[EventDispatcher] Skipping duplicate event: ${event.type}`);
+      }
+      return;
+    }
+    
+    // Only track non-streaming events to avoid memory issues
+    if (event.type !== 'input_audio_buffer.append') {
+      this.processedEvents.add(eventFingerprint);
+      
+      // Clean up periodically - limit to 1000 events
+      if (this.processedEvents.size > 1000) {
+        this.processedEvents.clear();
+      }
     }
     
     // Check if this event has a registered handler in the registry
@@ -105,5 +129,31 @@ export class EventDispatcher {
       // Send to user handler
       this.userEventHandler.handleEvent(event);
     }
+  }
+  
+  /**
+   * Generate a unique fingerprint for an event to assist with deduplication
+   */
+  private generateEventFingerprint(event: any): string {
+    // For transcript events, include the content in fingerprint
+    if (event.type === 'transcript' || event.type.includes('transcript')) {
+      const content = typeof event.transcript === 'string' 
+        ? event.transcript 
+        : (event.transcript?.text || '');
+        
+      return `${event.type}:${content.substring(0, 50)}`;
+    }
+    
+    // For response events, include content when available
+    if (event.type.includes('response')) {
+      const content = event.response?.content || 
+                     event.content_part?.text || 
+                     (event.delta?.text || '');
+                     
+      return `${event.type}:${content.substring(0, 50)}`;
+    }
+    
+    // For other events, use the event type and timestamp
+    return `${event.type}:${Date.now()}`;
   }
 }

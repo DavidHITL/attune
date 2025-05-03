@@ -97,7 +97,7 @@ export class MessageQueue {
   }
 
   /**
-   * Queue a message with strict role validation
+   * Queue a message with strict role validation and deduplication
    */
   queueMessage(role: 'user' | 'assistant', content: string, priority: boolean = false): void {
     // CRITICAL FIX: Hard-stop if no conversationId before queuing
@@ -134,11 +134,11 @@ export class MessageQueue {
       return;
     }
 
-    // Generate a simple hash for content deduplication
-    const contentKey = `${role}:${content.substring(0, 100)}`;
+    // Generate a fingerprint for deduplication - more robust than just content
+    const contentFingerprint = `${role}:${content.replace(/\s+/g, ' ').substring(0, 100)}`;
     
     // Deduplication: Skip if we just processed this exact message
-    if (this.recentlyProcessedMessages.has(contentKey)) {
+    if (this.recentlyProcessedMessages.has(contentFingerprint)) {
       console.log(`[MessageQueue ${this.instanceId}] Skipping duplicate ${role} message`);
       return;
     }
@@ -152,7 +152,7 @@ export class MessageQueue {
     });
     
     // Track this message to prevent duplicates
-    this.recentlyProcessedMessages.add(contentKey);
+    this.recentlyProcessedMessages.add(contentFingerprint);
     
     // Add message to queue with validated role and conversation_id
     this.queue.push({
