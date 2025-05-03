@@ -1,189 +1,120 @@
+
+import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Message } from '@/utils/types';
-import { toast } from 'sonner';
-import { normalizeMessageRole, ensureValidMessageRole } from '@/utils/chat/messageUtils';
-import { createAnonymousMessage } from '@/utils/chat/message/anonymousMessageCreator';
-import { isValidMessageContent, getMessagePreview } from '@/utils/chat/message/messageValidator';
+import { Message } from "@/utils/types";
+import { toast } from "sonner";
 
-/**
- * Creates a new conversation for a user
- */
-const createNewConversation = async (userId: string): Promise<string | null> => {
-  try {
-    console.log('Creating new conversation for user:', userId);
-    const { data, error } = await supabase
-      .rpc('get_or_create_conversation', {
-        p_user_id: userId
-      });
-
-    if (error) {
-      console.error('Error creating conversation:', error);
-      throw error;
-    }
-
-    console.log('Successfully created/retrieved conversation:', data);
-    return data;
-  } catch (error) {
-    console.error('Failed to create conversation:', error);
-    return null;
-  }
-};
-
-/**
- * Hook for saving messages to the database with proper conversation handling
- */
 export const useSaveMessage = (
-  user: any, 
+  user: any,
   conversationId: string | null,
   validateRole: (role: string) => 'user' | 'assistant'
 ) => {
-  const saveMessage = async (message: Partial<Message>): Promise<(Message & { conversation_id: string }) | null> => {
-    // Ensure we have a valid role before proceeding
-    if (!message.role || (message.role !== 'user' && message.role !== 'assistant')) {
-      console.error(`[useSaveMessage] Invalid role provided: "${message.role}". Must be 'user' or 'assistant'.`);
-      return null;
-    }
-    
-    // Keep the original role for logging purposes
-    const originalRole = message.role;
-    
-    // Always normalize the role to prevent any issues
-    const normalizedMessage = ensureValidMessageRole(message);
-    const saveId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    
-    // Enhanced logging for message save attempts
-    console.log(`📝 [Save Message ${saveId}] Attempt:`, {
-      timestamp: new Date().toISOString(),
-      userExists: !!user,
-      userId: user?.id,
-      conversationId,
-      originalRole,
-      normalizedRole: normalizedMessage.role,
-      messageContentLength: normalizedMessage.content?.length,
-      contentPreview: normalizedMessage.content?.substring(0, 50) + '...',
-      validContent: isValidMessageContent(normalizedMessage.content)
-    });
-    
-    if (!isValidMessageContent(normalizedMessage.content)) {
-      console.warn(`⚠️ [Save Message ${saveId}] Skipping empty message save attempt`);
-      return null;
-    }
-    
-    // For anonymous users, always return a local message without database saving
-    if (!user) {
-      console.log(`👤 [Save Message ${saveId}] Anonymous user message processing: ${normalizedMessage.role}`);
-      const anonymousMessage = createAnonymousMessage(normalizedMessage.role, normalizedMessage.content);
-      console.log(`Anonymous message created (not saved to database): ${anonymousMessage.id}`);
-      return { ...anonymousMessage, conversation_id: 'anonymous' };
-    }
-    
-    let targetConversationId = conversationId;
-    
-    // For authenticated users without an active conversation, create one
-    if (!targetConversationId && normalizedMessage.role === 'user') {
-      console.log(`🆕 [Save Message ${saveId}] No conversation ID found, creating new conversation...`);
-      targetConversationId = await createNewConversation(user.id);
-      
-      if (!targetConversationId) {
-        console.error(`❌ [Save Message ${saveId}] Failed to create conversation`);
-        toast.error('Unable to start conversation. Please try again.');
-        return { ...createAnonymousMessage(normalizedMessage.role, normalizedMessage.content), conversation_id: 'anonymous' };
+  const [saving, setSaving] = useState(false);
+
+  /**
+   * CRITICAL FIX: Complete rewrite of saveMessage to properly handle roles
+   * Saves a message to the database 
+   */
+  const saveMessage = useCallback(
+    async (message: Message): Promise<Message> => {
+      if (saving) {
+        console.warn("Already saving a message, please wait");
+        return message;
       }
-      
-      console.log(`✅ [Save Message ${saveId}] Created new conversation: ${targetConversationId}`);
-    }
-    
-    const insertData = {
-      conversation_id: targetConversationId,
-      user_id: user.id,
-      role: normalizedMessage.role, // Use the normalized role
-      content: normalizedMessage.content
-    };
-    
-    console.log(`💾 [Save Message ${saveId}] Inserting message:`, {
-      timestamp: new Date().toISOString(),
-      payload: {
-        conversation_id: insertData.conversation_id,
-        user_id: insertData.user_id,
-        role: insertData.role, // Log role before insertion
-        contentPreview: insertData.content?.substring(0, 20) + '...',
+
+      if (!message.content) {
+        console.error("Cannot save empty message");
+        throw new Error("Cannot save empty message");
       }
-    });
-    
-    try {
-      // Add additional debugging for insert operation
-      console.log(`[Save Message ${saveId}] Starting database insert with SQL: 
-        INSERT INTO messages (conversation_id, user_id, role, content)
-        VALUES ('${targetConversationId}', '${user.id}', '${normalizedMessage.role}', '${normalizedMessage.content?.substring(0, 20)}...')`);
-      
-      const startTime = performance.now();
-      const { data, error } = await supabase
-        .from('messages')
-        .insert([insertData])
-        .select('id, role, content, created_at, conversation_id')
-        .single();
-      const endTime = performance.now();
+
+      try {
+        setSaving(true);
+
+        // CRITICAL FIX #1: Validate and normalize the role
+        // This enforces that role can ONLY be 'user' or 'assistant'
+        let validatedRole: 'user' | 'assistant';
         
-      if (error) {
-        console.error(`❌ [Save Message ${saveId}] Database error during message insert:`, {
-          error,
-          errorMessage: error.message,
-          errorCode: error.code,
-          details: error.details,
-          hint: error.hint,
-          payload: {
-            conversation_id: insertData.conversation_id,
-            role: insertData.role,
-          },
+        if (message.role !== 'user' && message.role !== 'assistant') {
+          console.error(`Invalid role provided: ${message.role}. Converting to valid format.`);
+          // Use validateRole to prevent any role corruption
+          validatedRole = validateRole(message.role);
+        } else {
+          validatedRole = message.role;
+        }
+
+        console.log(`⚡ [useSaveMessage] Saving ${validatedRole} message to database:`, {
+          role: validatedRole,
+          contentPreview: message.content.substring(0, 50),
           timestamp: new Date().toISOString()
         });
-        throw error;
-      }
-      
-      console.log(`✅ [Save Message ${saveId}] Message saved successfully in ${Math.round(endTime - startTime)}ms:`, {
-        messageId: data.id,
-        conversationId: data.conversation_id,
-        savedRole: data.role, // Log the role that was actually saved
-        originalRole: originalRole, // Log the original role for comparison
-        timestamp: new Date().toISOString(),
-        contentPreview: data.content.substring(0, 50) + '...'
-      });
-      
-      const savedMessage = {
-        id: data.id,
-        role: validateRole(data.role), // Validate the role one last time
-        content: data.content,
-        created_at: data.created_at,
-        conversation_id: data.conversation_id
-      };
-      
-      if (normalizedMessage.role === 'user') {
-        toast.success('Message saved', {
-          description: getMessagePreview(savedMessage.content),
-          duration: 2000,
-        });
-      }
-      
-      return savedMessage;
-      
-    } catch (error) {
-      console.error(`❌ [Save Message ${saveId}] Error saving message:`, {
-        error: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : undefined,
-        timestamp: new Date().toISOString(),
-        context: {
-          conversationId: targetConversationId,
-          role: normalizedMessage.role
-        }
-      });
-      
-      toast.error(`Failed to save message: ${error instanceof Error ? error.message : "Unknown error"}`, {
-        duration: 4000,
-      });
-      
-      return { ...createAnonymousMessage(normalizedMessage.role, normalizedMessage.content), conversation_id: 'anonymous' };
-    }
-  };
 
-  return { saveMessage };
+        // Get or create a conversation ID if needed
+        let targetConversationId = conversationId;
+        if (!targetConversationId) {
+          console.log("No conversation ID provided, creating a new conversation");
+          const { data: newConversation, error: convError } = await supabase.rpc(
+            "get_or_create_conversation",
+            { p_user_id: user.id }
+          );
+
+          if (convError) {
+            console.error("Error creating conversation:", convError);
+            throw convError;
+          }
+
+          console.log("Created conversation:", newConversation);
+          targetConversationId = newConversation;
+        }
+
+        // CRITICAL FIX #2: Explicitly construct the message object with the validated role
+        const messageToSave = {
+          role: validatedRole, // THIS IS CRITICAL - use the validated role
+          content: message.content,
+          conversation_id: targetConversationId,
+          user_id: user?.id,
+        };
+
+        // Log the exact message being sent to the database
+        console.log('🔥 DATABASE INSERT - Saving message with role:', validatedRole, {
+          content: message.content.substring(0, 50),
+          conversation_id: targetConversationId,
+          user_id: user?.id
+        });
+
+        // Insert the message into the database
+        const { data: savedMessage, error } = await supabase
+          .from("messages")
+          .insert(messageToSave)
+          .select("*")
+          .single();
+
+        if (error) {
+          console.error("Error saving message:", error);
+          throw error;
+        }
+
+        if (!savedMessage) {
+          console.error("No message returned from insert operation");
+          throw new Error("Failed to save message");
+        }
+
+        console.log(`✅ Successfully saved ${validatedRole} message:`, {
+          id: savedMessage.id,
+          role: savedMessage.role,
+          created_at: savedMessage.created_at
+        });
+
+        return savedMessage as Message;
+      } catch (error) {
+        console.error("Error in saveMessage:", error);
+        toast.error("Error saving message");
+        throw error;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [user, conversationId, saving, validateRole]
+  );
+
+  return { saveMessage, saving };
 };

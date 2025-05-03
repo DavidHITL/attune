@@ -14,89 +14,64 @@ export const useTranscriptSaver = () => {
     role: 'user' | 'assistant',
     saveMessage: (msg: { role: 'user' | 'assistant'; content: string }) => Promise<Message | undefined>
   ) => {
-    // CRITICAL FIX: Add explicit validation at the start
+    // CRITICAL FIX #1: Force early validation at the entry point
+    if (role !== 'user' && role !== 'assistant') {
+      console.error(`[TranscriptSaver] FATAL ERROR: Invalid role "${role}"`);
+      throw new Error(`Invalid role: ${role}. Must be 'user' or 'assistant'.`);
+    }
+
+    // Double-check role format before proceeding
+    console.log(`[TranscriptSaver] ⚠️ ROLE CHECKPOINT: role="${role}" (type=${typeof role})`);
+
+    // Add validation of conversation context
     if (!validateConversationContext()) {
       console.error("❌ Cannot save transcript: Invalid conversation context");
       return;
     }
 
-    // CRITICAL FIX: Validate transcript content
+    // Validate transcript content
     if (!transcript || transcript.trim() === '') {
       console.warn("⚠️ Empty transcript received, not saving");
       return;
     }
     
-    // CRITICAL FIX: Validate and enforce role correctness
-    if (role !== 'user' && role !== 'assistant') {
-      console.error(`❌ Invalid role provided: ${role}. Must be 'user' or 'assistant'`);
-      role = 'user'; // Default to user as fallback
-    }
-
-    // SUPER CRITICAL DEBUG - Log the exact role at the point of saving
-    console.log(`🔍 TRANSCRIPT ROLE CHECK: Saving message with role="${role}" at ${new Date().toISOString()}`);
-    console.log(`💾 FULL TRANSCRIPT TO SAVE (Role: ${role}):`, transcript);
+    // CRITICAL DEBUG - Log at multiple points to trace the role
+    console.log(`🔍 [TranscriptSaver] Role validation passed - role="${role}"`);
+    console.log(`💾 [TranscriptSaver] TRANSCRIPT TO SAVE (ROLE=${role.toUpperCase()}):`, transcript.substring(0, 100) + (transcript.length > 100 ? '...' : ''));
     
     notifyTranscriptReceived(transcript);
     
     try {
-      console.log(`💾 Saving ${role} transcript:`, {
-        role,
-        preview: transcript.substring(0, 30),
-        length: transcript.length,
-        timestamp: new Date().toISOString()
-      });
+      // Create a clean, fresh object with explicitly assigned role property
+      // This avoids any reference issues or property inheritance problems
+      const messageObj = {
+        role: role, // Assign directly from the validated parameter
+        content: transcript
+      };
       
-      // CRITICAL FIX: Add retry logic for transcript saving
-      let attempt = 1;
-      const maxAttempts = 3;
-      let savedMsg: Message | undefined;
+      console.log(`🔒 [TranscriptSaver] FINAL PRE-SAVE ROLE CHECK: role="${messageObj.role}"`);
       
-      while (attempt <= maxAttempts && !savedMsg?.id) {
-        if (attempt > 1) {
-          console.log(`Retry attempt ${attempt} for saving transcript`);
+      // Call saveMessage with the fresh object
+      const savedMsg = await saveMessage(messageObj);
+      
+      if (savedMsg) {
+        // Verify the saved message has the correct role
+        console.log(`✅ [TranscriptSaver] Message saved successfully with ID=${savedMsg.id}, FINAL ROLE="${savedMsg.role}"`);
+        
+        if (savedMsg.role !== role) {
+          console.error(`❌ [TranscriptSaver] ROLE MISMATCH: Expected="${role}", Actual="${savedMsg.role}"`);
         }
         
-        try {
-          // CRITICAL FIX: Ensure role is NEVER overwritten with hardcoded value
-          console.log(`🔒 ABOUT TO CALL saveMessage with role="${role}"`);
-          savedMsg = await saveMessage({
-            role: role, 
-            content: transcript
-          });
-          
-          // Verify the role was sent correctly
-          console.log(`✅ saveMessage call completed with role="${role}"`);
-          
-          if (savedMsg && savedMsg.id) {
-            console.log(`✅ Successfully saved ${role} transcript with ID:`, savedMsg.id);
-            // Verify final saved role
-            console.log(`✅ Final saved message role: ${savedMsg.role}`);
-            break;
-          } else {
-            console.warn(`⚠️ Save attempt ${attempt} returned no valid message ID`);
-            attempt++;
-          }
-        } catch (innerError) {
-          console.error(`❌ Attempt ${attempt} failed:`, innerError);
-          attempt++;
-          if (attempt <= maxAttempts) {
-            // Wait before retry
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        }
-      }
-      
-      if (savedMsg && savedMsg.id) {
-        notifyTranscriptSaved(savedMsg?.id);
+        notifyTranscriptSaved(savedMsg.id);
+        
         toast.success(`${role === 'user' ? 'Message' : 'Response'} saved`, {
           description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
         });
-      } else {
-        throw new Error(`Failed to save transcript after ${maxAttempts} attempts`);
       }
     } catch (error) {
-      console.error(`❌ Failed to save ${role} transcript:`, error);
+      console.error(`❌ [TranscriptSaver] Failed to save ${role} transcript:`, error);
       notifyTranscriptError(error);
+      
       toast.error(`Failed to save ${role === 'user' ? 'message' : 'response'}`, {
         description: "Please try again",
       });

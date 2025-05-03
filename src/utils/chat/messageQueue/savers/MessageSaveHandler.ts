@@ -14,19 +14,38 @@ export class MessageSaveHandler {
   }
   
   async saveMessageDirectly(role: 'user' | 'assistant', content: string): Promise<Message | null> {
+    // CRITICAL FIX: Throw error for invalid roles instead of silently defaulting
+    if (role !== 'user' && role !== 'assistant') {
+      console.error(`[MessageSaveHandler] FATAL ERROR: Invalid role "${role}". Must be 'user' or 'assistant'.`);
+      throw new Error(`Invalid role: ${role}. Must be 'user' or 'assistant'.`);
+    }
+    
     // Track message count by role
     this.messageCounter[role]++;
     
     try {
-      console.log(`[MessageSaveHandler] Direct save attempt for ${role} message #${this.messageCounter[role]}: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}", timestamp: ${new Date().toISOString()}`);
-      
-      const result = await this.saveMessageCallback({
-        role,
-        content
+      console.log(`[MessageSaveHandler] Direct save attempt for ${role} message #${this.messageCounter[role]}:`, {
+        role: role, // Log role explicitly
+        contentPreview: content.substring(0, 30) + (content.length > 30 ? '...' : ''),
+        timestamp: new Date().toISOString()
       });
       
+      // Create a clean object to avoid reference issues
+      const messageObj = {
+        role: role,
+        content: content
+      };
+      
+      console.log(`[MessageSaveHandler] ⚠️ PRE-SAVE ROLE CHECK: role="${messageObj.role}"`);
+      
+      const result = await this.saveMessageCallback(messageObj);
+      
       if (result) {
-        console.log(`[MessageSaveHandler] ✅ Successfully saved ${role} message #${this.messageCounter[role]} with ID: ${result.id}`);
+        console.log(`[MessageSaveHandler] ✅ Successfully saved ${role} message #${this.messageCounter[role]} with ID: ${result.id}, FINAL ROLE: ${result.role}`);
+        
+        if (result.role !== role) {
+          console.error(`[MessageSaveHandler] ❌ ROLE MISMATCH DETECTED! Expected="${role}", Actual="${result.role}"`);
+        }
       } else {
         console.log(`[MessageSaveHandler] ⚠️ No result returned when saving ${role} message #${this.messageCounter[role]}`);
       }
@@ -157,4 +176,3 @@ export class MessageSaveHandler {
     return isValid;
   }
 }
-

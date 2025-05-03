@@ -95,7 +95,14 @@ export const useConversation = (): UseConversationReturn => {
         return null;
       }
       
+      // CRITICAL FIX #1: Ensure role is valid before proceeding
+      if (message.role !== 'user' && message.role !== 'assistant') {
+        console.error(`Cannot save message: Invalid role "${message.role}". Must be 'user' or 'assistant'`);
+        throw new Error(`Invalid message role: ${message.role}`);
+      }
+      
       console.log(`[useConversation] Saving ${message.role} message:`, {
+        role: message.role,
         contentPreview: message.content.substring(0, 30) + '...',
         hasConversationId: !!conversationId,
         hasUser: !!user,
@@ -116,10 +123,22 @@ export const useConversation = (): UseConversationReturn => {
         return localMessage;
       }
       
+      // CRITICAL FIX #2: Log the exact message being sent to the database
+      console.log(`[useConversation] Sending message to database with role=${message.role}`, {
+        role: message.role,
+        content: message.content.substring(0, 50),
+        conversationId,
+        userId: user?.id
+      });
+      
       const savedMessage = await saveMessageToDb(message as Message);
       
       if (savedMessage) {
-        console.log(`Successfully saved ${message.role} message with conversation:`, savedMessage.conversation_id);
+        console.log(`[useConversation] Successfully saved ${message.role} message:`, {
+          id: savedMessage.id,
+          role: savedMessage.role,
+          conversationId: savedMessage.conversation_id
+        });
         
         // Update conversation ID if a new one was created
         if (!conversationId && savedMessage.conversation_id) {

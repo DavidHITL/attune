@@ -29,13 +29,17 @@ export class MessageSaver {
       return null;
     }
     
-    // CRITICAL FIX: Validate role is either 'user' or 'assistant'
+    // CRITICAL FIX: Throw error for invalid roles instead of silently defaulting
     if (role !== 'user' && role !== 'assistant') {
-      console.error(`[MessageSaver] Invalid role provided: "${role}". Must be 'user' or 'assistant'. Aborting save.`);
-      return null;
+      console.error(`[MessageSaver] FATAL ERROR: Invalid role "${role}". Must be 'user' or 'assistant'.`);
+      throw new Error(`Invalid role: ${role}. Must be 'user' or 'assistant'.`);
     }
     
-    console.log(`[MessageSaver] Saving message with role: ${role}, content: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
+    console.log(`[MessageSaver] Saving message with VALIDATED role: "${role}"`, {
+      role: role,
+      contentPreview: content.substring(0, 30) + (content.length > 30 ? '...' : ''),
+      timestamp: new Date().toISOString()
+    });
     
     // Check for duplicate content
     if (this.messageProcessor.isDuplicateContent(role, content)) {
@@ -53,8 +57,17 @@ export class MessageSaver {
     }
     
     try {
-      // Use direct save strategy
-      const savedMessage = await this.messageSaveStrategy.saveWithDirectStrategy(role, content, messageId);
+      // Create a clean message object to avoid reference issues
+      const messageObj = {
+        role: role,
+        content: content
+      };
+      
+      // CRITICAL: Restore logging that was accidentally removed
+      console.log(`[MessageSaver] ⚠️ PRE-SAVE ROLE CHECK: role="${messageObj.role}"`);
+      
+      // Use direct save strategy with the clean object
+      const savedMessage = await this.messageSaveStrategy.saveWithDirectStrategy(messageObj.role, messageObj.content, messageId);
       
       // Update tracking for successful save
       if (role === 'user' && messageId) {
@@ -63,7 +76,11 @@ export class MessageSaver {
       
       // Log successful save with role for debugging
       if (savedMessage) {
-        console.log(`[MessageSaver] Successfully saved ${role} message with ID: ${savedMessage.id}`);
+        console.log(`[MessageSaver] ✅ Successfully saved ${role} message with ID: ${savedMessage.id}, FINAL ROLE: ${savedMessage.role}`);
+        
+        if (savedMessage.role !== role) {
+          console.error(`[MessageSaver] ❌ ROLE MISMATCH DETECTED! Expected="${role}", Actual="${savedMessage.role}"`);
+        }
       }
       
       return savedMessage;
@@ -85,13 +102,16 @@ export class MessageSaver {
       return null;
     }
     
-    // CRITICAL FIX: Validate role is either 'user' or 'assistant'
+    // CRITICAL FIX: Throw error for invalid roles instead of silently defaulting
     if (role !== 'user' && role !== 'assistant') {
-      console.error(`[MessageSaver] Invalid role provided: "${role}". Must be 'user' or 'assistant'. Aborting save.`);
-      return null;
+      console.error(`[MessageSaver] FATAL ERROR: Invalid role "${role}". Must be 'user' or 'assistant'.`);
+      throw new Error(`Invalid role: ${role}. Must be 'user' or 'assistant'.`);
     }
     
-    console.log(`[MessageSaver] Saving message with retry, role: ${role}, content: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
+    console.log(`[MessageSaver] Saving message with retry, VALIDATED role: "${role}"`, {
+      role: role,
+      contentPreview: content.substring(0, 30) + (content.length > 30 ? '...' : '')
+    });
     
     // Check for duplicate content
     if (this.messageProcessor.isDuplicateContent(role, content)) {
@@ -104,12 +124,16 @@ export class MessageSaver {
     this.messageTracker.trackMessageSaveStart();
     
     try {
-      // Use retry save strategy
+      // Use retry save strategy with validated role
       const savedMessage = await this.messageSaveStrategy.saveWithRetryStrategy(role, content);
       
       // Log successful save with role for debugging
       if (savedMessage) {
-        console.log(`[MessageSaver] Successfully saved ${role} message with retry, ID: ${savedMessage.id}`);
+        console.log(`[MessageSaver] ✅ Successfully saved ${role} message with retry, ID: ${savedMessage.id}, FINAL ROLE: ${savedMessage.role}`);
+        
+        if (savedMessage.role !== role) {
+          console.error(`[MessageSaver] ❌ ROLE MISMATCH DETECTED! Expected="${role}", Actual="${savedMessage.role}"`);
+        }
       }
       
       return savedMessage;

@@ -12,18 +12,20 @@ export const useTranscriptProcessor = (
     transcript: string,
     role: 'user' | 'assistant' = 'user' // Default to user for backward compatibility
   ) => {
-    console.log(`[TranscriptProcessor] Processing ${role} transcript: ${transcript.substring(0, 30)}...`);
-    
-    // Validate role is correct before proceeding
+    // CRITICAL FIX #1: Force validation of role to one of the only two allowed values
     if (role !== 'user' && role !== 'assistant') {
-      console.error(`[TranscriptProcessor] Invalid role: ${role}, must be 'user' or 'assistant'`);
-      role = 'user'; // Default to user as fallback if invalid
+      console.error(`[TranscriptProcessor] CRITICAL ERROR: Invalid role: ${role}`);
+      throw new Error(`Invalid role: ${role}. Must be 'user' or 'assistant'.`);
     }
     
-    // CRITICAL FIX: Log role for debugging throughout the entire system
-    console.log(`[TranscriptProcessor] CONFIRMED ROLE: ${role} before passing to saveTranscript`);
+    // CRITICAL FIX #2: Log with redundant role information for debugging
+    console.log(`[TranscriptProcessor] Processing transcript with EXPLICIT ROLE: "${role}"`, {
+      roleAsString: role,
+      contentPreview: transcript.substring(0, 50),
+      timestamp: new Date().toISOString()
+    });
     
-    // Delegate to the saveTranscript function, passing the explicit role
+    // CRITICAL FIX #3: Delegate to the saveTranscript function, passing the hardcoded, validated role
     await saveTranscript(transcript, role, saveMessage);
   }, [saveTranscript, saveMessage]);
 

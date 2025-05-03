@@ -8,20 +8,23 @@ import { Message } from '@/utils/types';
 export const useConversationHelpers = () => {
   /**
    * Validates and converts role to proper type
-   * CRITICAL FIX: Properly validate roles without defaulting to 'user'
+   * CRITICAL FIX: Complete rewrite that forces valid roles and throws errors for invalid ones
    */
   const validateRole = (role: string): 'user' | 'assistant' => {
-    // Trim and convert to lowercase for consistent comparison
-    const normalizedRole = role?.trim().toLowerCase();
+    // Normalize input to prevent case-sensitivity issues
+    const normalizedRole = (role || '').trim().toLowerCase();
     
-    if (normalizedRole === 'user' || normalizedRole === 'assistant') {
-      console.log(`[validateRole] Valid role found: ${normalizedRole}`);
-      return normalizedRole as 'user' | 'assistant';
+    // CRITICAL CHECK: Only allow 'user' and 'assistant' roles
+    if (normalizedRole === 'user') {
+      return 'user';
     }
     
-    // Instead of defaulting to 'user', log error and still return the original role
-    // This will prevent corruption in the UI while still showing there's a problem
-    console.error(`[validateRole] Invalid role found in database: "${role}". Must be 'user' or 'assistant'.`);
+    if (normalizedRole === 'assistant') {
+      return 'assistant';
+    }
+    
+    // Instead of silently defaulting, throw an error to make problems visible
+    console.error(`[validateRole] CRITICAL ERROR: "${role}" is not a valid role`);
     throw new Error(`Invalid role: "${role}". Expected 'user' or 'assistant'.`);
   };
 
@@ -42,15 +45,23 @@ export const useConversationHelpers = () => {
         throw error;
       }
       
-      // Convert database results to Message type with proper role validation and error handling
+      // Convert database results to Message type with proper role validation
       const validMessages: Message[] = [];
       
       if (data && data.length > 0) {
         for (const item of data) {
           try {
+            // Only validate roles that need to be normalized
+            let role: 'user' | 'assistant';
+            if (item.role === 'user' || item.role === 'assistant') {
+              role = item.role;
+            } else {
+              role = validateRole(item.role);
+            }
+            
             validMessages.push({
               id: item.id,
-              role: validateRole(item.role),
+              role: role,
               content: item.content,
               created_at: item.created_at
             });
