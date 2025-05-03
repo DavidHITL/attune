@@ -27,6 +27,12 @@ export class MessageQueue {
    * Queue a message with strict role validation
    */
   queueMessage(role: 'user' | 'assistant', content: string, priority: boolean = false): void {
+    // CRITICAL FIX: Hard-stop if no conversationId before queuing
+    if (typeof window !== 'undefined' && !window.__attuneConversationId) {
+      console.error(`[MessageQueue ${this.instanceId}] ABORT - No conversation ID available`);
+      return;
+    }
+    
     // CRITICAL FIX: Validate role is one of the two allowed values - throw error instead of defaulting
     if (role !== 'user' && role !== 'assistant') {
       console.error(`[MessageQueue ${this.instanceId}] CRITICAL ERROR: Invalid role: ${role}. Must be 'user' or 'assistant'.`);
@@ -43,10 +49,11 @@ export class MessageQueue {
       priority,
       queueLength: this.queue.length,
       timestamp: new Date().toISOString(),
-      role: role // Log role for debugging
+      role: role, // Log role for debugging
+      conversationId: window.__attuneConversationId // Log the conversation ID for debugging
     });
     
-    // Add message to queue with validated role
+    // Add message to queue with validated role and conversation_id
     this.queue.push({
       role, // Use validated role
       content,
@@ -106,10 +113,11 @@ export class MessageQueue {
         });
         
         try {
-          // Use the central message save service
+          // Use the central message save service and attach the conversation ID
           await messageSaveService.saveMessageToDatabase({
             role: item.role,
-            content: item.content
+            content: item.content,
+            conversation_id: typeof window !== 'undefined' ? window.__attuneConversationId : undefined
           });
         } catch (error) {
           console.error(`[MessageQueue ${this.instanceId}] Error saving message:`, error);
@@ -159,3 +167,4 @@ export class MessageQueue {
 
 // Export any necessary types
 export * from './messageQueue/types';
+
