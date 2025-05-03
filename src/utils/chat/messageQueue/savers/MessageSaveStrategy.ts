@@ -13,6 +13,7 @@ export class MessageSaveStrategy {
   private retrySaveStrategy: RetrySaveStrategy;
   
   constructor(private saveMessageCallback: SaveMessageCallback) {
+    // Fix: ProcessedMessagesTracker now takes no arguments
     this.processedMessagesTracker = new ProcessedMessagesTracker();
     this.directSaveStrategy = new DirectSaveStrategy(saveMessageCallback);
     this.retrySaveStrategy = new RetrySaveStrategy(saveMessageCallback);

@@ -3,10 +3,10 @@ import { Message, SaveMessageCallback } from '../../../types';
 import { DirectSaver } from './strategies/DirectSaver';
 import { RetrySaver } from './strategies/RetrySaver';
 import { SaveOptions } from './core/SaverTypes';
-import { ContentValidator } from './strategies/ContentValidator';
+import { MessageProcessor } from './processors/MessageProcessor';
 import { PendingMessageTracker } from './trackers/PendingMessageTracker';
 import { ActiveSavesTracker } from './trackers/ActiveSavesTracker';
-import { ProcessedMessagesTracker } from './utils/ProcessedMessagesTracker';
+import { RoleValidator } from './validators/RoleValidator';
 
 /**
  * Coordinates message saving operations with multiple strategies
@@ -14,18 +14,20 @@ import { ProcessedMessagesTracker } from './utils/ProcessedMessagesTracker';
 export class MessageSaver {
   private directSaver: DirectSaver;
   private retrySaver: RetrySaver;
-  private contentValidator: ContentValidator;
+  private messageProcessor: MessageProcessor;
   private pendingTracker: PendingMessageTracker;
   private activeSavesTracker: ActiveSavesTracker;
-  private processedTracker: ProcessedMessagesTracker;
+  private roleValidator: RoleValidator;
   
   constructor(private saveMessageCallback: SaveMessageCallback) {
     this.directSaver = new DirectSaver(saveMessageCallback);
     this.retrySaver = new RetrySaver(saveMessageCallback);
-    this.contentValidator = new ContentValidator();
+    this.messageProcessor = new MessageProcessor();
     this.pendingTracker = new PendingMessageTracker();
     this.activeSavesTracker = new ActiveSavesTracker();
-    this.processedTracker = new ProcessedMessagesTracker();
+    this.roleValidator = new RoleValidator();
+    
+    console.log('[MessageSaver] Initialized with dependencies');
   }
 
   /**
@@ -36,20 +38,26 @@ export class MessageSaver {
     content: string, 
     messageId?: string
   ): Promise<Message | null> {
+    // Validate role explicitly
+    if (!this.roleValidator.isValidRole(role)) {
+      console.error(`[MessageSaver] FATAL ERROR: Invalid role "${role}" in saveMessageDirectly`);
+      throw this.roleValidator.createInvalidRoleError(role);
+    }
+    
     // Validate content
-    if (!this.contentValidator.isValidContent(content)) {
-      console.log(`Skipping empty ${role} message`);
+    if (!this.messageProcessor.validateMessage(role, content).valid) {
+      console.log(`[MessageSaver] Skipping invalid ${role} message`);
       return null;
     }
     
     // Check for duplicate
-    if (this.processedTracker.hasProcessed(role, content)) {
-      console.log(`Skipping duplicate ${role} message:`, content.substring(0, 50));
+    if (this.messageProcessor.isDuplicateContent(role, content)) {
+      console.log(`[MessageSaver] Skipping duplicate ${role} message:`, content.substring(0, 50));
       return null;
     }
     
     // Mark as processed to avoid duplicates
-    this.processedTracker.markAsProcessed(role, content);
+    this.messageProcessor.markAsProcessed(role, content);
     
     // Track active save
     this.activeSavesTracker.trackSaveStart();
@@ -73,7 +81,7 @@ export class MessageSaver {
       
       return result.savedMessage;
     } catch (error) {
-      console.error(`Error in saveMessageDirectly for ${role} message:`, error);
+      console.error(`[MessageSaver] Error in saveMessageDirectly for ${role} message:`, error);
       throw error;
     } finally {
       this.activeSavesTracker.trackSaveComplete();
@@ -84,20 +92,26 @@ export class MessageSaver {
    * Save message with exponential backoff retry logic
    */
   async saveMessageWithRetry(role: 'user' | 'assistant', content: string): Promise<Message | null> {
+    // Validate role explicitly
+    if (!this.roleValidator.isValidRole(role)) {
+      console.error(`[MessageSaver] FATAL ERROR: Invalid role "${role}" in saveMessageWithRetry`);
+      throw this.roleValidator.createInvalidRoleError(role);
+    }
+    
     // Validate content
-    if (!this.contentValidator.isValidContent(content)) {
-      console.log(`Skipping empty ${role} message`);
+    if (!this.messageProcessor.validateMessage(role, content).valid) {
+      console.log(`[MessageSaver] Skipping invalid ${role} message`);
       return null;
     }
     
     // Check for duplicate
-    if (this.processedTracker.hasProcessed(role, content)) {
-      console.log(`Skipping duplicate ${role} message in retry:`, content.substring(0, 50));
+    if (this.messageProcessor.isDuplicateContent(role, content)) {
+      console.log(`[MessageSaver] Skipping duplicate ${role} message in retry:`, content.substring(0, 50));
       return null;
     }
     
     // Mark as processed to avoid duplicates
-    this.processedTracker.markAsProcessed(role, content);
+    this.messageProcessor.markAsProcessed(role, content);
     
     // Track active save
     this.activeSavesTracker.trackSaveStart();
@@ -107,7 +121,7 @@ export class MessageSaver {
       const result = await this.retrySaver.saveMessage(role, content);
       return result.savedMessage;
     } catch (error) {
-      console.error(`Error in saveMessageWithRetry for ${role} message:`, error);
+      console.error(`[MessageSaver] Error in saveMessageWithRetry for ${role} message:`, error);
       return null;
     } finally {
       this.activeSavesTracker.trackSaveComplete();
@@ -125,14 +139,14 @@ export class MessageSaver {
    * Check if content is a duplicate
    */
   isDuplicateContent(role: 'user' | 'assistant', content: string): boolean {
-    return this.processedTracker.hasProcessed(role, content);
+    return this.messageProcessor.isDuplicateContent(role, content);
   }
   
   /**
    * Reset processed messages tracking
    */
   resetProcessedMessages(): void {
-    this.processedTracker.reset();
+    this.messageProcessor.resetProcessedMessages();
     this.activeSavesTracker.reset();
   }
   
