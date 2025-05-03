@@ -97,40 +97,37 @@ export const useSaveMessageHandler = (
             throw convError;
           }
           
-          // CRITICAL FIX: Extract ID from response
-          if (newConversationId) {
-            console.log("[useSaveMessageHandler] Successfully obtained conversation ID:", newConversationId);
+          // CRITICAL FIX: Store only the ID string, not the whole object
+          targetConversationId = newConversationId;
+          setConversationId(targetConversationId);
+          
+          console.log(`[useSaveMessageHandler] Set new conversation ID: ${targetConversationId}`);
+          
+          // Update global context
+          if (typeof window !== 'undefined') {
+            window.conversationContext = {
+              conversationId: targetConversationId,
+              userId: currentUser?.id || null,
+              isInitialized: true,
+              messageCount: window.conversationContext?.messageCount || 0
+            };
+          }
+          
+          // Cache ID for the session
+          if (typeof window !== 'undefined') {
+            window.__attuneConversationId = targetConversationId;
+          }
+          
+          // Notify message queue
+          if (typeof window !== 'undefined' && window.attuneMessageQueue) {
+            console.log('[useSaveMessageHandler] Updating message queue with new conversation ID');
+            window.attuneMessageQueue.setConversationInitialized();
             
-            // Set the ID (not the whole object)
-            targetConversationId = newConversationId;
-            setConversationId(targetConversationId);
-            
-            console.log(`[useSaveMessageHandler] Set new conversation ID: ${targetConversationId}`);
-            
-            // Update global context
-            if (typeof window !== 'undefined') {
-              window.conversationContext = {
-                conversationId: targetConversationId,
-                userId: currentUser?.id || null,
-                isInitialized: true,
-                messageCount: window.conversationContext?.messageCount || 0
-              };
+            // Flush any queued messages now that we have a conversation ID
+            if (window.attuneMessageQueue.forceFlushQueue) {
+              console.log('[useSaveMessageHandler] Flushing pending message queue');
+              window.attuneMessageQueue.forceFlushQueue();
             }
-            
-            // Notify message queue
-            if (typeof window !== 'undefined' && window.attuneMessageQueue) {
-              console.log('[useSaveMessageHandler] Updating message queue with new conversation ID');
-              window.attuneMessageQueue.setConversationInitialized();
-              
-              // Flush any queued messages now that we have a conversation ID
-              if (window.attuneMessageQueue.forceFlushQueue) {
-                console.log('[useSaveMessageHandler] Flushing pending message queue');
-                window.attuneMessageQueue.forceFlushQueue();
-              }
-            }
-          } else {
-            console.error("[useSaveMessageHandler] Failed to get conversation ID - response was empty");
-            throw new Error("Failed to get conversation ID");
           }
         } catch (error) {
           console.error('[useSaveMessageHandler] Error obtaining conversation ID:', error);
