@@ -1,4 +1,3 @@
-
 /**
  * Component responsible for processing and saving transcripts
  */
@@ -10,6 +9,8 @@ export class TranscriptProcessor {
   private notifier: TranscriptNotifier;
   private processingCount: number = 0;
   private debugId: string;
+  private missedTranscriptCount: number = 0;
+  private saveDeduplicationMap: Map<string, number> = new Map();
   
   constructor(private messageQueue: MessageQueue) {
     this.notifier = new TranscriptNotifier();
@@ -29,13 +30,38 @@ export class TranscriptProcessor {
       return;
     }
     
+    // Safety check: force role to be correct
+    if (role !== 'user' && role !== 'assistant') {
+      console.warn(`[TranscriptProcessor ${this.debugId}] Invalid role: ${role}, forcing to 'user'`);
+      role = 'user';
+    }
+    
     this.processingCount++;
     const processId = this.processingCount;
     
-    // Check if this is identical to the last transcript we processed
-    const isDuplicate = this.lastTranscriptContent === transcriptContent;
+    // Create a hash for deduplication - combine first 10 chars with length and last 5 chars
+    const transcriptHash = `${transcriptContent.substring(0, 10)}-${transcriptContent.length}-${transcriptContent.substring(transcriptContent.length - 5)}`;
+    const isDuplicate = this.saveDeduplicationMap.has(transcriptHash);
+    const timeSinceLast = isDuplicate ? 
+      Date.now() - (this.saveDeduplicationMap.get(transcriptHash) || 0) : 
+      Infinity;
     
-    // Update the last content regardless (we'll save duplicates anyway for reliability)
+    // Update the hash timestamp regardless
+    this.saveDeduplicationMap.set(transcriptHash, Date.now());
+    
+    // Clean up old hashes to prevent memory leaks
+    if (this.saveDeduplicationMap.size > 100) {
+      // Keep only the 50 most recent hashes
+      const entries = Array.from(this.saveDeduplicationMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 50);
+      this.saveDeduplicationMap = new Map(entries);
+    }
+    
+    // Check if this is identical to the last transcript we processed
+    const isExactDuplicate = this.lastTranscriptContent === transcriptContent;
+    
+    // Update the last content regardless
     this.lastTranscriptContent = transcriptContent;
     
     console.log(`[TranscriptProcessor ${this.debugId}] #${processId} Saving transcript: "${transcriptContent.substring(0, 50)}${transcriptContent.length > 50 ? '...' : ''}"`, {
@@ -45,8 +71,17 @@ export class TranscriptProcessor {
       role,
       priority,
       isDuplicate,
+      isExactDuplicate,
+      timeSinceLast: isExactDuplicate ? timeSinceLast : 'N/A',
       processId
     });
+    
+    // Skip if it's a duplicate that was processed very recently (within 2 seconds)
+    if (isDuplicate && timeSinceLast < 2000) {
+      console.log(`[TranscriptProcessor ${this.debugId}] #${processId} Skipping recent duplicate transcript (${timeSinceLast}ms ago)`);
+      this.missedTranscriptCount--;
+      return;
+    }
     
     // Add message to queue with specified priority
     this.messageQueue.queueMessage(role, transcriptContent, priority);
@@ -81,16 +116,26 @@ export class TranscriptProcessor {
   }
   
   /**
+   * Track missed transcript
+   */
+  trackMissedTranscript(): void {
+    this.missedTranscriptCount++;
+    console.warn(`[TranscriptProcessor ${this.debugId}] Missed transcript count: ${this.missedTranscriptCount}`);
+  }
+  
+  /**
    * Get debug information about the processor state
    */
   getDebugInfo(): object {
     return {
       id: this.debugId,
       processingCount: this.processingCount,
+      missedTranscriptCount: this.missedTranscriptCount,
       lastTranscriptLength: this.lastTranscriptContent.length,
       lastTranscriptPreview: this.lastTranscriptContent 
         ? this.lastTranscriptContent.substring(0, 50) + (this.lastTranscriptContent.length > 50 ? '...' : '')
-        : '(empty)'
+        : '(empty)',
+      deduplicationMapSize: this.saveDeduplicationMap.size
     };
   }
 }
