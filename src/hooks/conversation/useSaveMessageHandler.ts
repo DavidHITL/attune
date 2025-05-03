@@ -26,16 +26,29 @@ export const useSaveMessageHandler = (
         throw new Error(`Invalid message role: ${message.role}`);
       }
       
+      // CRITICAL FIX #2: Verify current auth state to ensure we have latest user
+      let currentUser = user;
+      if (!currentUser) {
+        console.log("[useSaveMessageHandler] No user in props, checking current auth state");
+        const { data } = await supabase.auth.getUser();
+        currentUser = data?.user;
+        
+        if (currentUser) {
+          console.log(`[useSaveMessageHandler] Retrieved current user from auth: ${currentUser.id}`);
+        }
+      }
+      
       console.log(`[useSaveMessageHandler] Saving ${message.role} message:`, {
         role: message.role,
         contentPreview: message.content.substring(0, 30) + '...',
         hasConversationId: !!conversationId,
-        hasUser: !!user,
+        hasUser: !!currentUser,
+        userId: currentUser?.id,
         timestamp: new Date().toISOString()
       });
       
       // For anonymous users, handle locally
-      if (!user) {
+      if (!currentUser) {
         console.log("Anonymous user detected, using local message only");
         const localMessage: Message = {
           id: `anon-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -48,7 +61,7 @@ export const useSaveMessageHandler = (
         return localMessage;
       }
       
-      // CRITICAL FIX #2: Create a clean object with explicitly assigned role
+      // CRITICAL FIX #3: Create a clean object with explicitly assigned role
       const messageToSave: Message = {
         id: message.id || `temp-${Date.now()}`,
         role: message.role as 'user' | 'assistant',
@@ -67,9 +80,9 @@ export const useSaveMessageHandler = (
           console.log("[useSaveMessageHandler] No conversation ID available. Obtaining one before saving message.");
           
           // Get or create conversation using RPC function
-          const { data: newConversation, error: convError } = await supabase.rpc(
+          const { data: newConversationId, error: convError } = await supabase.rpc(
             "get_or_create_conversation",
-            { p_user_id: user.id }
+            { p_user_id: currentUser.id }
           );
           
           if (convError) {
@@ -77,12 +90,12 @@ export const useSaveMessageHandler = (
             throw convError;
           }
           
-          // CRITICAL FIX: Extract ID from response and set it as the conversation ID
-          if (newConversation) {
-            console.log("[useSaveMessageHandler] Successfully obtained conversation ID:", newConversation);
+          // CRITICAL FIX: Extract ID from response
+          if (newConversationId) {
+            console.log("[useSaveMessageHandler] Successfully obtained conversation ID:", newConversationId);
             
             // Set the ID (not the whole object)
-            targetConversationId = newConversation;
+            targetConversationId = newConversationId;
             setConversationId(targetConversationId);
             
             console.log(`[useSaveMessageHandler] Set new conversation ID: ${targetConversationId}`);
@@ -91,7 +104,7 @@ export const useSaveMessageHandler = (
             if (typeof window !== 'undefined') {
               window.conversationContext = {
                 conversationId: targetConversationId,
-                userId: user?.id || null,
+                userId: currentUser?.id || null,
                 isInitialized: true,
                 messageCount: window.conversationContext?.messageCount || 0
               };
@@ -127,16 +140,17 @@ export const useSaveMessageHandler = (
       }
       
       try {
-        // Add the conversation ID to the message
+        // Add the conversation ID and user ID to the message
         messageToSave.conversation_id = targetConversationId;
+        messageToSave.user_id = currentUser.id; // CRITICAL FIX: Ensure user_id is explicitly set
         
-        console.log(`[useSaveMessageHandler] Saving message with conversation ID: ${targetConversationId}`);
+        console.log(`[useSaveMessageHandler] Saving message with conversation ID: ${targetConversationId} and user ID: ${currentUser.id}`);
         
         const result = await messageSaveService.saveMessageToDatabase({
           role: messageToSave.role,
           content: messageToSave.content,
           conversation_id: targetConversationId,
-          user_id: user?.id
+          user_id: currentUser.id
         });
         
         if (result) {

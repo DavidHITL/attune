@@ -3,22 +3,29 @@ import { useAuth } from '@/context/AuthContext';
 import { useConversation } from '@/hooks/useConversation';
 import { useCallback } from 'react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useConversationValidator = () => {
   const { user } = useAuth();
   const { conversationId } = useConversation();
   
-  const validateConversationContext = useCallback(() => {
+  const validateConversationContext = useCallback(async () => {
     // For authenticated users, require both user and conversationId
     if (user) {
       const isValid = !!user && !!conversationId;
       
       if (!isValid) {
-        // Only log errors for authenticated users
+        // Double-check current authentication status to ensure we have latest
+        const { data } = await supabase.auth.getUser();
+        const currentUser = data?.user;
+        
+        // Log the validation attempt with detailed context
         console.error('⚠️ Invalid conversation context for authenticated user:', {
           hasUser: !!user, 
+          hasCurrentUser: !!currentUser,
           hasConversationId: !!conversationId,
           userId: user?.id,
+          currentUserId: currentUser?.id,
           conversationId,
           timestamp: new Date().toISOString()
         });

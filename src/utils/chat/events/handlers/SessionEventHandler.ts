@@ -9,8 +9,15 @@ export async function handleSessionCreated(evt: any) {
   console.log('[SessionEventHandler] Session created event received:', evt);
   
   try {
-    // Get current authenticated user
-    const { data: { user } } = await supabase.auth.getUser();
+    // Get current authenticated user with fresh auth check
+    const { data, error } = await supabase.auth.getUser();
+    
+    if (error) {
+      console.error('[SessionEventHandler] Error getting authenticated user:', error);
+      return null;
+    }
+    
+    const user = data?.user;
     
     if (!user) {
       console.warn('[SessionEventHandler] No authenticated user found, skipping conversation initialization');

@@ -5,6 +5,7 @@ import { useTranscriptNotifications } from './useTranscriptNotifications';
 import { Message } from '@/utils/types';
 import { toast } from 'sonner';
 import { messageSaveService } from '@/utils/chat/messaging/MessageSaveService';
+import { supabase } from '@/integrations/supabase/client';
 
 // Create a singleton MessageQueue instance or factory to ensure it's accessible anywhere
 let globalMessageQueue: any = null;
@@ -16,7 +17,7 @@ export const setGlobalMessageQueue = (queue: any) => {
 };
 
 export const useTranscriptSaver = () => {
-  const { validateConversationContext } = useConversationValidator();
+  const { validateConversationContext, user } = useConversationValidator();
   const { notifyTranscriptReceived, notifyTranscriptSaved, notifyTranscriptError } = useTranscriptNotifications();
 
   const saveTranscript = useCallback(async (
@@ -33,8 +34,20 @@ export const useTranscriptSaver = () => {
     // Double-check role format before proceeding
     console.log(`[TranscriptSaver] ⚠️ ROLE CHECKPOINT: role="${role}" (type=${typeof role})`);
 
-    // Add validation of conversation context
-    if (!validateConversationContext()) {
+    // CRITICAL FIX #2: Get fresh user from auth state if needed
+    let currentUser = user;
+    if (!currentUser) {
+      const { data } = await supabase.auth.getUser();
+      currentUser = data.user;
+      
+      if (currentUser) {
+        console.log(`[TranscriptSaver] Retrieved current user from auth: ${currentUser.id}`);
+      }
+    }
+
+    // Add validation of conversation context - now wait for the promise
+    const contextValid = await validateConversationContext();
+    if (!contextValid) {
       console.error("❌ Cannot save transcript: Invalid conversation context");
       
       // Queue user transcripts, but wait for proper initialization
@@ -92,10 +105,17 @@ export const useTranscriptSaver = () => {
         // Use the central message save service
         console.log(`[TranscriptSaver] Using central message save service for ${role} transcript`);
         
-        const savedMessage = await messageSaveService.saveMessageToDatabase({
+        // CRITICAL FIX: Include the user ID explicitly if available
+        const messageData: any = {
           role: role,
           content: transcript
-        });
+        };
+        
+        if (currentUser) {
+          messageData.user_id = currentUser.id;
+        }
+        
+        const savedMessage = await messageSaveService.saveMessageToDatabase(messageData);
         
         if (savedMessage) {
           console.log(`✅ [TranscriptSaver] Message saved successfully with ID=${savedMessage.id}, FINAL ROLE="${savedMessage.role}"`);
@@ -130,7 +150,7 @@ export const useTranscriptSaver = () => {
       
       return undefined;
     }
-  }, [validateConversationContext, notifyTranscriptReceived, notifyTranscriptSaved, notifyTranscriptError]);
+  }, [validateConversationContext, notifyTranscriptReceived, notifyTranscriptSaved, notifyTranscriptError, user]);
 
   return { saveTranscript };
 };

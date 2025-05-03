@@ -3,7 +3,7 @@ import { useState, useCallback } from "react";
 import { Message } from "@/utils/types";
 import { toast } from "sonner";
 import { messageSaveService } from "@/utils/chat/messaging/MessageSaveService";
-import { supabase } from "@/integrations/supabase/client"; // Added missing import
+import { supabase } from "@/integrations/supabase/client";
 
 export const useSaveMessage = (
   user: any,
@@ -30,6 +30,13 @@ export const useSaveMessage = (
       try {
         setSaving(true);
 
+        // CRITICAL FIX: Get fresh user from auth state if not provided
+        let currentUser = user;
+        if (!currentUser) {
+          const { data } = await supabase.auth.getUser();
+          currentUser = data.user;
+        }
+
         // Validate and normalize the role
         let validatedRole: 'user' | 'assistant';
         
@@ -43,16 +50,18 @@ export const useSaveMessage = (
         console.log(`⚡ [useSaveMessage] Using MessageSaveService to save ${validatedRole} message`, {
           role: validatedRole,
           contentPreview: message.content.substring(0, 50),
+          hasCurrentUser: !!currentUser,
+          userId: currentUser?.id,
           timestamp: new Date().toISOString()
         });
 
         // Get or create a conversation ID if needed
         let targetConversationId = conversationId;
-        if (!targetConversationId) {
+        if (!targetConversationId && currentUser) {
           console.log("No conversation ID provided, creating a new conversation");
-          const { data: newConversation, error: convError } = await supabase.rpc(
+          const { data: newConversationId, error: convError } = await supabase.rpc(
             "get_or_create_conversation",
-            { p_user_id: user.id }
+            { p_user_id: currentUser.id }
           );
 
           if (convError) {
@@ -60,8 +69,8 @@ export const useSaveMessage = (
             throw convError;
           }
 
-          console.log("Created conversation:", newConversation);
-          targetConversationId = newConversation;
+          console.log("Created conversation:", newConversationId);
+          targetConversationId = newConversationId;
         }
 
         // Use the central service to save the message
@@ -69,7 +78,7 @@ export const useSaveMessage = (
           role: validatedRole,
           content: message.content,
           conversation_id: targetConversationId,
-          user_id: user?.id
+          user_id: currentUser?.id
         });
 
         return savedMessage as Message;
