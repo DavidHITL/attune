@@ -5,6 +5,15 @@ import { useTranscriptNotifications } from './useTranscriptNotifications';
 import { Message } from '@/utils/types';
 import { toast } from 'sonner';
 
+// Create a singleton MessageQueue instance or factory to ensure it's accessible anywhere
+let globalMessageQueue: any = null;
+
+// Function to set the global message queue (called from main app initialization)
+export const setGlobalMessageQueue = (queue: any) => {
+  globalMessageQueue = queue;
+  console.log('[TranscriptSaver] Global message queue has been set');
+};
+
 export const useTranscriptSaver = () => {
   const { validateConversationContext } = useConversationValidator();
   const { notifyTranscriptReceived, notifyTranscriptSaved, notifyTranscriptError } = useTranscriptNotifications();
@@ -35,43 +44,71 @@ export const useTranscriptSaver = () => {
       return;
     }
     
-    // CRITICAL DEBUG - Log at multiple points to trace the role
     console.log(`🔍 [TranscriptSaver] Role validation passed - role="${role}"`);
     console.log(`💾 [TranscriptSaver] TRANSCRIPT TO SAVE (ROLE=${role.toUpperCase()}):`, transcript.substring(0, 100) + (transcript.length > 100 ? '...' : ''));
     
     notifyTranscriptReceived(transcript);
     
     try {
-      // Create a clean, fresh object with explicitly assigned role property
-      // This avoids any reference issues or property inheritance problems
-      const messageObj = {
-        role: role, // Assign directly from the validated parameter
-        content: transcript
-      };
-      
-      console.log(`🔒 [TranscriptSaver] FINAL PRE-SAVE ROLE CHECK: role="${messageObj.role}"`);
-      
-      // Call saveMessage with the fresh object
-      const savedMsg = await saveMessage(messageObj);
-      
-      if (savedMsg) {
-        // Verify the saved message has the correct role
-        console.log(`✅ [TranscriptSaver] Message saved successfully with ID=${savedMsg.id}, FINAL ROLE="${savedMsg.role}"`);
+      // UNIFIED PATH: Check if we have access to the global message queue
+      if (globalMessageQueue) {
+        console.log(`[TranscriptSaver] Using message queue to save ${role} transcript`);
         
-        if (savedMsg.role !== role) {
-          console.error(`❌ [TranscriptSaver] ROLE MISMATCH: Expected="${role}", Actual="${savedMsg.role}"`);
-          toast.error(`Role mismatch detected: Expected=${role}, Actual=${savedMsg.role}`, {
-            duration: 5000
-          });
-        }
+        // Queue the message with high priority to ensure it gets processed
+        globalMessageQueue.queueMessage(role, transcript, true);
         
-        notifyTranscriptSaved(savedMsg.id);
-        
-        toast.success(`${role === 'user' ? 'Message' : 'Response'} saved`, {
+        // For UI feedback only - actual saving is handled by the queue
+        toast.success(`${role === 'user' ? 'Message' : 'Response'} queued for saving`, {
           description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
           duration: 2000,
         });
+        
+        // We don't have an immediate ID since the queue will handle saving asynchronously
+        notifyTranscriptSaved("queued-" + Date.now());
+        
+        return {
+          id: `temp-${Date.now()}`,
+          role: role,
+          content: transcript,
+          created_at: new Date().toISOString()
+        } as Message;
+      } else {
+        // FALLBACK PATH: If no message queue is available, use the direct save method
+        console.warn(`[TranscriptSaver] No message queue found, falling back to direct save for ${role} message`);
+        
+        // Create a clean, fresh object with explicitly assigned role property
+        const messageObj = {
+          role: role,
+          content: transcript
+        };
+        
+        console.log(`🔒 [TranscriptSaver] FALLBACK SAVE: role="${messageObj.role}"`);
+        
+        // Call saveMessage with the fresh object
+        const savedMessage = await saveMessage(messageObj);
+        
+        if (savedMessage) {
+          console.log(`✅ [TranscriptSaver] Message saved successfully with ID=${savedMessage.id}, FINAL ROLE="${savedMessage.role}"`);
+          
+          if (savedMessage.role !== role) {
+            console.error(`❌ [TranscriptSaver] ROLE MISMATCH: Expected="${role}", Actual="${savedMessage.role}"`);
+            toast.error(`Role mismatch detected: Expected=${role}, Actual=${savedMessage.role}`, {
+              duration: 5000
+            });
+          }
+          
+          notifyTranscriptSaved(savedMessage.id);
+          
+          toast.success(`${role === 'user' ? 'Message' : 'Response'} saved`, {
+            description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
+            duration: 2000,
+          });
+          
+          return savedMessage;
+        }
       }
+      
+      return undefined;
     } catch (error) {
       console.error(`❌ [TranscriptSaver] Failed to save ${role} transcript:`, error);
       notifyTranscriptError(error);
@@ -80,6 +117,8 @@ export const useTranscriptSaver = () => {
         description: "Please try again",
         duration: 3000,
       });
+      
+      return undefined;
     }
   }, [validateConversationContext, notifyTranscriptReceived, notifyTranscriptSaved, notifyTranscriptError]);
 

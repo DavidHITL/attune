@@ -8,16 +8,33 @@ import AttuneLogo from '@/components/AttuneLogo';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConversation } from '@/hooks/useConversation';
 import { toast } from 'sonner';
+import { initializeMessageQueue } from '@/utils/chat/messageQueue/QueueProvider';
+import { setGlobalMessageQueue } from '@/hooks/voice/transcript/useTranscriptSaver';
 
 const Voice = () => {
   const { user, loading: authLoading } = useAuth();
   const { setBackgroundColor } = useBackground();
-  const { loading: conversationLoading, conversationId } = useConversation();
+  const { loading: conversationLoading, conversationId, saveMessage } = useConversation();
 
   // Set background color
   useEffect(() => {
     setBackgroundColor(BACKGROUND_COLORS.VOICE_BLUE);
   }, [setBackgroundColor]);
+
+  // Initialize the message queue and connect it to the transcript saver
+  useEffect(() => {
+    if (!user && !conversationLoading && saveMessage) {
+      console.log('Initializing message queue with save message function');
+      
+      // Initialize the MessageQueue with our saveMessage function
+      const queue = initializeMessageQueue(saveMessage);
+      
+      // Connect the queue to our transcript saver
+      setGlobalMessageQueue(queue);
+      
+      console.log('MessageQueue initialized and connected to TranscriptSaver');
+    }
+  }, [user, conversationLoading, saveMessage]);
 
   // Early conversation initialization for authenticated users
   useEffect(() => {

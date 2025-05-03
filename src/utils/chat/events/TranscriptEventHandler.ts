@@ -1,6 +1,7 @@
 
 import { EventTypeRegistry } from './EventTypeRegistry';
 import { toast } from 'sonner';
+import { getMessageQueue } from '../messageQueue/QueueProvider';
 
 export class TranscriptEventHandler {
   private lastTranscriptContent: string = '';
@@ -42,8 +43,16 @@ export class TranscriptEventHandler {
           duration: 2000
         });
         
-        // This function is specifically for saving user speech transcripts
-        this.saveUserMessage(finalTranscript);
+        // Try to use message queue first, fall back to direct save if not available
+        const messageQueue = getMessageQueue();
+        if (messageQueue) {
+          console.log('[TranscriptEventHandler] Using message queue to save user transcript');
+          messageQueue.queueMessage('user', finalTranscript, true); // Use high priority for user messages
+        } else {
+          console.log('[TranscriptEventHandler] No message queue available, using direct save');
+          // Fall back to direct save method
+          this.saveUserMessage(finalTranscript);
+        }
       }
     }
   }
