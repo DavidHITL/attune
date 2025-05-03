@@ -1,193 +1,128 @@
+
 import { Message, SaveMessageCallback } from '../../types';
-import { toast } from 'sonner';
-import { MessageSaveStrategy } from './savers/MessageSaveStrategy';
-import { MessageProcessor } from './savers/MessageProcessor';
-import { MessageTracker } from './savers/MessageTracker';
-import { messageSaveService } from '../messaging/MessageSaveService';
+import { StandardSaveStrategy } from './savers/strategies/StandardSaveStrategy';
+import { RetrySaveStrategy } from './savers/strategies/RetrySaveStrategy';
+import { ContentValidator } from './savers/validators/ContentValidator';
+import { RoleValidator } from './savers/validators/RoleValidator';
 
 /**
- * Handles the actual saving of messages with retry logic
+ * Central coordinator for message saving operations
  */
 export class MessageSaver {
-  private messageTracker: MessageTracker;
-  private messageProcessor: MessageProcessor;
-  private messageSaveStrategy: MessageSaveStrategy;
+  private standardStrategy: StandardSaveStrategy;
+  private retryStrategy: RetrySaveStrategy;
+  private contentValidator: ContentValidator;
+  private roleValidator: RoleValidator;
   
   constructor(private saveMessageCallback: SaveMessageCallback) {
-    this.messageTracker = new MessageTracker();
-    this.messageProcessor = new MessageProcessor();
-    this.messageSaveStrategy = new MessageSaveStrategy(this.handleSaveMessage.bind(this));
+    this.standardStrategy = new StandardSaveStrategy();
+    this.retryStrategy = new RetrySaveStrategy();
+    this.contentValidator = new ContentValidator();
+    this.roleValidator = new RoleValidator();
+    
+    console.log('[MessageSaver] Initialized with dependencies');
   }
 
   /**
-   * Internal wrapper for using the central message save service
+   * Save a message directly with standard strategy
    */
-  private async handleSaveMessage(message: { role: 'user' | 'assistant', content: string }): Promise<Message | undefined> {
-    return messageSaveService.saveMessageToDatabase({
-      role: message.role,
-      content: message.content
-    });
-  }
-
-  /**
-   * Directly save a message with retry logic
-   */
-  async saveMessageDirectly(role: 'user' | 'assistant', content: string, messageId?: string): Promise<Message | null> {
-    // Skip empty messages
-    if (!this.messageProcessor.isValidContent(content)) {
-      console.log(`Skipping empty ${role} message`);
+  async saveMessageDirectly(
+    role: 'user' | 'assistant', 
+    content: string, 
+    messageId?: string
+  ): Promise<Message | null> {
+    // Validate role
+    if (!this.roleValidator.isValidRole(role)) {
+      throw this.roleValidator.createInvalidRoleError(role);
+    }
+    
+    // Validate content
+    if (!this.contentValidator.isValidContent(content)) {
+      console.log(`[MessageSaver] Skipping empty ${role} message`);
       return null;
     }
     
-    // CRITICAL FIX: Throw error for invalid roles instead of silently defaulting
-    if (role !== 'user' && role !== 'assistant') {
-      console.error(`[MessageSaver] FATAL ERROR: Invalid role "${role}". Must be 'user' or 'assistant'.`);
-      throw new Error(`Invalid role: ${role}. Must be 'user' or 'assistant'.`);
-    }
-    
-    console.log(`[MessageSaver] Saving message with VALIDATED role: "${role}"`, {
-      role: role,
+    console.log(`[MessageSaver] Direct save for ${role} message:`, {
       contentPreview: content.substring(0, 30) + (content.length > 30 ? '...' : ''),
-      timestamp: new Date().toISOString()
+      hasMessageId: !!messageId
     });
     
-    // Check for duplicate content
-    if (this.messageProcessor.isDuplicateContent(role, content)) {
-      console.log(`Skipping duplicate ${role} message:`, content.substring(0, 50));
-      return null;
-    }
-    
-    // Mark message as being processed
-    this.messageProcessor.markAsProcessed(role, content);
-    this.messageTracker.trackMessageSaveStart();
-    
-    // For user messages with messageId, track as pending
-    if (role === 'user' && messageId) {
-      this.messageTracker.trackPendingUserMessage(messageId);
-    }
-    
-    try {
-      // Create a clean message object to avoid reference issues
-      const messageObj = {
-        role: role,
-        content: content
-      };
-      
-      // Use direct save strategy with the clean object
-      const savedMessage = await messageSaveService.saveMessageToDatabase(messageObj);
-      
-      // Update tracking for successful save
-      if (role === 'user' && messageId) {
-        this.messageTracker.removePendingUserMessage(messageId);
-      }
-      
-      return savedMessage;
-    } catch (error) {
-      console.error(`Error in saveMessageDirectly for ${role} message:`, error);
-      throw error;
-    } finally {
-      this.messageTracker.trackMessageSaveComplete();
-    }
+    return this.standardStrategy.saveMessage(role, content, { 
+      messageId, 
+      showNotification: true 
+    });
   }
   
   /**
-   * Save message with exponential backoff retry logic
+   * Save a message with retry capability
    */
-  async saveMessageWithRetry(role: 'user' | 'assistant', content: string): Promise<Message | null> {
-    // Skip empty messages
-    if (!this.messageProcessor.isValidContent(content)) {
-      console.log(`Skipping empty ${role} message`);
+  async saveMessageWithRetry(
+    role: 'user' | 'assistant', 
+    content: string
+  ): Promise<Message | null> {
+    // Validate role
+    if (!this.roleValidator.isValidRole(role)) {
+      throw this.roleValidator.createInvalidRoleError(role);
+    }
+    
+    // Validate content
+    if (!this.contentValidator.isValidContent(content)) {
+      console.log(`[MessageSaver] Skipping empty ${role} message`);
       return null;
     }
     
-    // CRITICAL FIX: Throw error for invalid roles instead of silently defaulting
-    if (role !== 'user' && role !== 'assistant') {
-      console.error(`[MessageSaver] FATAL ERROR: Invalid role "${role}". Must be 'user' or 'assistant'.`);
-      throw new Error(`Invalid role: ${role}. Must be 'user' or 'assistant'.`);
-    }
-    
-    console.log(`[MessageSaver] Saving message with retry, VALIDATED role: "${role}"`, {
-      role: role,
+    console.log(`[MessageSaver] Retry save for ${role} message:`, {
       contentPreview: content.substring(0, 30) + (content.length > 30 ? '...' : '')
     });
     
-    // Check for duplicate content
-    if (this.messageProcessor.isDuplicateContent(role, content)) {
-      console.log(`Skipping duplicate ${role} message in retry:`, content.substring(0, 50));
-      return null;
-    }
-    
-    // Mark message as being processed
-    this.messageProcessor.markAsProcessed(role, content);
-    this.messageTracker.trackMessageSaveStart();
-    
-    try {
-      // Use retry save strategy with validated role
-      const savedMessage = await this.messageSaveStrategy.saveWithRetryStrategy(role, content);
-      
-      // Log successful save with role for debugging
-      if (savedMessage) {
-        console.log(`[MessageSaver] ✅ Successfully saved ${role} message with retry, ID: ${savedMessage.id}, FINAL ROLE: ${savedMessage.role}`);
-        
-        if (savedMessage.role !== role) {
-          console.error(`[MessageSaver] ❌ ROLE MISMATCH DETECTED! Expected="${role}", Actual="${savedMessage.role}"`);
-          
-          // Add a toast notification for mismatched roles to make the issue visible
-          toast.error(`Role mismatch error: Expected=${role}, Actual=${savedMessage.role}`, {
-            duration: 5000,
-          });
-        }
-      }
-      
-      return savedMessage;
-    } catch (error) {
-      console.error(`Error in saveMessageWithRetry for ${role} message:`, error);
-      return null;
-    } finally {
-      this.messageTracker.trackMessageSaveComplete();
-    }
+    return this.retryStrategy.saveMessage(role, content, { 
+      maxRetries: 3,
+      showNotification: true 
+    });
   }
   
   /**
    * Track a pending user message
    */
   trackPendingUserMessage(messageId: string): void {
-    this.messageTracker.trackPendingUserMessage(messageId);
+    // Delegate to standard strategy's message tracker
+    this.standardStrategy['messageTracker'].trackMessage(messageId);
   }
   
   /**
-   * Check if content is recent duplicate to avoid saving the same message multiple times
+   * Check if content is a duplicate
    */
   isDuplicateContent(role: 'user' | 'assistant', content: string): boolean {
-    return this.messageProcessor.isDuplicateContent(role, content);
+    // Use standard strategy's content processor
+    return this.standardStrategy['contentProcessor'].isDuplicate(role, content);
   }
   
   /**
    * Reset processed messages tracking
    */
   resetProcessedMessages(): void {
-    this.messageProcessor.resetProcessedMessages();
-    this.messageSaveStrategy.resetProcessedMessages();
+    this.standardStrategy.resetProcessedTracking();
+    this.retryStrategy.resetProcessedTracking();
   }
   
   /**
    * Get current active save count
    */
   getActiveMessageSaves(): number {
-    return this.messageTracker.getActiveMessageSaves();
+    return this.standardStrategy.getActiveSavesCount();
   }
   
   /**
    * Get pending user messages count
    */
   getPendingUserMessages(): number {
-    return this.messageTracker.getPendingUserMessages();
+    return this.standardStrategy.getPendingCount();
   }
   
   /**
    * Report any pending user messages that never completed
    */
   reportPendingMessages(): void {
-    this.messageTracker.reportPendingMessages();
+    this.standardStrategy.reportPendingMessages();
   }
 }

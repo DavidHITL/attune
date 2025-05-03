@@ -1,98 +1,123 @@
 
-import { Message, SaveMessageCallback } from '../../../../types';
+import { Message } from '@/utils/types';
+import { SaveStrategy } from './SaveStrategy';
+import { ContentValidator } from '../validators/ContentValidator';
+import { RoleValidator } from '../validators/RoleValidator';
+import { ContentProcessor } from '../processors/ContentProcessor';
 import { toast } from 'sonner';
+import { messageSaveService } from '@/utils/chat/messaging/MessageSaveService';
 
 /**
  * Strategy for saving messages with retry capability
  */
-export class RetrySaveStrategy {
-  constructor(private saveMessageCallback: SaveMessageCallback) {}
+export class RetrySaveStrategy implements SaveStrategy {
+  private contentValidator = new ContentValidator();
+  private roleValidator = new RoleValidator();
+  private contentProcessor = new ContentProcessor();
   
   /**
-   * Save message with retry strategy
+   * Save a message with retry logic
    */
   async saveMessage(
-    role: 'user' | 'assistant', 
-    content: string
+    role: 'user' | 'assistant',
+    content: string,
+    options: {
+      messageId?: string;
+      maxRetries?: number;
+      showNotification?: boolean;
+    } = {}
   ): Promise<Message | null> {
-    // Skip empty messages
-    if (!content || content.trim() === '') {
-      console.log(`Skipping empty ${role} message`);
+    const { maxRetries = 3, showNotification = false } = options;
+    
+    // Validate role
+    if (!this.roleValidator.isValidRole(role)) {
+      console.error(`[RetrySaveStrategy] Invalid role: ${role}`);
+      throw this.roleValidator.createInvalidRoleError(role);
+    }
+    
+    // Validate content
+    if (!this.contentValidator.isValidContent(content)) {
+      console.log(`[RetrySaveStrategy] Skipping empty ${role} message`);
       return null;
     }
     
-    try {
-      console.log(`Saving ${role} message with retry: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
+    // Check for duplicates
+    if (this.contentProcessor.isDuplicate(role, content)) {
+      console.log(`[RetrySaveStrategy] Skipping duplicate ${role} message: ${content.substring(0, 30)}...`);
+      return null;
+    }
+    
+    // Track this message
+    this.contentProcessor.markAsProcessed(role, content);
+    
+    // Implement retry logic
+    let attempt = 0;
+    let lastError: Error | null = null;
+    
+    while (attempt < maxRetries) {
+      attempt++;
       
-      // Try multiple attempts with increasing delays
-      let attempts = 0;
-      const maxAttempts = role === 'user' ? 3 : 1;
-      const messageId = `${role}-retry-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-      
-      // For user messages, show toast
-      if (role === 'user') {
-        toast.loading(`Saving user message...`, {
-          id: messageId,
-          duration: 5000
-        });
-      }
-      
-      while (attempts < maxAttempts) {
-        try {
-          const savedMessage = await this.saveMessageCallback({
-            role: role,
-            content: content
-          });
+      try {
+        if (attempt > 1) {
+          console.log(`[RetrySaveStrategy] Retry attempt ${attempt}/${maxRetries} for ${role} message`);
           
-          console.log(`Successfully saved ${role} message to database (attempt ${attempts + 1})`, 
-            savedMessage ? `with ID: ${savedMessage.id}` : "(no ID returned)");
-          
-          // Show success toast for user messages
-          if (role === 'user') {
-            toast.success("User message saved", {
-              id: messageId,
-              description: content.substring(0, 50) + (content.length > 50 ? "..." : ""),
-              duration: 2000
+          // Show retry toast
+          if (showNotification) {
+            toast.loading(`Retrying save (${attempt}/${maxRetries})...`, {
+              id: `retry-${role}-${Date.now()}`,
+              duration: 2000,
             });
           }
-          
-          return savedMessage;
-        } catch (error) {
-          attempts++;
-          console.error(`Error saving message (attempt ${attempts}):`, error);
-          
-          if (attempts < maxAttempts) {
-            const delay = attempts * 1000;
-            console.log(`Retrying in ${delay}ms...`);
-            
-            // Update toast for user messages
-            if (role === 'user') {
-              toast.loading(`Retrying save (${attempts}/${maxAttempts})...`, {
-                id: messageId,
-                duration: delay + 2000
-              });
-            }
-            
-            await new Promise(resolve => setTimeout(resolve, delay));
-          } else {
-            // Show error toast for user messages
-            if (role === 'user') {
-              toast.error(`Failed to save message after ${maxAttempts} attempts`, {
-                id: messageId,
-                description: error instanceof Error ? error.message : "Database error",
-                duration: 3000
-              });
-            }
-            
-            throw error;
-          }
         }
+        
+        // Use the central message save service
+        const savedMessage = await messageSaveService.saveMessageToDatabase({
+          role,
+          content
+        });
+        
+        // Show success toast
+        if (showNotification && savedMessage) {
+          toast.success(`${role === 'user' ? 'Message' : 'Response'} saved`, {
+            duration: 2000,
+          });
+        }
+        
+        return savedMessage;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown error during save');
+        console.error(`[RetrySaveStrategy] Error on attempt ${attempt}/${maxRetries}:`, error);
+        
+        if (attempt >= maxRetries) {
+          break;
+        }
+        
+        // Wait before retrying
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        console.log(`[RetrySaveStrategy] Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-    } catch (error) {
-      console.error("Error in message save retry:", error);
-      return null;
+    }
+    
+    // All retries failed
+    if (showNotification) {
+      toast.error(`Failed to save ${role === 'user' ? 'message' : 'response'} after ${maxRetries} attempts`, {
+        description: lastError?.message || 'Unknown error',
+        duration: 4000,
+      });
+    }
+    
+    if (lastError) {
+      throw lastError;
     }
     
     return null;
+  }
+  
+  /**
+   * Reset processed messages tracking
+   */
+  resetProcessedTracking(): void {
+    this.contentProcessor.reset();
   }
 }

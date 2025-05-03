@@ -3,6 +3,7 @@ import { useState, useCallback } from "react";
 import { Message } from "@/utils/types";
 import { toast } from "sonner";
 import { messageSaveService } from "@/utils/chat/messaging/MessageSaveService";
+import { supabase } from "@/integrations/supabase/client"; // Added missing import
 
 export const useSaveMessage = (
   user: any,
