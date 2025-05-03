@@ -23,6 +23,18 @@ export class EventDispatcher {
       console.log('[EventDispatcher] Skipping event with no type');
       return;
     }
+    
+    // Check if this event has a registered handler in the registry
+    const registeredHandler = EventTypeRegistry.getHandlerForEvent(event.type);
+    if (registeredHandler) {
+      console.log(`[EventDispatcher] Using registered handler for event: ${event.type}`);
+      try {
+        registeredHandler(event);
+      } catch (error) {
+        console.error(`[EventDispatcher] Error in registered handler for ${event.type}:`, error);
+      }
+      return;
+    }
 
     // CRITICAL FIX: Clear, absolute role determination with no fallbacks
     // For assistant events, always set explicitRole to 'assistant'

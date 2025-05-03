@@ -26,7 +26,8 @@ export abstract class SaveStrategy {
    * Reset processed messages tracker for this strategy
    */
   resetProcessedTracking(): void {
-    this.contentProcessor.resetProcessedMessages();
+    // Make sure we're calling a method that exists on ProcessedMessagesTracker
+    this.contentProcessor.resetTracking();
   }
   
   /**

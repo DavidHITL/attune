@@ -2,6 +2,8 @@
 /**
  * Registry for event types and their roles
  */
+import { handleSessionCreated } from './handlers/SessionEventHandler';
+
 export class EventTypeRegistry {
   // Map of event types to their associated roles
   private static eventRoleMap: Record<string, 'user' | 'assistant' | null> = {
@@ -31,6 +33,12 @@ export class EventTypeRegistry {
     'conversation.item.created': null,
     'rate_limits.updated': null,
     'output_audio_buffer.started': null
+  };
+
+  // Map of event types to their associated handlers
+  private static eventHandlerMap: Record<string, Function> = {
+    // Session events
+    'session.created': handleSessionCreated
   };
 
   /**
@@ -71,6 +79,16 @@ export class EventTypeRegistry {
     
     // Unknown event type
     console.log(`[EventTypeRegistry] Unknown event type: ${eventType}`);
+    return null;
+  }
+  
+  /**
+   * Get the handler for a specific event type if one exists
+   */
+  static getHandlerForEvent(eventType: string): Function | null {
+    if (eventType in this.eventHandlerMap) {
+      return this.eventHandlerMap[eventType];
+    }
     return null;
   }
 }

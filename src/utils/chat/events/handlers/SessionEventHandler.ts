@@ -25,8 +25,21 @@ export async function handleSessionCreated(evt: any) {
     console.log('[SessionEventHandler] Conversation initialized with ID:', conversationId);
     
     // Store conversation context globally if needed
-    if (typeof window !== 'undefined' && !window.conversationContext) {
-      window.conversationContext = { conversationId };
+    if (typeof window !== 'undefined') {
+      // Don't overwrite existing context if it exists, just update it
+      if (!window.conversationContext) {
+        window.conversationContext = {
+          conversationId,
+          userId: user.id,
+          isInitialized: true,
+          messageCount: 0
+        };
+      } else {
+        // Update existing context
+        window.conversationContext.conversationId = conversationId;
+        window.conversationContext.userId = user.id;
+        window.conversationContext.isInitialized = true;
+      }
     }
     
     return conversationId;
@@ -41,6 +54,9 @@ declare global {
   interface Window {
     conversationContext?: {
       conversationId: string;
+      userId: string;
+      isInitialized: boolean;
+      messageCount: number;
     };
   }
 }
