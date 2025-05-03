@@ -2,6 +2,7 @@
 import { useCallback } from 'react';
 import { Message } from '@/utils/types';
 import { toast } from 'sonner';
+import { messageSaveService } from '@/utils/chat/messaging/MessageSaveService';
 
 export const useSaveMessageHandler = (
   user: any,
@@ -54,63 +55,72 @@ export const useSaveMessageHandler = (
         created_at: message.created_at || new Date().toISOString()
       };
       
-      // Log the exact message being sent to the database
-      console.log(`[useSaveMessageHandler] Sending message to database with role=${messageToSave.role}`, {
-        role: messageToSave.role,
-        content: messageToSave.content.substring(0, 50),
-        conversationId,
-        userId: user?.id
-      });
+      console.log(`[useSaveMessageHandler] Using central message service to save ${messageToSave.role} message`);
       
-      const savedMessage = await saveMessageToDb(messageToSave);
-      
-      if (savedMessage) {
-        console.log(`[useSaveMessageHandler] Successfully saved ${messageToSave.role} message:`, {
-          id: savedMessage.id,
-          role: savedMessage.role,
-          conversationId: savedMessage.conversation_id
-        });
-        
-        // Verify that role was preserved
-        if (savedMessage.role !== messageToSave.role) {
-          console.error(`[useSaveMessageHandler] ❌ ROLE MISMATCH: Expected=${messageToSave.role}, Actual=${savedMessage.role}`);
-          toast.error(`Role mismatch error: ${messageToSave.role} → ${savedMessage.role}`, { 
-            duration: 5000 
-          });
-        }
-        
-        // Update conversation ID if a new one was created
-        if (!conversationId && savedMessage.conversation_id) {
-          console.log('Setting new conversation ID:', savedMessage.conversation_id);
-          setConversationId(savedMessage.conversation_id);
+      // Use the central save service directly if no conversation ID
+      if (!conversationId) {
+        // Get or create conversation first
+        try {
+          // This part will be handled by the MessageSaveService
+          const savedMessage = await saveMessageToDb(messageToSave);
           
-          // NEW: Flush any queued messages now that we have a conversation ID
-          if (typeof window !== 'undefined' && window.attuneMessageQueue?.forceFlushQueue) {
-            console.log('[useSaveMessageHandler] Flushing pending message queue');
-            window.attuneMessageQueue.forceFlushQueue();
+          if (savedMessage) {
+            setMessages(prev => [...prev, savedMessage]);
+            
+            // Update conversation ID if a new one was created
+            if (savedMessage.conversation_id) {
+              console.log('Setting new conversation ID:', savedMessage.conversation_id);
+              setConversationId(savedMessage.conversation_id);
+              
+              // Flush any queued messages now that we have a conversation ID
+              if (typeof window !== 'undefined' && window.attuneMessageQueue?.forceFlushQueue) {
+                console.log('[useSaveMessageHandler] Flushing pending message queue');
+                window.attuneMessageQueue.forceFlushQueue();
+              }
+              
+              // Update global context
+              if (typeof window !== 'undefined') {
+                window.conversationContext = {
+                  conversationId: savedMessage.conversation_id,
+                  userId: user?.id || null,
+                  isInitialized: true,
+                  messageCount: window.conversationContext?.messageCount || 0
+                };
+              }
+              
+              // Notify message queue
+              if (typeof window !== 'undefined' && window.attuneMessageQueue && !window.attuneMessageQueue.isInitialized()) {
+                window.attuneMessageQueue.setConversationInitialized();
+              }
+            }
+            
+            return savedMessage;
           }
-        
-          // Update global context with all required properties
-          if (typeof window !== 'undefined') {
-            window.conversationContext = {
-              conversationId: savedMessage.conversation_id,
-              userId: user?.id || null,
-              isInitialized: true,
-              messageCount: window.conversationContext?.messageCount || 0
-            };
-          }
-        
-          // Also notify message queue if it exists
-          if (typeof window !== 'undefined' && window.attuneMessageQueue && !window.attuneMessageQueue.isInitialized()) {
-            window.attuneMessageQueue.setConversationInitialized();
-          }
+        } catch (error) {
+          console.error('[useSaveMessageHandler] Error saving message with no conversation ID:', error);
+          throw error;
         }
-      
-        setMessages(prev => [...prev, savedMessage]);
-        return savedMessage;
+      } else {
+        // We have a conversation ID, use it
+        try {
+          const result = await messageSaveService.saveMessageToDatabase({
+            role: messageToSave.role,
+            content: messageToSave.content,
+            conversation_id: conversationId,
+            user_id: user?.id
+          });
+          
+          if (result) {
+            setMessages(prev => [...prev, result]);
+            return result;
+          }
+        } catch (error) {
+          console.error('[useSaveMessageHandler] Error saving message with conversation ID:', error);
+          throw error;
+        }
       }
+      
       return undefined;
-    
     } catch (error) {
       console.error('Error in saveMessage:', error);
       

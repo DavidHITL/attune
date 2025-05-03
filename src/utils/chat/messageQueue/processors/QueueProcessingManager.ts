@@ -3,6 +3,7 @@ import { MessageSaveHandler } from '../savers/MessageSaveHandler';
 import { QueuedMessage } from '../types';
 import { ProcessingResult } from '../QueueTypes';
 import { toast } from 'sonner';
+import { messageSaveService } from '@/utils/chat/messaging/MessageSaveService';
 
 export class QueueProcessingManager {
   constructor(
@@ -27,7 +28,12 @@ export class QueueProcessingManager {
 
     try {
       console.log(`Processing ${role} message directly:`, content.substring(0, 30));
-      const savedMessage = await this.messageSaver.saveMessageDirectly(role, content);
+      
+      // Use the central message save service
+      const savedMessage = await messageSaveService.saveMessageToDatabase({
+        role: role,
+        content: content
+      });
       
       if (role === 'user') {
         toast.info("Processing user message", {

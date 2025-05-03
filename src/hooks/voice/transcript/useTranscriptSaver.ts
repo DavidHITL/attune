@@ -4,6 +4,7 @@ import { useConversationValidator } from './useConversationValidator';
 import { useTranscriptNotifications } from './useTranscriptNotifications';
 import { Message } from '@/utils/types';
 import { toast } from 'sonner';
+import { messageSaveService } from '@/utils/chat/messaging/MessageSaveService';
 
 // Create a singleton MessageQueue instance or factory to ensure it's accessible anywhere
 let globalMessageQueue: any = null;
@@ -73,19 +74,13 @@ export const useTranscriptSaver = () => {
           created_at: new Date().toISOString()
         } as Message;
       } else {
-        // FALLBACK PATH: If no message queue is available, use the direct save method
-        console.warn(`[TranscriptSaver] No message queue found, falling back to direct save for ${role} message`);
+        // Use the central message save service
+        console.log(`[TranscriptSaver] Using central message save service for ${role} transcript`);
         
-        // Create a clean, fresh object with explicitly assigned role property
-        const messageObj = {
+        const savedMessage = await messageSaveService.saveMessageToDatabase({
           role: role,
           content: transcript
-        };
-        
-        console.log(`🔒 [TranscriptSaver] FALLBACK SAVE: role="${messageObj.role}"`);
-        
-        // Call saveMessage with the fresh object
-        const savedMessage = await saveMessage(messageObj);
+        });
         
         if (savedMessage) {
           console.log(`✅ [TranscriptSaver] Message saved successfully with ID=${savedMessage.id}, FINAL ROLE="${savedMessage.role}"`);

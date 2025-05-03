@@ -1,9 +1,9 @@
-
 import { Message, SaveMessageCallback } from '../../types';
 import { toast } from 'sonner';
 import { MessageSaveStrategy } from './savers/MessageSaveStrategy';
 import { MessageProcessor } from './savers/MessageProcessor';
 import { MessageTracker } from './savers/MessageTracker';
+import { messageSaveService } from '../messaging/MessageSaveService';
 
 /**
  * Handles the actual saving of messages with retry logic
@@ -16,7 +16,17 @@ export class MessageSaver {
   constructor(private saveMessageCallback: SaveMessageCallback) {
     this.messageTracker = new MessageTracker();
     this.messageProcessor = new MessageProcessor();
-    this.messageSaveStrategy = new MessageSaveStrategy(saveMessageCallback);
+    this.messageSaveStrategy = new MessageSaveStrategy(this.handleSaveMessage.bind(this));
+  }
+
+  /**
+   * Internal wrapper for using the central message save service
+   */
+  private async handleSaveMessage(message: { role: 'user' | 'assistant', content: string }): Promise<Message | undefined> {
+    return messageSaveService.saveMessageToDatabase({
+      role: message.role,
+      content: message.content
+    });
   }
 
   /**
@@ -63,29 +73,12 @@ export class MessageSaver {
         content: content
       };
       
-      // CRITICAL: Restore logging that was accidentally removed
-      console.log(`[MessageSaver] ⚠️ PRE-SAVE ROLE CHECK: role="${messageObj.role}"`);
-      
       // Use direct save strategy with the clean object
-      const savedMessage = await this.messageSaveStrategy.saveWithDirectStrategy(messageObj.role, messageObj.content, messageId);
+      const savedMessage = await messageSaveService.saveMessageToDatabase(messageObj);
       
       // Update tracking for successful save
       if (role === 'user' && messageId) {
         this.messageTracker.removePendingUserMessage(messageId);
-      }
-      
-      // Log successful save with role for debugging
-      if (savedMessage) {
-        console.log(`[MessageSaver] ✅ Successfully saved ${role} message with ID: ${savedMessage.id}, FINAL ROLE: ${savedMessage.role}`);
-        
-        if (savedMessage.role !== role) {
-          console.error(`[MessageSaver] ❌ ROLE MISMATCH DETECTED! Expected="${role}", Actual="${savedMessage.role}"`);
-          
-          // Add a toast notification for mismatched roles to make the issue visible
-          toast.error(`Role mismatch error: Expected=${role}, Actual=${savedMessage.role}`, {
-            duration: 5000,
-          });
-        }
       }
       
       return savedMessage;

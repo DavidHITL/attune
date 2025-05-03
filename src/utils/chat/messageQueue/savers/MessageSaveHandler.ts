@@ -1,7 +1,7 @@
-
 import { SaveMessageCallback } from '../../../types';
 import { Message } from '../../../types';
 import { toast } from 'sonner';
+import { messageSaveService } from '@/utils/chat/messaging/MessageSaveService';
 
 export class MessageSaveHandler {
   private processedMessages = new Set<string>();
@@ -38,7 +38,8 @@ export class MessageSaveHandler {
       
       console.log(`[MessageSaveHandler] ⚠️ PRE-SAVE ROLE CHECK: role="${messageObj.role}"`);
       
-      const result = await this.saveMessageCallback(messageObj);
+      // Use the central message save service
+      const result = await messageSaveService.saveMessageToDatabase(messageObj);
       
       if (result) {
         console.log(`[MessageSaveHandler] ✅ Successfully saved ${role} message #${this.messageCounter[role]} with ID: ${result.id}, FINAL ROLE: ${result.role}`);
@@ -101,7 +102,8 @@ export class MessageSaveHandler {
         
         console.log(`[MessageSaveHandler] ⚠️ RETRY ${attempts} PRE-SAVE ROLE CHECK: role="${messageObj.role}"`);
         
-        const result = await this.saveMessageCallback(messageObj);
+        // Use the central message save service
+        const result = await messageSaveService.saveMessageToDatabase(messageObj);
         
         if (result) {
           console.log(`[MessageSaveHandler] ✅ Successfully saved ${role} message #${this.messageCounter[role]} with ID: ${result.id} on attempt ${attempts}, FINAL ROLE: ${result.role}`);

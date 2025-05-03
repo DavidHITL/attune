@@ -2,6 +2,7 @@
 import { Message, SaveMessageCallback } from '../../../../types';
 import { SaveOptions, SaveResult } from '../core/SaverTypes';
 import { MessageNotifier } from '../notifications/MessageNotifier';
+import { messageSaveService } from '@/utils/chat/messaging/MessageSaveService';
 
 /**
  * Handles saving of messages with exponential backoff retry strategy
@@ -44,7 +45,8 @@ export class RetrySaver {
       
       while (attempts < maxAttempts) {
         try {
-          const savedMessage = await this.saveMessageCallback({
+          // Use the central message save service
+          const savedMessage = await messageSaveService.saveMessageToDatabase({
             role: role,
             content: content
           });

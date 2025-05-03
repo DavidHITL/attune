@@ -2,6 +2,7 @@
 import { Message, SaveMessageCallback } from '../../../../types';
 import { SaveOptions, SaveResult } from '../core/SaverTypes';
 import { MessageNotifier } from '../notifications/MessageNotifier';
+import { messageSaveService } from '@/utils/chat/messaging/MessageSaveService';
 
 /**
  * Handles direct saving of messages with retry capability
@@ -44,8 +45,8 @@ export class DirectSaver {
           this.messageNotifier.showSaving(role, trackId, attempt > 1 ? attempt : undefined);
         }
         
-        // Save to database
-        savedMessage = await this.saveMessageCallback({
+        // Save to database using centralized service
+        savedMessage = await messageSaveService.saveMessageToDatabase({
           role: role,
           content: content
         });

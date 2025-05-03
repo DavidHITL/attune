@@ -1,6 +1,7 @@
 
 import { Message, SaveMessageCallback } from '../../../types';
 import { toast } from 'sonner';
+import { messageSaveService } from '@/utils/chat/messaging/MessageSaveService';
 
 /**
  * Handles saving user messages with retry logic
@@ -26,8 +27,8 @@ export class MessageSaver {
         duration: 5000
       });
       
-      // Directly save the message via the callback
-      const savedMsg = await this.saveMessageCallback({
+      // Use the central message save service
+      const savedMsg = await messageSaveService.saveMessageToDatabase({
         role: 'user',
         content: content
       });

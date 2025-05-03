@@ -1,8 +1,8 @@
 
 import { useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Message } from "@/utils/types";
 import { toast } from "sonner";
+import { messageSaveService } from "@/utils/chat/messaging/MessageSaveService";
 
 export const useSaveMessage = (
   user: any,
@@ -12,8 +12,7 @@ export const useSaveMessage = (
   const [saving, setSaving] = useState(false);
 
   /**
-   * CRITICAL FIX: Complete rewrite of saveMessage to properly handle roles
-   * Saves a message to the database 
+   * Uses central MessageSaveService to save messages to the database
    */
   const saveMessage = useCallback(
     async (message: Partial<Message>): Promise<Message | undefined> => {
@@ -30,19 +29,17 @@ export const useSaveMessage = (
       try {
         setSaving(true);
 
-        // CRITICAL FIX #1: Validate and normalize the role
-        // This enforces that role can ONLY be 'user' or 'assistant'
+        // Validate and normalize the role
         let validatedRole: 'user' | 'assistant';
         
         if (message.role !== 'user' && message.role !== 'assistant') {
           console.error(`Invalid role provided: ${message.role}. Converting to valid format.`);
-          // Use validateRole to prevent any role corruption
           validatedRole = validateRole(message.role as string);
         } else {
           validatedRole = message.role;
         }
 
-        console.log(`⚡ [useSaveMessage] Saving ${validatedRole} message to database:`, {
+        console.log(`⚡ [useSaveMessage] Using MessageSaveService to save ${validatedRole} message`, {
           role: validatedRole,
           contentPreview: message.content.substring(0, 50),
           timestamp: new Date().toISOString()
@@ -66,42 +63,12 @@ export const useSaveMessage = (
           targetConversationId = newConversation;
         }
 
-        // CRITICAL FIX #2: Explicitly construct the message object with the validated role
-        const messageToSave = {
-          role: validatedRole, // THIS IS CRITICAL - use the validated role
+        // Use the central service to save the message
+        const savedMessage = await messageSaveService.saveMessageToDatabase({
+          role: validatedRole,
           content: message.content,
           conversation_id: targetConversationId,
-          user_id: user?.id,
-        };
-
-        // Log the exact message being sent to the database
-        console.log('🔥 DATABASE INSERT - Saving message with role:', validatedRole, {
-          content: message.content.substring(0, 50),
-          conversation_id: targetConversationId,
           user_id: user?.id
-        });
-
-        // Insert the message into the database
-        const { data: savedMessage, error } = await supabase
-          .from("messages")
-          .insert(messageToSave)
-          .select("*")
-          .single();
-
-        if (error) {
-          console.error("Error saving message:", error);
-          throw error;
-        }
-
-        if (!savedMessage) {
-          console.error("No message returned from insert operation");
-          throw new Error("Failed to save message");
-        }
-
-        console.log(`✅ Successfully saved ${validatedRole} message:`, {
-          id: savedMessage.id,
-          role: savedMessage.role, // Log the role from the saved message
-          created_at: savedMessage.created_at
         });
 
         return savedMessage as Message;

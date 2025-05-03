@@ -1,6 +1,7 @@
 
 import { Message, SaveMessageCallback } from '../types';
 import { MessageSaver } from './messageQueue/MessageSaver';
+import { messageSaveService } from './messaging/MessageSaveService';
 
 export class MessageQueue {
   private queue: Array<{ role: 'user' | 'assistant', content: string, priority: boolean, time: number }> = [];
@@ -105,8 +106,11 @@ export class MessageQueue {
         });
         
         try {
-          // Always pass the validated role to prevent role mix-up
-          await this.messageSaver.saveMessageDirectly(item.role, item.content);
+          // Use the central message save service
+          await messageSaveService.saveMessageToDatabase({
+            role: item.role,
+            content: item.content
+          });
         } catch (error) {
           console.error(`[MessageQueue ${this.instanceId}] Error saving message:`, error);
         }
