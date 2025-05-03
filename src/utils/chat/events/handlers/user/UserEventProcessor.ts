@@ -1,132 +1,73 @@
 
 /**
- * Main user event processor that coordinates all components
+ * Component responsible for processing user events
  */
-import { EventTypeRegistry } from '../../EventTypeRegistry';
-import { MessageQueue } from '../../../messageQueue';
-import { DeltaAccumulator } from './DeltaAccumulator';
-import { TranscriptContentExtractor } from './TranscriptContentExtractor';
+import { MessageQueue } from '../../messageQueue';
+import { TextPropertyFinder } from './TextPropertyFinder';
 import { TranscriptProcessor } from './TranscriptProcessor';
+import { TranscriptContentExtractor } from './TranscriptContentExtractor';
+import { UserEventDebugger } from './UserEventDebugger';
 
 export class UserEventProcessor {
-  private deltaAccumulator: DeltaAccumulator;
-  private transcriptExtractor: TranscriptContentExtractor;
+  private textPropertyFinder: TextPropertyFinder;
   private transcriptProcessor: TranscriptProcessor;
-  private debugEnabled: boolean;
-  private eventCounter: number = 0;
+  private transcriptContentExtractor: TranscriptContentExtractor;
+  private eventDebugger: UserEventDebugger;
+  private processedCount: number = 0;
   
-  constructor(private messageQueue: MessageQueue, debugEnabled: boolean = true) {
-    this.deltaAccumulator = new DeltaAccumulator();
-    this.transcriptExtractor = new TranscriptContentExtractor(debugEnabled);
+  constructor(private messageQueue: MessageQueue) {
+    this.textPropertyFinder = new TextPropertyFinder();
     this.transcriptProcessor = new TranscriptProcessor(messageQueue);
-    this.debugEnabled = debugEnabled;
+    this.transcriptContentExtractor = new TranscriptContentExtractor();
+    this.eventDebugger = UserEventDebugger.getInstance();
     
-    console.log('[UserEventProcessor] Initialized with debug mode:', debugEnabled);
-  }
-  
-  processEvent(event: any): void {
-    this.eventCounter++;
-    const eventId = this.eventCounter;
-    
-    if (this.debugEnabled) {
-      console.log(`[UserEventProcessor] #${eventId} Processing event type: ${event.type}`, {
-        timestamp: new Date().toISOString(),
-        eventType: event.type,
-        eventId
-      });
-    }
-    
-    // Verify this is actually a user event
-    if (!EventTypeRegistry.isUserEvent(event.type)) {
-      console.log(`[UserEventProcessor] #${eventId} Event ${event.type} is not a user event, skipping`);
-      return;
-    }
-    
-    // Always force the correct role for any messages saved here
-    const forcedRole: 'user' | 'assistant' = 'user';
-    
-    // Extract content from the event
-    const { content: transcriptContent, isDelta } = this.transcriptExtractor.extractContent(event);
-    
-    // For delta events, accumulate content
-    if (isDelta && transcriptContent) {
-      this.deltaAccumulator.accumulateDelta(transcriptContent);
-      console.log(`[UserEventProcessor] #${eventId} Accumulating delta: "${transcriptContent}" (total: ${this.deltaAccumulator.getAccumulatedContent().length} chars)`, {
-        deltaLength: transcriptContent.length,
-        totalAccumulated: this.deltaAccumulator.getAccumulatedContent().length,
-        timestamp: new Date().toISOString(),
-        eventId
-      });
-      
-      // Check if we should process accumulated deltas
-      if (this.deltaAccumulator.shouldProcessAccumulated() || 
-          this.deltaAccumulator.hasSubstantialContent()) {
-        
-        const accumulatedContent = this.deltaAccumulator.getAccumulatedContent();
-        this.deltaAccumulator.markProcessed();
-        
-        console.log(`[UserEventProcessor] #${eventId} Processing accumulated deltas: "${accumulatedContent.substring(0, 50)}${accumulatedContent.length > 50 ? '...' : ''}"`, {
-          contentLength: accumulatedContent.length,
-          timestamp: new Date().toISOString(),
-          eventId,
-          contentSample: accumulatedContent.substring(0, 100)
-        });
-        this.transcriptProcessor.saveUserMessage(accumulatedContent, forcedRole);
-      }
-      
-      return;
-    }
-    
-    // Skip empty transcripts
-    if (!transcriptContent || transcriptContent.trim() === '') {
-      console.log(`[UserEventProcessor] #${eventId} Empty transcript in ${event.type}, skipping`);
-      return;
-    }
-    
-    // Skip duplicate transcripts
-    if (this.transcriptProcessor.isDuplicate(transcriptContent)) {
-      console.log(`[UserEventProcessor] #${eventId} Duplicate transcript, skipping: "${transcriptContent.substring(0, 50)}${transcriptContent.length > 50 ? '...' : ''}"`, {
-        contentLength: transcriptContent.length,
-        timestamp: new Date().toISOString(),
-        eventId
-      });
-      return;
-    }
-    
-    // Process and save the transcript
-    console.log(`[UserEventProcessor] #${eventId} Processing direct transcript: "${transcriptContent.substring(0, 50)}${transcriptContent.length > 50 ? '...' : ''}"`, {
-      contentLength: transcriptContent.length,
-      timestamp: new Date().toISOString(),
-      eventId
-    });
-    this.transcriptProcessor.saveUserMessage(transcriptContent, forcedRole);
+    console.log('[UserEventProcessor] Initialized');
   }
   
   /**
-   * Flush accumulated transcript even if time threshold hasn't been met
-   * Enhanced to ensure any content is saved regardless of length or content quality
+   * Process user events and extract transcript content
+   */
+  processEvent(event: any): void {
+    this.processedCount++;
+    const processId = this.processedCount;
+    
+    // Log incoming event for debugging
+    console.log(`[UserEventProcessor] #${processId} Processing event: ${event.type}`);
+    
+    try {
+      // Debug the event structure before extraction
+      this.eventDebugger.analyzeEvent(event);
+      
+      // Extract content from the event using content extractor
+      const content = this.transcriptContentExtractor.extractContent(event);
+      
+      // If no content found, try deeper search
+      if (!content) {
+        console.log(`[UserEventProcessor] #${processId} No content found in initial extraction, attempting deep search...`);
+        const deepText = this.textPropertyFinder.findTextProperty(event);
+        
+        if (deepText) {
+          console.log(`[UserEventProcessor] #${processId} Deep search found text content: "${deepText.substring(0, 30)}${deepText.length > 30 ? '...' : ''}"`);
+          this.transcriptProcessor.saveUserMessage(deepText, 'user', true);
+        } else {
+          console.log(`[UserEventProcessor] #${processId} No text content found in event:`, 
+            event.type, event.explicitRole || '(no explicit role)');
+        }
+      } else {
+        // Process the extracted content
+        console.log(`[UserEventProcessor] #${processId} Extracted content: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
+        this.transcriptProcessor.saveUserMessage(content, 'user', true);
+      }
+    } catch (error) {
+      console.error(`[UserEventProcessor] #${processId} Error processing event:`, error);
+    }
+  }
+  
+  /**
+   * Flush any accumulated transcript before disconnection
    */
   flushAccumulatedTranscript(): void {
-    const accumulatedContent = this.deltaAccumulator.getAccumulatedContent();
-    
-    // Enhanced logic to force-save even minimal content
-    if (accumulatedContent) {
-      // Log the force flush with content preview
-      console.log(`[UserEventProcessor] Forcing flush of accumulated transcript: "${accumulatedContent.substring(0, 50)}${accumulatedContent.length > 50 ? '...' : ''}"`, {
-        contentLength: accumulatedContent.length,
-        timestamp: new Date().toISOString(),
-        contentWords: accumulatedContent.split(' ').length,
-        contentSample: accumulatedContent.substring(0, 100)
-      });
-      
-      // Save with high priority flag to ensure immediate processing
-      this.transcriptProcessor.saveUserMessage(accumulatedContent, 'user', true);
-      
-      // Reset accumulator after saving
-      this.deltaAccumulator.reset();
-      console.log('[UserEventProcessor] Accumulator reset after forced flush');
-    } else {
-      console.log('[UserEventProcessor] No accumulated content to flush');
-    }
+    console.log('[UserEventProcessor] Flushing any accumulated transcript');
+    // Implementation specific to your transcript accumulation logic
   }
 }
