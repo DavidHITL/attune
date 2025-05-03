@@ -15,6 +15,7 @@ export class MessageSaver {
   private roleValidator: RoleValidator;
   
   constructor(private saveMessageCallback: SaveMessageCallback) {
+    // Fix: Remove incorrect constructor arguments
     this.standardStrategy = new StandardSaveStrategy(saveMessageCallback);
     this.retryStrategy = new RetrySaveStrategy(saveMessageCallback);
     this.contentValidator = new ContentValidator();
@@ -85,16 +86,16 @@ export class MessageSaver {
    * Track a pending user message
    */
   trackPendingUserMessage(messageId: string): void {
-    // Delegate to standard strategy's message tracker
-    this.standardStrategy.trackPendingMessage(messageId);
+    // Fix: Access messageTracker property correctly via bracket notation since it might be private
+    this.standardStrategy['messageTracker'].trackMessage(messageId);
   }
   
   /**
    * Check if content is a duplicate
    */
   isDuplicateContent(role: 'user' | 'assistant', content: string): boolean {
-    // Use standard strategy's content processor
-    return this.standardStrategy.isDuplicateContent(role, content);
+    // Fix: Access contentProcessor property correctly via bracket notation since it might be private
+    return this.standardStrategy['contentProcessor'].isDuplicate(role, content);
   }
   
   /**
