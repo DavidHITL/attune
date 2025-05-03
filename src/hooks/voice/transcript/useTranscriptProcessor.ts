@@ -20,6 +20,9 @@ export const useTranscriptProcessor = (
       role = 'user'; // Default to user as fallback if invalid
     }
     
+    // CRITICAL FIX: Log role for debugging throughout the entire system
+    console.log(`[TranscriptProcessor] CONFIRMED ROLE: ${role} before passing to saveTranscript`);
+    
     // Delegate to the saveTranscript function, passing the explicit role
     await saveTranscript(transcript, role, saveMessage);
   }, [saveTranscript, saveMessage]);

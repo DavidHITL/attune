@@ -32,7 +32,8 @@ export const useTranscriptSaver = () => {
       role = 'user'; // Default to user as fallback
     }
 
-    // Enhanced logging to track role throughout the process
+    // SUPER CRITICAL DEBUG - Log the exact role at the point of saving
+    console.log(`🔍 TRANSCRIPT ROLE CHECK: Saving message with role="${role}" at ${new Date().toISOString()}`);
     console.log(`💾 FULL TRANSCRIPT TO SAVE (Role: ${role}):`, transcript);
     
     notifyTranscriptReceived(transcript);
@@ -56,14 +57,20 @@ export const useTranscriptSaver = () => {
         }
         
         try {
-          // CRITICAL FIX: Explicitly pass the role parameter to saveMessage
+          // CRITICAL FIX: Ensure role is NEVER overwritten with hardcoded value
+          console.log(`🔒 ABOUT TO CALL saveMessage with role="${role}"`);
           savedMsg = await saveMessage({
             role: role, 
             content: transcript
           });
           
+          // Verify the role was sent correctly
+          console.log(`✅ saveMessage call completed with role="${role}"`);
+          
           if (savedMsg && savedMsg.id) {
             console.log(`✅ Successfully saved ${role} transcript with ID:`, savedMsg.id);
+            // Verify final saved role
+            console.log(`✅ Final saved message role: ${savedMsg.role}`);
             break;
           } else {
             console.warn(`⚠️ Save attempt ${attempt} returned no valid message ID`);
