@@ -39,18 +39,25 @@ export class EventDispatcher {
 
     // Handle conversation item created events specifically to queue messages
     if (event.type === 'conversation.item.created') {
+      console.log('[conversation.item.created] raw event →', event.item);
       const role = event.item?.role; // 'user' | 'assistant'
-      const text = event.item?.content?.trim();
+      const raw = event.item?.content;
+      const text = typeof raw === 'string' ? raw.trim() :
+                   // many voice events wrap the text here:
+                   raw?.text ?? raw?.value ?? '';
       
-      if (text) {
-        // Get the message queue and queue the message with high priority
-        const messageQueue = getMessageQueue();
-        if (messageQueue) {
-          console.log(`[EventDispatcher] Queueing ${role} message from conversation item with HIGH PRIORITY`);
-          messageQueue.queueMessage(role, text, /*priority*/true);
-        } else {
-          console.error('[EventDispatcher] Cannot queue message - message queue not initialized');
-        }
+      if (!text) {
+        console.warn('[EventDispatcher] No text in item.created, skipping');
+        return;
+      }
+      
+      // Get the message queue and queue the message with high priority
+      const messageQueue = getMessageQueue();
+      if (messageQueue) {
+        console.log(`[EventDispatcher] Queueing ${role} message from conversation item with HIGH PRIORITY`);
+        messageQueue.queueMessage(role, text, /*priority*/true);
+      } else {
+        console.error('[EventDispatcher] Cannot queue message - message queue not initialized');
       }
       return; // handled, don't fall through
     }
