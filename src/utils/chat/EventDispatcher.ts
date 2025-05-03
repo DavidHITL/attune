@@ -3,9 +3,9 @@
  * Event Dispatcher is the central routing mechanism for all events
  * It identifies event types and routes them to specialized handlers
  */
-import { UserEventHandler } from './handlers/UserEventHandler';
-import { AssistantEventHandler } from './handlers/AssistantEventHandler';
-import { EventTypeRegistry } from './EventTypeRegistry';
+import { UserEventHandler } from './events/handlers/UserEventHandler';
+import { AssistantEventHandler } from './events/handlers/AssistantEventHandler';
+import { EventTypeRegistry } from './events/EventTypeRegistry';
 
 export class EventDispatcher {
   constructor(
