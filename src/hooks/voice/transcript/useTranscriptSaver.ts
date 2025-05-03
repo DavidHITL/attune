@@ -26,13 +26,13 @@ export const useTranscriptSaver = () => {
       return;
     }
     
-    // CRITICAL FIX: Validate role
+    // CRITICAL FIX: Validate and enforce role correctness
     if (role !== 'user' && role !== 'assistant') {
       console.error(`❌ Invalid role provided: ${role}. Must be 'user' or 'assistant'`);
       role = 'user'; // Default to user as fallback
     }
 
-    // Log full transcript for debugging
+    // Enhanced logging to track role throughout the process
     console.log(`💾 FULL TRANSCRIPT TO SAVE (Role: ${role}):`, transcript);
     
     notifyTranscriptReceived(transcript);
@@ -56,8 +56,9 @@ export const useTranscriptSaver = () => {
         }
         
         try {
+          // CRITICAL FIX: Explicitly pass the role parameter to saveMessage
           savedMsg = await saveMessage({
-            role: role, // Use the role parameter instead of hardcoding 'user'
+            role: role, 
             content: transcript
           });
           

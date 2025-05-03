@@ -14,7 +14,13 @@ export const useTranscriptProcessor = (
   ) => {
     console.log(`[TranscriptProcessor] Processing ${role} transcript: ${transcript.substring(0, 30)}...`);
     
-    // Delegate to the saveTranscript function, passing the role
+    // Validate role is correct before proceeding
+    if (role !== 'user' && role !== 'assistant') {
+      console.error(`[TranscriptProcessor] Invalid role: ${role}, must be 'user' or 'assistant'`);
+      role = 'user'; // Default to user as fallback if invalid
+    }
+    
+    // Delegate to the saveTranscript function, passing the explicit role
     await saveTranscript(transcript, role, saveMessage);
   }, [saveTranscript, saveMessage]);
 

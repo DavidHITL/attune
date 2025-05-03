@@ -17,9 +17,17 @@ export const useTranscriptHandler = () => {
     });
 
     // IMPROVED: First determine role from the event type registry - no defaults
-    const messageRole = EventTypeRegistry.getRoleForEvent(event.type);
+    // If explicitRole is set, use that with higher priority
+    const messageRole = event.explicitRole || EventTypeRegistry.getRoleForEvent(event.type);
+    
     if (!messageRole) {
       console.log(`⚠️ Could not determine message role for event type: ${event.type}`);
+      return;
+    }
+
+    // Additional role validation - critical fix
+    if (messageRole !== 'user' && messageRole !== 'assistant') {
+      console.error(`❌ Invalid role determined: ${messageRole}. Must be 'user' or 'assistant'. Skipping.`);
       return;
     }
 
@@ -53,6 +61,7 @@ export const useTranscriptHandler = () => {
       return;
     }
 
+    // Log with explicit role for debugging
     console.log(`📝 Processing ${messageRole} content:`, {
       role: messageRole,
       contentPreview: transcriptContent.substring(0, 50),
