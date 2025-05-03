@@ -39,8 +39,7 @@ export class UserEventProcessor {
       this.eventDebugger.analyzeEvent(event);
       
       // Extract content from the event using content extractor
-      const extractionResult = this.transcriptContentExtractor.extractContent(event);
-      const content = extractionResult?.content;
+      const content = this.transcriptContentExtractor.extractContent(event);
       
       // If no content found, try deeper search
       if (!content) {
