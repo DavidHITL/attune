@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import RealtimeChat from '@/components/RealtimeChat';
@@ -10,6 +9,7 @@ import { useConversation } from '@/hooks/useConversation';
 import { toast } from 'sonner';
 import { initializeMessageQueue } from '@/utils/chat/messageQueue/QueueProvider';
 import { messageSaveService } from '@/utils/chat/messaging/MessageSaveService';
+// Keep import but don't use it for automatic initialization
 import { getOrCreateConversationId } from '@/hooks/useConversationId';
 
 const Voice = () => {
@@ -23,42 +23,10 @@ const Voice = () => {
     setBackgroundColor(BACKGROUND_COLORS.VOICE_BLUE);
   }, [setBackgroundColor]);
 
-  // CRITICAL CHANGE: Initialize conversation ID as early as possible
-  useEffect(() => {
-    const initializeEarlyConversation = async () => {
-      // Skip if already initialized or still loading auth
-      if (initializationDoneRef.current || authLoading || !user) {
-        return;
-      }
-      
-      try {
-        console.log('Voice early conversation initialization started');
-        
-        // Get or create conversation ID at component mount
-        const conversationId = await getOrCreateConversationId(user.id);
-        
-        console.log(`Early conversation ID created: ${conversationId}`);
-        initializationDoneRef.current = true;
-        
-        // Store globally for immediate use by message savers
-        if (typeof window !== 'undefined') {
-          window.__attuneConversationId = conversationId;
-          
-          // Notify components that might be waiting
-          document.dispatchEvent(new CustomEvent('conversationIdReady', { 
-            detail: { conversationId } 
-          }));
-        }
-      } catch (error) {
-        console.error('Error during early conversation initialization:', error);
-      }
-    };
-
-    // Run initialization when user is available
-    if (user && !authLoading) {
-      initializeEarlyConversation();
-    }
-  }, [user, authLoading]);
+  // CRITICAL CHANGE: DISABLED early conversation initialization
+  // The previous effect that called getOrCreateConversationId on page load has been removed
+  // Conversation ID will now only be created when explicitly needed (e.g., when a call starts)
+  // This prevents creating unnecessary conversations on page load
 
   // Initialize the message queue and connect it to the message save service
   useEffect(() => {
