@@ -1,4 +1,3 @@
-
 import { SaveMessageCallback } from '../../../types';
 import { MessageQueueCore } from '../MessageQueueCore';
 import { messageSaveService } from '../../messaging/MessageSaveService';
@@ -18,10 +17,16 @@ export class MessageProcessor {
     
     // Process all messages in queue
     while (!queueCore.isEmpty()) {
+      // If not initialized, only process priority messages
+      // Otherwise process everything in the queue
       if (!initialized) {
         const messages = queueCore.getAll();
         const anyPriorityMessages = messages.some(item => item.priority);
+        
+        // If there are no priority messages and we're not initialized,
+        // keep messages in the queue until initialization
         if (!anyPriorityMessages) {
+          console.log(`[MessageProcessor] Buffering ${messages.length} non-priority messages until conversation is initialized`);
           break;
         }
       }
@@ -43,7 +48,17 @@ export class MessageProcessor {
           conversation_id: typeof window !== 'undefined' ? window.__attuneConversationId : undefined
         });
       } catch (error) {
-        throw new Error(`Error saving ${item.role} message: ${error}`);
+        console.error(`[MessageProcessor] Error saving ${item.role} message:`, error);
+        
+        // Don't throw here - we want to continue processing other messages
+        // But re-queue this message for retry if it's important
+        if (item.priority) {
+          console.log(`[MessageProcessor] Re-queueing priority message for retry`);
+          queueCore.enqueue({
+            ...item,
+            time: Date.now() // Update time for proper sorting
+          });
+        }
       }
     }
   }

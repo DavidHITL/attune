@@ -42,7 +42,7 @@ export class QueueInitializer {
    * Ensure we have a valid conversation ID, creating one if necessary
    */
   async ensureConversationId(): Promise<string | null> {
-    // Return cached value if available
+    // Return cached id if we already have one
     if (typeof window !== 'undefined' && window.__attuneConversationId) {
       return window.__attuneConversationId;
     }
@@ -61,6 +61,15 @@ export class QueueInitializer {
             if (typeof window !== 'undefined') {
               window.__attuneConversationId = conversationId;
               this.initialized = true;
+              
+              // Dispatch event to notify other components
+              document.dispatchEvent(
+                new CustomEvent('conversationIdReady', { 
+                  detail: { conversationId } 
+                })
+              );
+              
+              console.log(`[QueueInitializer] Conversation ID set globally: ${conversationId}`);
             }
             
             resolve(conversationId);

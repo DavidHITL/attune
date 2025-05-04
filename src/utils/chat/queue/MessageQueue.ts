@@ -42,11 +42,10 @@ export class MessageQueue {
   queueMessage(role: 'user' | 'assistant', content: string, priority: boolean = false): void {
     // Create conversation ID if needed
     if (typeof window !== 'undefined' && !window.__attuneConversationId && !this.initializer.isInitialized()) {
-      this.initializer.ensureConversationId().then(conversationId => {
-        if (conversationId) {
-          this.queueMessageInternal(role, content, priority);
-        }
-      });
+      // IMPORTANT: Always queue message even without conversation ID
+      // It will be buffered until conversation is initialized
+      console.log(`[MessageQueue] Queueing ${role} message without conversation ID: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
+      this.queueMessageInternal(role, content, priority);
       return;
     }
     
@@ -83,6 +82,11 @@ export class MessageQueue {
       time: Date.now()
     });
     
+    // Enhanced logging for debugging buffering behavior
+    if (!this.initializer.isInitialized()) {
+      console.log(`[MessageQueue] Message from ${role} buffered (waiting for conversation ID): "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
+    }
+    
     // Process queue if not already processing
     if (!this.queueCore.isProcessing()) {
       this.processQueue();
@@ -100,6 +104,11 @@ export class MessageQueue {
     this.queueCore.setProcessing(true);
     
     try {
+      // Enhanced logging for debugging when initialized
+      if (this.initializer.isInitialized() && this.queueCore.size() > 0) {
+        console.log(`[MessageQueue] Flushing ${this.queueCore.size()} messages from queue`);
+      }
+      
       // Process all messages in queue
       await this.processor.processQueue(
         this.queueCore, 
@@ -132,6 +141,9 @@ export class MessageQueue {
    * This will trigger processing any pending messages
    */
   setConversationInitialized(): void {
+    // Log the state change
+    console.log(`[MessageQueue] Setting conversation initialized with ${this.queueCore.size()} messages in buffer`);
+    
     // Set initialized state in initializer
     this.initializer.setInitialized(true);
     

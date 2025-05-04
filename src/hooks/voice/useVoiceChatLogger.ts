@@ -19,21 +19,13 @@ export const useVoiceChatLogger = () => {
       messageCount: messages.length
     });
     
+    // Only show auth warning - don't warn about missing conversationId since this is expected on load
     if (!user) {
-      console.warn("User not authenticated! Messages won't be saved to database.");
+      console.warn("User not authenticated! This will affect database persistence.");
       toast.warning("Please log in to save your conversation", { duration: 5000 });
-    } else if (!conversationId) {
-      console.warn("No active conversation ID! Messages won't be saved to database.");
-      toast.warning("No active conversation. Your messages won't be saved to the database.", { 
-        id: "no-conversation-warning",
-        duration: 5000 
-      });
-    } else {
-      console.log("Voice chat ready with conversation ID:", conversationId);
-      toast.info("Voice chat initialized", { 
-        description: `Using conversation: ${conversationId}`,
-        duration: 2000
-      });
+    } else if (process.env.NODE_ENV === 'development') {
+      // Only log conversation status in development, not as a warning
+      console.log(`Conversation status: ${conversationId ? 'Active with ID: ' + conversationId : 'Pending initialization'}`);
     }
     
     // Return cleanup function
