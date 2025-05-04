@@ -33,6 +33,12 @@ export class QueueInitializer {
         if (conversationId) {
           console.log(`[QueueInitializer] Received conversation ID from event: ${conversationId}`);
           this.initialized = true;
+          
+          // Process any pending messages now that conversation is initialized
+          if (typeof window !== 'undefined' && window.attuneMessageQueue) {
+            console.log(`[QueueInitializer] Triggering message queue flush for ${conversationId}`);
+            window.attuneMessageQueue.setConversationInitialized();
+          }
         }
       });
     }

@@ -25,7 +25,11 @@ export const useVoiceChatLogger = () => {
       toast.warning("Please log in to save your conversation", { duration: 5000 });
     } else if (process.env.NODE_ENV === 'development') {
       // Only log conversation status in development, not as a warning
-      console.log(`Conversation status: ${conversationId ? 'Active with ID: ' + conversationId : 'Pending initialization'}`);
+      if (conversationId) {
+        console.log(`Conversation status: Active with ID: ${conversationId}`);
+      } else {
+        console.log("Conversation status: Pending initialization (this is normal before call start)");
+      }
     }
     
     // Return cleanup function

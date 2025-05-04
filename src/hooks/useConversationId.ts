@@ -36,6 +36,14 @@ export async function getOrCreateConversationId(userId: string) {
 
     console.log(`[getOrCreateConversationId] Successfully obtained conversation ID: ${data}`);
     window.__attuneConversationId = data;
+    
+    // Dispatch event to notify other components
+    document.dispatchEvent(
+      new CustomEvent('conversationIdReady', { 
+        detail: { conversationId: data } 
+      })
+    );
+    
     return data;
   } catch (error) {
     console.error(`[getOrCreateConversationId] Error:`, error);
