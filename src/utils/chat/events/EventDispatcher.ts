@@ -49,6 +49,13 @@ export class EventDispatcher {
                 new CustomEvent('conversationIdReady', { detail: { conversationId } })
               );
             }
+            
+            // Mark the message queue as initialized with the conversation ID
+            const messageQueue = getMessageQueue();
+            if (messageQueue) {
+              console.log(`[EventDispatcher] Setting message queue as initialized with conversation ID: ${conversationId}`);
+              messageQueue.setConversationInitialized();
+            }
           }
         })
         .catch((error) => {

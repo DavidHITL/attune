@@ -1,6 +1,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
+import { getMessageQueue } from '@/utils/chat/messageQueue/QueueProvider';
 
 export const useConversationReady = (conversationId: string | null) => {
   const [isReady, setIsReady] = useState(!!conversationId);
@@ -14,6 +15,13 @@ export const useConversationReady = (conversationId: string | null) => {
     if (conversationId) {
       console.log('[ConversationReady] Conversation ID available:', conversationId);
       setIsReady(true);
+      
+      // Also set the message queue as initialized
+      const messageQueue = getMessageQueue();
+      if (messageQueue) {
+        console.log('[ConversationReady] Setting message queue as initialized with conversation ID:', conversationId);
+        messageQueue.setConversationInitialized();
+      }
       return;
     }
     
@@ -22,6 +30,13 @@ export const useConversationReady = (conversationId: string | null) => {
       if (window.__attuneConversationId) {
         console.log('[ConversationReady] Found conversation ID in global context:', window.__attuneConversationId);
         setIsReady(true);
+        
+        // Also set the message queue as initialized
+        const messageQueue = getMessageQueue();
+        if (messageQueue) {
+          console.log('[ConversationReady] Setting message queue as initialized with conversation ID:', window.__attuneConversationId);
+          messageQueue.setConversationInitialized();
+        }
         return;
       }
     }
@@ -34,6 +49,13 @@ export const useConversationReady = (conversationId: string | null) => {
       if (id) {
         console.log('[ConversationReady] Received conversation ID from event:', id);
         setIsReady(true);
+        
+        // Set message queue as initialized when conversation ID is ready
+        const messageQueue = getMessageQueue();
+        if (messageQueue) {
+          console.log('[ConversationReady] Setting message queue as initialized with conversation ID:', id);
+          messageQueue.setConversationInitialized();
+        }
       }
     };
 

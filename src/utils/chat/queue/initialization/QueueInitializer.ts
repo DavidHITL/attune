@@ -27,13 +27,15 @@ export class QueueInitializer {
     }
 
     // Listen for conversation initialization events
-    document.addEventListener('conversationIdReady', (event: any) => {
-      const conversationId = event.detail?.conversationId;
-      if (conversationId) {
-        console.log(`[QueueInitializer] Received conversation ID from event: ${conversationId}`);
-        this.initialized = true;
-      }
-    });
+    if (typeof document !== 'undefined') {
+      document.addEventListener('conversationIdReady', (event: any) => {
+        const conversationId = event.detail?.conversationId;
+        if (conversationId) {
+          console.log(`[QueueInitializer] Received conversation ID from event: ${conversationId}`);
+          this.initialized = true;
+        }
+      });
+    }
   }
   
   /**
@@ -87,6 +89,7 @@ export class QueueInitializer {
    * Set the initialized state
    */
   setInitialized(initialized: boolean): void {
+    console.log(`[QueueInitializer] Setting initialized to: ${initialized}`);
     this.initialized = initialized;
   }
 }

@@ -129,9 +129,13 @@ export class MessageQueue {
   
   /**
    * Set the conversation initialized state
+   * This will trigger processing any pending messages
    */
   setConversationInitialized(): void {
+    // Set initialized state in initializer
     this.initializer.setInitialized(true);
+    
+    // Process any pending messages now that we're initialized
     this.processQueue();
   }
   
