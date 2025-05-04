@@ -1,4 +1,5 @@
 
+
 // Add to existing file or create if it doesn't exist
 declare global {
   interface Window {
@@ -14,3 +15,4 @@ declare global {
 }
 
 export {};
+
