@@ -53,7 +53,11 @@ export async function handleSessionCreated(evt: any) {
         window.conversationContext.isInitialized = true;
       }
       
-      console.log('[SessionEventHandler] Updated global conversation context:', window.conversationContext);
+      // NEW: Store conversation ID in dedicated global variable for immediate access
+      window.__attuneConversationId = conversationId;
+      
+      console.log('[SessionEventHandler] Updated global conversation context:', 
+        { conversationId, userId: user.id });
     }
     
     return conversationId;
@@ -72,5 +76,6 @@ declare global {
       isInitialized: boolean;
       messageCount: number;
     };
+    __attuneConversationId?: string;
   }
 }

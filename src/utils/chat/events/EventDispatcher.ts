@@ -8,6 +8,7 @@ import { AssistantEventHandler } from './handlers/AssistantEventHandler';
 import { EventTypeRegistry } from './EventTypeRegistry';
 import { messageSaveService } from '../messaging/MessageSaveService';
 import { getMessageQueue } from '../messageQueue/QueueProvider';
+import { handleSessionCreated } from './handlers/SessionEventHandler';
 
 export class EventDispatcher {
   private processedEvents = new Set<string>();
@@ -31,6 +32,28 @@ export class EventDispatcher {
     if (!event || !event.type) {
       console.log('[EventDispatcher] Skipping event with no type');
       return;
+    }
+    
+    // NEW: First handle session events which require special processing
+    if (event.type === 'session.created') {
+      console.log('[EventDispatcher] Processing session.created event');
+      // Call session event handler first to establish conversation ID early
+      handleSessionCreated(event)
+        .then((conversationId) => {
+          if (conversationId) {
+            console.log(`[EventDispatcher] Session created with conversation ID: ${conversationId}`);
+            
+            // Trigger event to notify other components that conversation ID is ready
+            if (typeof document !== 'undefined') {
+              document.dispatchEvent(
+                new CustomEvent('conversationIdReady', { detail: { conversationId } })
+              );
+            }
+          }
+        })
+        .catch((error) => {
+          console.error('[EventDispatcher] Error handling session creation:', error);
+        });
     }
     
     // Handle conversation item created events specifically to save messages through unified path
@@ -82,7 +105,10 @@ export class EventDispatcher {
     
     // Handle unclassified events
     if (!isAssistantEvent && !isUserEvent && event.type !== 'input_audio_buffer.append') {
-      console.error(`[EventDispatcher] ⚠️ UNCLASSIFIED EVENT: ${event.type} - cannot route`);
+      // NEW: Don't log errors for session events which are handled above
+      if (!event.type.startsWith('session.') && !event.type.startsWith('output_audio_buffer')) {
+        console.warn(`[EventDispatcher] UNCLASSIFIED EVENT: ${event.type}`);
+      }
       return;
     }
     
