@@ -6,6 +6,7 @@ import { MessageQueue } from '../../messageQueue';
 import { ResponseParser } from '../../ResponseParser';
 import { EventTypeRegistry } from '../EventTypeRegistry';
 import { getMessageQueue } from '../../messageQueue/QueueProvider';
+import { messageSaveService } from '../../messaging/MessageSaveService';
 
 export class AssistantEventHandler {
   private processedResponses = new Set<string>();
@@ -46,7 +47,7 @@ export class AssistantEventHandler {
       // Process the event with the response parser - pass 'assistant' as the guaranteed role
       this.responseParser.processEvent(event, 'assistant');
       
-      // CRITICAL FIX: For done events, save the assistant response to the message queue
+      // For done events, use the centralized message save path
       if (event.type === 'response.done' || event.type === 'response.content_part.done') {
         let content = null;
         
@@ -69,17 +70,21 @@ export class AssistantEventHandler {
           // Mark as processed to prevent duplicates
           this.processedResponses.add(contentKey);
           
-          console.log(`[AssistantEventHandler] Saving assistant response: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`);
+          console.log(`[AssistantEventHandler] Routing assistant response to queue: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`);
           
-          // First try to use the global message queue
+          // Get centralized message queue
           const globalMessageQueue = getMessageQueue();
+          
+          // If there's a global queue, use it for unified processing
           if (globalMessageQueue) {
-            console.log('[AssistantEventHandler] Using global message queue');
+            // Enqueue with strict 'assistant' role for unified processing
             globalMessageQueue.queueMessage('assistant', content, true);
           } else {
-            console.log('[AssistantEventHandler] Using instance message queue');
-            // Fall back to the instance queue if global not available
-            this.messageQueue.queueMessage('assistant', content, true);
+            // Fallback to direct save if no queue available
+            messageSaveService.saveMessageToDatabase({
+              role: 'assistant',
+              content: content
+            });
           }
         }
       }

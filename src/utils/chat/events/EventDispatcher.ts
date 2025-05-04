@@ -7,6 +7,7 @@ import { UserEventHandler } from './handlers/UserEventHandler';
 import { AssistantEventHandler } from './handlers/AssistantEventHandler';
 import { EventTypeRegistry } from './EventTypeRegistry';
 import { messageSaveService } from '../messaging/MessageSaveService';
+import { getMessageQueue } from '../messageQueue/QueueProvider';
 
 export class EventDispatcher {
   private processedEvents = new Set<string>();
@@ -32,7 +33,7 @@ export class EventDispatcher {
       return;
     }
     
-    // Handle conversation item created events specifically to save messages
+    // Handle conversation item created events specifically to save messages through unified path
     if (event.type === 'conversation.item.created') {
       console.log('[conversation.item.created] raw event →', event.item);
       
@@ -53,11 +54,19 @@ export class EventDispatcher {
         return;
       }
       
-      // Use the centralized save service - single save path
-      messageSaveService.saveMessageToDatabase({
-        role,
-        content: text
-      });
+      // Get the centralized message queue - use unified path for all messages
+      const messageQueue = getMessageQueue();
+      if (messageQueue) {
+        // Queue the message with correct role through unified path
+        console.log(`[EventDispatcher] Queueing ${role} message: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
+        messageQueue.queueMessage(role, text, true);
+      } else {
+        // Fallback to direct save if no queue
+        messageSaveService.saveMessageToDatabase({
+          role,
+          content: text
+        });
+      }
       
       return; // handled, don't fall through
     }

@@ -71,28 +71,25 @@ export class AssistantResponseHandler {
       // Mark as processed to prevent duplicates
       this.processedResponses.add(contentFingerprint);
       
-      // First try to use the global message queue for single source of truth
+      // Get centralized message queue - single source of truth for all messages
       const globalMessageQueue = getMessageQueue();
+      
       if (globalMessageQueue) {
-        console.log(`Routing assistant response to global queue [${finalContent.length} chars]`);
-        // CRITICAL: Force the role to be 'assistant'
+        console.log(`Routing assistant response to global queue for unified processing [${finalContent.length} chars]`);
+        // CRITICAL: Force the role to be 'assistant' and use the queue for unified processing
         globalMessageQueue.queueMessage('assistant', finalContent, true);
       } else {
-        // Fall back to the instance queue if global not available
-        console.log(`Queueing assistant response through instance queue [${finalContent.length} chars]`);
-        this.messageQueue.queueMessage('assistant', finalContent, false);
+        // Log an error since we should always have a queue
+        console.error("No global message queue available for assistant response");
       }
     } else if (!this.emptyResponseHandled) {
       const defaultMessage = "I'm listening. Could you please continue?";
       
-      // First try to use the global message queue
+      // Route default message through the same unified queue path
       const globalMessageQueue = getMessageQueue();
       if (globalMessageQueue) {
         globalMessageQueue.queueMessage('assistant', defaultMessage, true);
-      } else {
-        // Fall back to the instance queue
-        this.messageQueue.queueMessage('assistant', defaultMessage, false);
-      }
+      } 
       
       toast.error("Received an empty response from the assistant", {
         description: "This may be due to a temporary issue. Please try again.",
@@ -130,11 +127,11 @@ export class AssistantResponseHandler {
       // Mark as processed to prevent duplicates
       this.processedResponses.add(contentFingerprint);
       
-      // Try global queue first
+      // Route through the centralized queue path
       const globalMessageQueue = getMessageQueue();
       if (globalMessageQueue) {
-        console.log(`[AssistantResponseHandler] Routing content part to global queue: "${contentText.substring(0, 30)}..."`);
-        // CRITICAL: Force the role to be 'assistant'
+        console.log(`[AssistantResponseHandler] Routing content part through queue: "${contentText.substring(0, 30)}..."`);
+        // CRITICAL: Always use the queue with 'assistant' role
         globalMessageQueue.queueMessage('assistant', contentText, true);
       }
     }
@@ -145,13 +142,10 @@ export class AssistantResponseHandler {
     if (this.pendingAssistantMessage && this.assistantResponse) {
       console.log("Saving pending assistant message due to conversation truncation");
       
-      // Try global queue first
+      // Route through centralized queue
       const globalMessageQueue = getMessageQueue();
       if (globalMessageQueue) {
         globalMessageQueue.queueMessage('assistant', this.assistantResponse, true);
-      } else {
-        // Fall back to instance queue
-        this.messageQueue.queueMessage('assistant', this.assistantResponse, true);
       }
       
       this.pendingAssistantMessage = false;
@@ -162,15 +156,12 @@ export class AssistantResponseHandler {
   flushPendingResponse(): void {
     console.log("Flushing any pending assistant response");
     if (this.pendingAssistantMessage && this.assistantResponse && this.assistantResponse.trim()) {
-      console.log(`Flushing pending assistant response [${this.assistantResponse.length} chars]`);
+      console.log(`Flushing pending assistant response through queue [${this.assistantResponse.length} chars]`);
       
-      // Try global queue first
+      // Route through centralized queue
       const globalMessageQueue = getMessageQueue();
       if (globalMessageQueue) {
         globalMessageQueue.queueMessage('assistant', this.assistantResponse, true);
-      } else {
-        // Fall back to instance queue
-        this.messageQueue.queueMessage('assistant', this.assistantResponse, true);
       }
       
       this.pendingAssistantMessage = false;

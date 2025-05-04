@@ -19,8 +19,9 @@ export const useTranscriptHandler = () => {
       return;
     }
 
-    // Additional role validation
+    // Additional role validation - critical checkpoint
     if (messageRole !== 'user' && messageRole !== 'assistant') {
+      console.error(`[useTranscriptHandler] Invalid role: ${messageRole}`);
       return;
     }
 
@@ -48,13 +49,15 @@ export const useTranscriptHandler = () => {
       return;
     }
 
-    // Get the message queue - our single source of truth
+    // Get the centralized message queue - unified path for all messages
     const messageQueue = getMessageQueue();
     if (!messageQueue) {
-      return; // Early exit - no queue means no processing
+      console.error("[useTranscriptHandler] No message queue available");
+      return;
     }
     
-    // Queue message with explicit role
+    // Queue the message with strict role validation
+    console.log(`[useTranscriptHandler] Queueing ${messageRole} message through unified path`);
     messageQueue.queueMessage(messageRole, transcriptContent, true);
     
     // Show toast for user feedback
