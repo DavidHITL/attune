@@ -6,14 +6,6 @@ import { Message } from '@/utils/types';
 import { toast } from 'sonner';
 import { messageSaveService } from '@/utils/chat/messaging/MessageSaveService';
 
-// Create a singleton MessageQueue instance or factory to ensure it's accessible anywhere
-let globalMessageQueue: any = null;
-
-// Function to set the global message queue (called from main app initialization)
-export const setGlobalMessageQueue = (queue: any) => {
-  globalMessageQueue = queue;
-};
-
 export const useTranscriptSaver = () => {
   const { validateConversationContext, user } = useConversationValidator();
   const { notifyTranscriptReceived, notifyTranscriptSaved, notifyTranscriptError } = useTranscriptNotifications();
@@ -36,45 +28,22 @@ export const useTranscriptSaver = () => {
     notifyTranscriptReceived(transcript);
     
     try {
-      // UNIFIED PATH: Check if we have access to the global message queue
-      if (globalMessageQueue) {
-        // Queue the message with high priority to ensure it gets processed
-        globalMessageQueue.queueMessage(role, transcript, true);
+      // Use centralized message save service - single save path
+      const savedMessage = await messageSaveService.saveMessageToDatabase({
+        role: role,
+        content: transcript
+      });
+      
+      if (savedMessage) {
+        notifyTranscriptSaved(savedMessage.id);
         
-        // For UI feedback only - actual saving is handled by the queue
-        toast.success(`${role === 'user' ? 'Message' : 'Response'} queued for saving`, {
+        toast.success(`${role === 'user' ? 'Message' : 'Response'} saved`, {
           description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
           duration: 2000,
         });
-        
-        // We don't have an immediate ID since the queue will handle saving asynchronously
-        notifyTranscriptSaved("queued-" + Date.now());
-        
-        return {
-          id: `temp-${Date.now()}`,
-          role: role,
-          content: transcript,
-          created_at: new Date().toISOString()
-        } as Message;
-      } else {
-        // Add validation of conversation context - now wait for the promise
-        const contextValid = await validateConversationContext();
-        if (!contextValid) {
-          throw new Error("Invalid conversation context");
-        }
-        
-        // Fallback to direct save as a last resort
-        const savedMessage = await saveMessage({
-          role: role,
-          content: transcript
-        });
-        
-        if (savedMessage) {
-          notifyTranscriptSaved(savedMessage.id);
-        }
-        
-        return savedMessage;
       }
+      
+      return savedMessage as Message;
     } catch (error) {
       notifyTranscriptError(error);
       

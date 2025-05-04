@@ -39,13 +39,13 @@ export class MessageSaveService {
     message: { role: 'user' | 'assistant'; content: string; conversation_id?: string; user_id?: string }
   ): Promise<Message | null> {
     try {
-      // Validate role - critical for database integrity
+      // Strict role validation - critical for database integrity
       if (message.role !== 'user' && message.role !== 'assistant') {
         console.error(`[MessageSaveService] Invalid role: ${message.role}. Must be 'user' or 'assistant'.`);
         throw new Error(`Invalid role: ${message.role}. Must be 'user' or 'assistant'.`);
       }
       
-      // Prevent duplicate saves - check content fingerprint
+      // Prevent duplicate saves with a simple content key
       const contentKey = `${message.role}:${message.content.substring(0, 100)}`;
       if (this.recentlySavedContent.has(contentKey)) {
         console.log(`[MessageSaveService] Skipping duplicate save for ${message.role} message`);
@@ -56,23 +56,16 @@ export class MessageSaveService {
       this.recentlySavedContent.add(contentKey);
       this.activeInserts++;
       
-      // CRITICAL FIX: If no explicit conversation_id is provided, try to get from global context
+      // Get conversation ID from global context if not provided
       if (!message.conversation_id && typeof window !== 'undefined' && window.__attuneConversationId) {
         console.log(`[MessageSaveService] Using global conversation ID: ${window.__attuneConversationId}`);
         message.conversation_id = window.__attuneConversationId;
       }
       
-      // CRITICAL FIX: Ensure we have a valid user ID for authenticated users
+      // Get user ID if not provided
       if (!message.user_id) {
-        // Try to get current user ID from auth
         const { data } = await supabase.auth.getUser();
-        
-        if (data?.user) {
-          console.log(`[MessageSaveService] No user_id provided, using authenticated user ID: ${data.user.id}`);
-          message.user_id = data.user.id;
-        } else {
-          console.warn(`[MessageSaveService] No user_id provided and no authenticated user found`);
-        }
+        message.user_id = data?.user?.id;
       }
       
       // Log all message inserts for debugging
@@ -80,18 +73,17 @@ export class MessageSaveService {
         role: message.role,
         contentPreview: message.content.substring(0, 50) + (message.content.length > 50 ? '...' : ''),
         conversation_id: message.conversation_id,
-        user_id: message.user_id,
-        timestamp: new Date().toISOString(),
-        activeInserts: this.activeInserts
+        user_id: message.user_id
       });
       
-      // CRITICAL FIX: Check if we have the required conversation_id
+      // CRITICAL: Check if we have the required conversation_id
       if (!message.conversation_id) {
         console.error("[MessageSaveService] Cannot save message: Missing conversation_id");
+        toast.error("Cannot save message - no conversation ID");
         throw new Error("Missing conversation_id");
       }
       
-      // Create a clean message object to avoid reference issues
+      // Create a clean message object with validated role
       const messageToSave = {
         role: message.role,
         content: message.content,
@@ -99,7 +91,7 @@ export class MessageSaveService {
         user_id: message.user_id
       };
       
-      // Perform the database insert
+      // Perform database insert
       const { data: savedMessage, error } = await supabase
         .from("messages")
         .insert(messageToSave)
@@ -108,13 +100,6 @@ export class MessageSaveService {
       
       if (error) {
         console.error("[MessageSaveService] Error saving message:", error);
-        
-        // CRITICAL FIX: Handle RLS policy violations specifically
-        if (error.message && error.message.includes("new row violates row-level security")) {
-          console.error("[MessageSaveService] RLS policy violation - user_id mismatch or missing conversation_id");
-          toast.error("Authorization error: Cannot save message");
-        }
-        
         throw error;
       }
       
@@ -123,15 +108,7 @@ export class MessageSaveService {
         throw new Error("Failed to save message");
       }
       
-      // Verify role integrity
-      if (savedMessage.role !== message.role) {
-        console.error(`[MessageSaveService] ❌ ROLE MISMATCH: Expected=${message.role}, Actual=${savedMessage.role}`);
-        toast.error(`Role mismatch error: ${message.role} → ${savedMessage.role}`, { 
-          duration: 5000
-        });
-      } else {
-        console.log(`[MessageSaveService] ✅ Successfully saved ${message.role} message with ID: ${savedMessage.id}`);
-      }
+      console.log(`[MessageSaveService] Successfully saved ${message.role} message with ID: ${savedMessage.id}`);
       
       return savedMessage as Message;
     } catch (error) {
