@@ -16,8 +16,7 @@ export const useSaveMessageHandler = (
   const saveMessage = useCallback(async (message: Partial<Message>): Promise<Message | undefined> => {
     try {
       if (!message.role || !message.content) {
-        console.error('Cannot save message: Missing role or content');
-        return;
+        throw new Error('Cannot save message: Missing role or content');
       }
       
       // Ensure role is valid before proceeding
@@ -130,7 +129,7 @@ export const useSaveMessageHandler = (
       
       return undefined;
     } catch (error) {
-      console.error('Error in saveMessage:', error);
+      toast.error('Error saving message');
       
       const tempMessage: Message = {
         id: `temp-${Date.now()}`,

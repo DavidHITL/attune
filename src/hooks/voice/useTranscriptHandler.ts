@@ -49,7 +49,10 @@ export const useTranscriptHandler = () => {
         duration: 3000
       });
     }).catch((error) => {
-      console.error("Failed to save message:", error);
+      toast.error("Failed to save message", {
+        description: error instanceof Error ? error.message : "Unknown error",
+        duration: 4000
+      });
     });
     
   }, []);

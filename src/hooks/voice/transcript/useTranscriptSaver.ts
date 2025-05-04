@@ -18,7 +18,7 @@ export const useTranscriptSaver = () => {
   ) => {
     // Force early validation at the entry point
     if (role !== 'user' && role !== 'assistant') {
-      throw new Error(`[useTranscriptSaver] Invalid role: ${role}. Must be 'user' or 'assistant'.`);
+      throw new Error(`Invalid role: ${role}. Must be 'user' or 'assistant'.`);
     }
 
     // Validate transcript content
@@ -34,7 +34,6 @@ export const useTranscriptSaver = () => {
       
       if (messageQueue) {
         // Use the unified queue path for all messages
-        console.log(`[useTranscriptSaver] Routing ${role} message through queue`);
         messageQueue.queueMessage(role, transcript, true);
         
         // Simulate successful save for notification purposes

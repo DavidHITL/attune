@@ -31,13 +31,10 @@ export class MessageProcessor {
       
       // Critical validation: Ensure role is strictly 'user' or 'assistant'
       if (item.role !== 'user' && item.role !== 'assistant') {
-        console.error(`[MessageProcessor] Invalid role encountered: ${item.role}`);
-        continue;
+        throw new Error(`Invalid role encountered: ${item.role}. Must be 'user' or 'assistant'.`);
       }
       
       try {
-        console.log(`[MessageProcessor] Processing ${item.role} message through unified path`);
-        
         // Use the central message save service for unified processing path
         // This ensures all messages (user and assistant) go through the same code path
         await messageSaveService.saveMessageToDatabase({
@@ -46,7 +43,7 @@ export class MessageProcessor {
           conversation_id: typeof window !== 'undefined' ? window.__attuneConversationId : undefined
         });
       } catch (error) {
-        console.error(`[MessageProcessor] Error saving ${item.role} message:`, error);
+        throw new Error(`Error saving ${item.role} message: ${error}`);
       }
     }
   }

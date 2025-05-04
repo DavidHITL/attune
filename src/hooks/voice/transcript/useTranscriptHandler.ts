@@ -11,18 +11,16 @@ export const useTranscriptHandler = () => {
   const { saveMessage } = useConversation();
   
   const handleTranscriptEvent = useCallback((event: any) => {
-    // IMPROVED: First determine role from the event type registry or explicit role
-    // Prioritize explicitRole if available
+    // Determine role from the event type registry or explicit role
     const messageRole = event.explicitRole || EventTypeRegistry.getRoleForEvent(event.type);
     
     if (!messageRole) {
       return;
     }
 
-    // Additional role validation - critical checkpoint
+    // Strict role validation - critical checkpoint
     if (messageRole !== 'user' && messageRole !== 'assistant') {
-      console.error(`[useTranscriptHandler] Invalid role: ${messageRole}`);
-      return;
+      throw new Error(`Invalid role: ${messageRole}. Must be 'user' or 'assistant'.`);
     }
 
     let transcriptContent: string | null = null;
@@ -52,12 +50,10 @@ export const useTranscriptHandler = () => {
     // Get the centralized message queue - unified path for all messages
     const messageQueue = getMessageQueue();
     if (!messageQueue) {
-      console.error("[useTranscriptHandler] No message queue available");
-      return;
+      throw new Error("No message queue available");
     }
     
     // Queue the message with strict role validation
-    console.log(`[useTranscriptHandler] Queueing ${messageRole} message through unified path`);
     messageQueue.queueMessage(messageRole, transcriptContent, true);
     
     // Show toast for user feedback

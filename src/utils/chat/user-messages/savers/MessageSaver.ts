@@ -17,7 +17,6 @@ export class MessageSaver {
    * Save a user message with multiple retry attempts
    */
   async saveUserMessage(content: string, messageId: string, attempt: number = 1): Promise<Message | null> {
-    console.log(`[MessageSaver] Saving user message ${messageId} (attempt ${attempt}): ${content.substring(0, 30)}...`);
     const maxAttempts = 3;
     
     try {
@@ -34,7 +33,6 @@ export class MessageSaver {
       });
       
       if (savedMsg && savedMsg.id) {
-        console.log(`[MessageSaver] Message ${messageId} saved successfully with ID: ${savedMsg.id}`);
         this.pendingMessages.delete(messageId);
         
         // Update toast to success
@@ -49,12 +47,9 @@ export class MessageSaver {
         throw new Error("Save returned null or missing ID");
       }
     } catch (err) {
-      console.error(`[MessageSaver] Save failed for message ${messageId} (attempt ${attempt}):`, err);
-      
       if (attempt < maxAttempts) {
         // Try again with exponential backoff
         const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-        console.log(`[MessageSaver] Will retry message ${messageId} in ${delayMs}ms...`);
         
         // Update toast to retry state
         toast.loading(`Retrying save...`, {
@@ -70,7 +65,6 @@ export class MessageSaver {
           }, delayMs);
         });
       } else {
-        console.error(`[MessageSaver] All ${maxAttempts} attempts failed for message ${messageId}`);
         this.pendingMessages.delete(messageId);
         
         // Update toast to error
