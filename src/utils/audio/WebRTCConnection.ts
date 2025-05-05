@@ -27,6 +27,12 @@ export class WebRTCConnection {
       // Get session token
       const sessionData = await this.sessionManager.getSessionToken();
       
+      if (!sessionData || !sessionData.client_secret?.value) {
+        console.error("Failed to get valid session token:", sessionData);
+        throw new Error("Invalid session token received from server");
+      }
+      
+      console.log("Successfully received session token");
       this.hasReceivedSessionCreated = false;
       
       // Setup peer connection
@@ -49,10 +55,16 @@ export class WebRTCConnection {
       // Create offer and set local description
       const offer = await this.peerConnectionHandler.createLocalOffer();
       
+      if (!offer.sdp) {
+        throw new Error("Failed to create SDP offer");
+      }
+      
+      console.log("Local offer created, exchanging SDP with OpenAI");
+      
       // Exchange SDP with OpenAI
       const answer = await this.openAIRealtime.exchangeSDP(
         sessionData.client_secret.value, 
-        offer.sdp!
+        offer.sdp
       );
       
       console.log("Received answer from OpenAI:", answer);
