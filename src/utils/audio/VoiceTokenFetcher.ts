@@ -62,7 +62,7 @@ export class VoiceTokenFetcher {
       // Create a dummy offer with a special type that signals the edge function
       // to return a test response instead of calling the OpenAI API
       const dummyOffer: RTCSessionDescriptionInit = {
-        type: 'dummy-test',
+        type: 'offer' as RTCSdpType, // Using a valid RTCSdpType value
         sdp: 'dummy-sdp-for-testing'
       };
       

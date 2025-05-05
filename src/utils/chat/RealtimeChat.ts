@@ -37,25 +37,31 @@ export class RealtimeChat {
     );
     
     this.conversationInitializer = new ConversationInitializer(this.statusCallback, this.messageQueue);
-    this.microphoneManager = new MicrophoneControlManager(this.connectionManager);
+    this.microphoneManager = new MicrophoneControlManager(null); // Initialize with null, will be set later
   }
 
   async init(): Promise<boolean> {
     try {
+      // Create ConnectionManager and pass the required callbacks
       this.connectionManager = new ConnectionManager(
         // Use the message event processor for all events
         (event) => this.messageEventProcessor.processEvent(event),
         (state: 'start' | 'stop') => {
           this.statusCallback(`Audio ${state}`);
         },
-        this.saveMessageCallback,
-        this.testMode
+        this.saveMessageCallback
       );
+      
+      // Enable test mode if requested
+      if (this.testMode) {
+        console.log('[RealtimeChat] Running in test mode');
+      }
       
       const initSuccess = await this.connectionManager.initialize();
       
       if (initSuccess) {
         this.statusCallback('Connected');
+        // Pass the initialized connectionManager to the microphoneManager
         this.microphoneManager = new MicrophoneControlManager(this.connectionManager);
         this.conversationInitializer.scheduleConversationInitializationCheck();
       } else {

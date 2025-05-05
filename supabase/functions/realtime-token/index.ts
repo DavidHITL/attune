@@ -16,7 +16,7 @@ serve(async (req) => {
     }
 
     // ADD dummy test response for safe testing
-    if (offer?.type === 'dummy-test') {
+    if (offer?.sdp === 'dummy-sdp-for-testing') {
       return Response.json({
         answer: "v=0\\no=- 0 0 IN IP4 127.0.0.1\\ns=Dummy\\nt=0 0\\nm=audio 9 UDP/TLS/RTP/SAVPF 111\\nc=IN IP4 0.0.0.0\\na=rtpmap:111 opus/48000/2",
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
