@@ -1,163 +1,180 @@
+import { AudioHandler } from './AudioHandler';
+import { VoicePlayer } from './VoicePlayer';
 
-import { PeerConnectionBase } from './PeerConnectionBase';
-import { VoiceTokenFetcher } from './VoiceTokenFetcher';
-import { DataChannelManager } from './DataChannelManager';
-import { MessageCallback } from '../types';
-
-export class WebRTCConnection extends PeerConnectionBase {
-  private channelId: string | null = null;
-  private messageCallback: MessageCallback | null = null;
-  private dataChannelManager: DataChannelManager;
-  private isTestMode: boolean;
+export class WebRTCConnection {
+  private peerConnection: RTCPeerConnection | null = null;
+  private dataChannel: RTCDataChannel | null = null;
+  private audioHandler: AudioHandler;
+  private connectionId: string;
   
-  constructor(testMode: boolean = false) {
-    super();
-    this.channelId = null;
-    this.messageCallback = null;
-    this.dataChannelManager = new DataChannelManager();
-    this.isTestMode = testMode;
-    
-    console.log(`[WebRTCConnection] Created with testMode=${testMode}`);
+  constructor() {
+    this.audioHandler = new AudioHandler();
+    this.connectionId = `rtc-${Date.now().toString(36)}`;
   }
   
-  async init(messageCallback: MessageCallback): Promise<void> {
-    this.messageCallback = messageCallback;
-    this.dataChannelManager.setMessageCallback(messageCallback);
+  async init(messageHandler: (event: any) => void): Promise<void> {
+    console.log(`[WebRTCConnection ${this.connectionId}] Initializing WebRTC connection`);
     
     try {
-      // Create WebRTC peer connection
-      console.log('[WebRTCConnection] Creating peer connection');
+      // Create peer connection with ICE servers
       this.peerConnection = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
       });
       
-      // Set up data channel for messages
-      console.log('[WebRTCConnection] Setting up data channel');
-      this.dataChannel = this.dataChannelManager.setupDataChannel(this.peerConnection);
+      // Set up data channel for messaging
+      this.dataChannel = this.peerConnection.createDataChannel('events');
       
-      // Handle ICE candidates
+      // Configure data channel event handlers
+      this.dataChannel.onopen = () => {
+        console.log(`[WebRTCConnection ${this.connectionId}] Data channel opened`);
+      };
+      
+      this.dataChannel.onclose = () => {
+        console.log(`[WebRTCConnection ${this.connectionId}] Data channel closed`);
+      };
+      
+      this.dataChannel.onerror = (error) => {
+        console.error(`[WebRTCConnection ${this.connectionId}] Data channel error:`, error);
+      };
+      
+      this.dataChannel.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          messageHandler(data);
+        } catch (error) {
+          console.error(`[WebRTCConnection ${this.connectionId}] Error parsing message:`, error);
+        }
+      };
+
+      // Set up remote track handler for audio
+      this.peerConnection.ontrack = (event) => {
+        console.log(`[WebRTCConnection ${this.connectionId}] Remote track received:`, event.track.kind);
+        
+        if (event.track.kind === 'audio' && event.streams && event.streams.length > 0) {
+          console.log(`[WebRTCConnection ${this.connectionId}] Attaching audio track to player`);
+          // Use our VoicePlayer to handle audio output
+          VoicePlayer.attachRemoteStream(event.streams[0]);
+        } else {
+          console.warn(`[WebRTCConnection ${this.connectionId}] Received track is not audio or has no streams`);
+        }
+      };
+
+      // Set up ICE candidate handling
       this.peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
-          console.log('[WebRTCConnection] New ICE candidate');
+          console.log(`[WebRTCConnection ${this.connectionId}] New ICE candidate`);
         }
       };
-      
-      // Handle tracks (for receiving audio)
-      this.peerConnection.ontrack = (event) => {
-        console.log('[WebRTCConnection] Remote track received:', event.track.kind);
-        if (this.messageCallback) {
-          // Forward the track event to the message handler
-          this.messageCallback(event);
-        }
+
+      // Handle ICE connection state changes
+      this.peerConnection.oniceconnectionstatechange = () => {
+        console.log(`[WebRTCConnection ${this.connectionId}] ICE connection state:`, 
+          this.peerConnection?.iceConnectionState);
       };
       
-      // Create offer
-      console.log('[WebRTCConnection] Creating offer');
+      // Create and set local description
       const offer = await this.peerConnection.createOffer();
       await this.peerConnection.setLocalDescription(offer);
       
-      // Wait for ICE gathering to complete
-      console.log('[WebRTCConnection] Waiting for ICE gathering to complete');
-      await this.waitForIceGatheringComplete();
+      console.log(`[WebRTCConnection ${this.connectionId}] Local description set`);
       
-      if (!this.peerConnection.localDescription) {
-        throw new Error('No local description available');
+      // Get the token for OpenAI realtime API
+      const { data, error } = await fetch('/api/realtime-token').then(res => res.json());
+      
+      if (error || !data?.token) {
+        throw new Error(error || 'Failed to get token');
       }
       
-      try {
-        // Get token from Supabase Edge Function
-        console.log('[WebRTCConnection] Fetching voice token');
-        let response;
-        
-        if (this.isTestMode) {
-          console.log('[WebRTCConnection] Using test mode with dummy token');
-          response = await VoiceTokenFetcher.fetchTestToken();
-        } else {
-          console.log('[WebRTCConnection] Using actual localDescription:', 
-            this.peerConnection.localDescription.type);
-          response = await VoiceTokenFetcher.fetchVoiceToken(
-            this.peerConnection.localDescription
-          );
-        }
-        
-        // Apply remote description
-        console.log('[WebRTCConnection] Got response, applying remote description');
-        const { answer, iceServers } = response;
-        
-        // Ensure answer is in the right format
-        if (!answer) {
-          throw new Error('No answer in response');
-        }
-        
-        // Log the answer format for debugging
-        console.log('[WebRTCConnection] Answer type:', typeof answer, 
-          'structure:', JSON.stringify(answer).substring(0, 100) + '...');
-        
-        // Make sure we have a proper RTCSessionDescription object
-        const answerObj = (typeof answer === 'string')
-          ? { type: 'answer', sdp: answer } 
-          : answer;
-        
-        await this.peerConnection.setRemoteDescription(
-          new RTCSessionDescription(answerObj)
-        );
-        
-        // Apply any ICE servers from the response
-        if (iceServers && iceServers.length > 0) {
-          console.log('[WebRTCConnection] Updating ICE servers:', iceServers.length);
-          this.peerConnection.setConfiguration({
-            iceServers: iceServers
-          });
-        }
-        
-        console.log('[WebRTCConnection] Connection established successfully');
-        
-        // Simulate conversation initialization for test mode
-        if (this.isTestMode && this.messageCallback) {
-          console.log('[WebRTCConnection] Test mode: Simulating session created event');
-          setTimeout(() => {
-            if (this.messageCallback) {
-              this.messageCallback({ type: 'session.created', id: 'test-session-id' });
-            }
-          }, 500);
-        }
-      } catch (e) {
-        console.error('[WebRTCConnection] Connection error:', e);
-        this.setCallError('Voice connection failed. Please try again or check your API keys.');
-        this.teardownPeer();
-        throw e;
+      // Send offer to OpenAI and get answer
+      const response = await fetch('https://api.openai.com/v1/audio/realtime', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${data.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sdp: offer.sdp }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to get answer: ${response.statusText}`);
       }
+      
+      const answerSdp = await response.text();
+      await this.peerConnection.setRemoteDescription({
+        type: 'answer',
+        sdp: answerSdp,
+      });
+      
+      console.log(`[WebRTCConnection ${this.connectionId}] Remote description set`);
+      
     } catch (error) {
-      console.error('[WebRTCConnection] Error initializing connection:', error);
+      console.error(`[WebRTCConnection ${this.connectionId}] Init error:`, error);
       throw error;
     }
   }
   
-  sendMessage(message: any): void {
-    if (this.isTestMode) {
-      console.log('[WebRTCConnection] Test mode: Simulating sending message:', message);
-      // If in test mode, simulate response for specific message types
-      if (message.type === 'session.update') {
-        console.log('[WebRTCConnection] Test mode: Simulating session updated response');
-        setTimeout(() => {
-          if (this.messageCallback) {
-            this.messageCallback({ 
-              type: 'session.updated', 
-              session: { ...message.session } 
-            });
-          }
-        }, 300);
-      }
+  addAudioTrack(mediaStream: MediaStream): void {
+    if (!this.peerConnection) {
+      console.error(`[WebRTCConnection ${this.connectionId}] Cannot add track: connection not initialized`);
       return;
     }
     
-    this.dataChannelManager.sendMessage(message);
+    try {
+      const audioTracks = mediaStream.getAudioTracks();
+      if (audioTracks.length > 0) {
+        console.log(`[WebRTCConnection ${this.connectionId}] Adding audio track:`, audioTracks[0].label);
+        this.peerConnection.addTrack(audioTracks[0], mediaStream);
+      } else {
+        console.error(`[WebRTCConnection ${this.connectionId}] No audio tracks found in media stream`);
+      }
+    } catch (error) {
+      console.error(`[WebRTCConnection ${this.connectionId}] Error adding audio track:`, error);
+    }
   }
   
-  override disconnect(): void {
-    this.dataChannelManager.close();
-    super.disconnect();
-    this.channelId = null;
-    this.messageCallback = null;
+  sendMessage(message: any): void {
+    if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
+      console.error(`[WebRTCConnection ${this.connectionId}] Cannot send message: data channel not ready`);
+      return;
+    }
+    
+    try {
+      const messageString = JSON.stringify(message);
+      this.dataChannel.send(messageString);
+      console.log(`[WebRTCConnection ${this.connectionId}] Message sent through data channel`);
+    } catch (error) {
+      console.error(`[WebRTCConnection ${this.connectionId}] Error sending message:`, error);
+    }
+  }
+  
+  setMuted(muted: boolean): void {
+    this.audioHandler.setMuted(muted);
+  }
+  
+  disconnect(): void {
+    console.log(`[WebRTCConnection ${this.connectionId}] Disconnecting`);
+    
+    // Close data channel
+    if (this.dataChannel) {
+      this.dataChannel.close();
+      this.dataChannel = null;
+    }
+    
+    // Close peer connection
+    if (this.peerConnection) {
+      this.peerConnection.close();
+      this.peerConnection = null;
+    }
+    
+    // Clean up audio resources
+    this.audioHandler.cleanup();
+    
+    // Clean up VoicePlayer
+    VoicePlayer.cleanup();
+    
+    console.log(`[WebRTCConnection ${this.connectionId}] Disconnected`);
   }
 }

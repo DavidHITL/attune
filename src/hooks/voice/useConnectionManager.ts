@@ -22,9 +22,6 @@ export const useConnectionManager = (
   const { user } = useAuth();
   const connectionId = Math.random().toString(36).substring(2, 9);
   
-  // Always use test mode for safer testing
-  const useTestMode = true;
-  
   const startConversation = useCallback(async (): Promise<void> => {
     try {
       console.log(`[ConnectionManager ${connectionId}] Starting conversation, creating chat client...`);
@@ -37,7 +34,7 @@ export const useConnectionManager = (
         chatClientRef.current = null;
       }
       
-      console.log(`[ConnectionManager ${connectionId}] Creating new RealtimeChatClient instance with testMode: ${useTestMode}`);
+      console.log(`[ConnectionManager ${connectionId}] Creating new RealtimeChatClient instance`);
       
       // Create a wrapper for the message handler to validate event types
       const validatedMessageHandler: MessageCallback = (event) => {
@@ -57,12 +54,11 @@ export const useConnectionManager = (
         handleMessageEvent(event);
       };
       
-      // Create chat client with validated event handlers and test mode
+      // Create chat client with validated event handlers
       chatClientRef.current = new RealtimeChatClient(
         validatedMessageHandler, 
         setStatus,
-        saveMessage,
-        useTestMode
+        saveMessage
       );
       
       console.log(`[ConnectionManager ${connectionId}] Initializing chat connection`);
@@ -86,7 +82,7 @@ export const useConnectionManager = (
       setIsMicOn(false);
       throw error; // Re-throw to allow proper error handling
     }
-  }, [chatClientRef, handleMessageEvent, saveMessage, setStatus, setIsConnected, setIsMicOn, setConnectionError, user, connectionId, useTestMode]);
+  }, [chatClientRef, handleMessageEvent, saveMessage, setStatus, setIsConnected, setIsMicOn, setConnectionError, user, connectionId]);
 
   const endConversation = useCallback(async () => {
     console.log(`[ConnectionManager ${connectionId}] Ending conversation`);

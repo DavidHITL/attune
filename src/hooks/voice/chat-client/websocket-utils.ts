@@ -40,7 +40,7 @@ export const createWebSocketConnection = (
             try {
               // The WebRTC connection expects JSON parsed objects
               const jsonData = JSON.parse(data);
-              // Use the sendMessage method we've added to WebRTCConnection
+              // Use the safe sendMessage method
               webrtcConnection.sendMessage(jsonData);
             } catch (error) {
               console.error('[WebSocketUtils] Error sending data:', error);

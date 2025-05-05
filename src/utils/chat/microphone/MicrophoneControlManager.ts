@@ -1,5 +1,5 @@
 
-import { ConnectionManager } from '../../audio/ConnectionManager';
+import { ConnectionManager } from '../ConnectionManager';
 
 export class MicrophoneControlManager {
   constructor(private connectionManager: ConnectionManager | null) {}

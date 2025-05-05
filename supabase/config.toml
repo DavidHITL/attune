@@ -1,9 +1,6 @@
 
 project_id = "pixnanztazgzrtwzdpfi"
 
-[functions.realtime-token]
-verify_jwt = false
-
 [functions.analyze-messages]
 verify_jwt = false
 

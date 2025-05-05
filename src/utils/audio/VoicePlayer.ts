@@ -1,90 +1,80 @@
 
 /**
- * Utility for handling remote audio playback
+ * Singleton utility to manage audio output from the voice assistant
  */
 export class VoicePlayer {
-  private static audioEl: HTMLAudioElement | null = null;
-  private static audioCtx: AudioContext | null = null;
-  private static connectedStreamIds = new Set<string>();
+  private static remoteAudioEl: HTMLAudioElement | null = null;
+  private static audioContext: AudioContext | null = null;
   
   /**
-   * Attach a remote MediaStream (assistant audio) so it plays out loud.
+   * Attaches a remote media stream to an audio element for playback
    */
-  static attachRemoteStream(stream: MediaStream) {
-    // Skip if we've already connected this stream
-    if (this.connectedStreamIds.has(stream.id)) {
-      console.log('[VoicePlayer] Stream already attached, skipping:', stream.id);
-      return;
-    }
+  public static attachRemoteStream(stream: MediaStream): void {
+    console.info('[VoicePlayer] Attaching remote audio stream');
     
-    console.log('[VoicePlayer] Attaching remote stream:', stream.id);
-    this.connectedStreamIds.add(stream.id);
-    
-    // --- 1. hidden <audio> element ---
-    if (!this.audioEl) {
-      this.audioEl = document.createElement('audio');
-      this.audioEl.autoplay = true;
+    // Create audio element if it doesn't exist
+    if (!this.remoteAudioEl) {
+      console.info('[VoicePlayer] Creating new audio element');
+      this.remoteAudioEl = document.createElement('audio');
+      this.remoteAudioEl.autoplay = true;
       // Use setAttribute for non-standard properties
-      this.audioEl.setAttribute('playsInline', 'true');
-      this.audioEl.style.display = 'none';
-      document.body.appendChild(this.audioEl);
+      this.remoteAudioEl.setAttribute('playsinline', '');
+      this.remoteAudioEl.style.display = 'none';
+      document.body.appendChild(this.remoteAudioEl);
     }
     
-    this.audioEl.srcObject = stream;
-    this.audioEl.onplay = () => console.info('[VoicePlayer] <audio> playing');
-
-    // Try to start playback (may throw if browser blocks autoplay)
-    this.audioEl.play().catch(() => {
-      console.warn('[VoicePlayer] Autoplay blocked; using Web Audio fallback');
-    });
-
-    // --- 2. Web Audio fallback (always permitted) ---
-    if (!this.audioCtx) {
-      // Create AudioContext on first use (must be triggered by user interaction)
-      try {
-        this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      } catch (e) {
-        console.error('[VoicePlayer] Failed to create AudioContext:', e);
+    // Set the stream as the source
+    this.remoteAudioEl.srcObject = stream;
+    
+    // Make sure audio plays (for browsers that require user interaction)
+    this.remoteAudioEl.play().catch(err => {
+      console.warn('[VoicePlayer] Auto-play failed, may need user interaction:', err);
+      
+      // Create audio context as backup approach
+      if (!this.audioContext) {
+        console.info('[VoicePlayer] Creating audio context');
+        this.audioContext = new AudioContext();
       }
-    }
-    
-    if (this.audioCtx) {
-      if (this.audioCtx.state === 'suspended') {
-        this.audioCtx.resume().catch((e) => {
-          console.warn('[VoicePlayer] Failed to resume AudioContext:', e);
+      
+      // Try Web Audio API approach as fallback
+      if (this.audioContext && this.audioContext.state === 'suspended') {
+        console.info('[VoicePlayer] Attempting to resume audio context');
+        this.audioContext.resume().catch(err => {
+          console.error('[VoicePlayer] Failed to resume audio context:', err);
         });
       }
       
-      try {
-        // Connect once per stream
-        const src = this.audioCtx.createMediaStreamSource(stream);
-        src.connect(this.audioCtx.destination);
-        console.info('[VoicePlayer] Connected stream to Web Audio');
-      } catch (e) {
-        console.error('[VoicePlayer] Error connecting stream to Web Audio:', e);
+      // Create source from stream and connect to output
+      if (this.audioContext) {
+        const source = this.audioContext.createMediaStreamSource(stream);
+        source.connect(this.audioContext.destination);
+        console.info('[VoicePlayer] Connected stream to audio context destination');
       }
-    }
-
-    console.info('[VoicePlayer] Remote stream attached');
+    });
   }
   
   /**
-   * Clean up resources when call ends
+   * Disconnects and removes the audio element
    */
-  static cleanup() {
-    console.log('[VoicePlayer] Cleaning up resources');
+  public static cleanup(): void {
+    console.info('[VoicePlayer] Cleaning up audio resources');
     
-    if (this.audioEl) {
-      this.audioEl.srcObject = null;
-      this.audioEl.remove();
-      this.audioEl = null;
+    if (this.remoteAudioEl) {
+      this.remoteAudioEl.pause();
+      this.remoteAudioEl.srcObject = null;
+      
+      if (this.remoteAudioEl.parentNode) {
+        this.remoteAudioEl.parentNode.removeChild(this.remoteAudioEl);
+      }
+      
+      this.remoteAudioEl = null;
     }
     
-    if (this.audioCtx) {
-      this.audioCtx.close().catch(() => {});
-      this.audioCtx = null;
+    if (this.audioContext) {
+      this.audioContext.close().catch(err => {
+        console.error('[VoicePlayer] Error closing audio context:', err);
+      });
+      this.audioContext = null;
     }
-    
-    this.connectedStreamIds.clear();
   }
 }

@@ -1,138 +1,133 @@
+import { ConnectionManager } from './ConnectionManager';
+import { MessageQueue } from './messageQueue';
+import { ResponseParser } from './ResponseParser';
+import { UserMessageHandler } from './user-messages/UserMessageHandler';
+import { MessageEventProcessor } from './MessageEventProcessor';
+import { ConversationInitializer } from './conversation/ConversationInitializer';
+import { MicrophoneControlManager } from './microphone/MicrophoneControlManager';
+import { StatusCallback, MessageCallback, SaveMessageCallback } from '../types';
 
-// Import the ConnectionManager from the audio folder
-import { ConnectionManager } from '../audio/ConnectionManager';
-import { MessageCallback, StatusCallback, SaveMessageCallback } from '../types';
-
-/**
- * Main class for handling Realtime Chat interactions
- * This maintains the connection to OpenAI and handles both audio and text messages
- */
 export class RealtimeChat {
-  private connectionManager: ConnectionManager;
-  private status: string = 'disconnected';
-  private connectionId: string;
-  private testMode: boolean;
-
+  private connectionManager: ConnectionManager | null = null;
+  private messageQueue: MessageQueue | null = null;
+  private responseParser: ResponseParser;
+  private userMessageHandler: UserMessageHandler;
+  private messageEventProcessor: MessageEventProcessor;
+  private conversationInitializer: ConversationInitializer;
+  private microphoneManager: MicrophoneControlManager;
+  
   constructor(
-    private messageHandler: MessageCallback,
+    private messageCallback: MessageCallback,
     private statusCallback: StatusCallback,
-    private saveMessageCallback?: SaveMessageCallback,
-    testMode: boolean = false
+    private saveMessageCallback: SaveMessageCallback
   ) {
-    this.connectionId = Math.random().toString(36).substring(2, 9);
-    this.testMode = testMode;
-    console.log(`[RealtimeChat ${this.connectionId}] Creating new instance with test mode: ${testMode}`);
+    this.responseParser = new ResponseParser();
+    this.messageQueue = new MessageQueue(this.saveMessageCallback);
+    this.userMessageHandler = new UserMessageHandler(this.saveMessageCallback);
     
-    // Create connection manager to handle the WebRTC connection
-    this.connectionManager = new ConnectionManager(
-      this.handleMessage.bind(this),
-      this.handleAudioActivity.bind(this),
-      this.saveMessageCallback,
-      this.testMode
+    // Create the central message event processor
+    this.messageEventProcessor = new MessageEventProcessor(
+      this.messageQueue,
+      this.responseParser,
+      this.messageCallback
     );
+    
+    this.conversationInitializer = new ConversationInitializer(this.statusCallback, this.messageQueue);
+    this.microphoneManager = new MicrophoneControlManager(this.connectionManager);
   }
 
-  async init(): Promise<void> {
+  async init(): Promise<boolean> {
     try {
-      console.log(`[RealtimeChat ${this.connectionId}] Initializing connection`);
-      await this.connectionManager.initialize();
-      console.log(`[RealtimeChat ${this.connectionId}] Connection initialized successfully`);
-      this.updateStatus('connected');
+      this.connectionManager = new ConnectionManager(
+        // Use the message event processor for all events
+        (event) => this.messageEventProcessor.processEvent(event),
+        (state: 'start' | 'stop') => {
+          this.statusCallback(`Audio ${state}`);
+        },
+        this.saveMessageCallback
+      );
+      
+      const initSuccess = await this.connectionManager.initialize();
+      
+      if (initSuccess) {
+        this.statusCallback('Connected');
+        this.microphoneManager = new MicrophoneControlManager(this.connectionManager);
+        this.conversationInitializer.scheduleConversationInitializationCheck();
+      } else {
+        this.statusCallback('Connection Failed');
+        return false;
+      }
+
+      return true;
     } catch (error) {
-      console.error(`[RealtimeChat ${this.connectionId}] Error initializing:`, error);
-      this.updateStatus('error');
-      throw error;
+      console.error("Failed to initialize connection:", error);
+      this.statusCallback(`Initialization Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return false;
     }
   }
 
-  /**
-   * Set the microphone muted state
-   */
-  setMuted(muted: boolean): void {
-    console.log(`[RealtimeChat ${this.connectionId}] Setting muted: ${muted}`);
-    this.connectionManager.setMuted(muted);
-  }
-
-  /**
-   * Pause the microphone
-   */
+  // Microphone control methods delegate to MicrophoneControlManager
   pauseMicrophone(): void {
-    console.log(`[RealtimeChat ${this.connectionId}] Pausing microphone`);
-    this.connectionManager.pauseMicrophone();
+    this.microphoneManager.pauseMicrophone();
   }
 
-  /**
-   * Resume the microphone
-   */
   resumeMicrophone(): void {
-    console.log(`[RealtimeChat ${this.connectionId}] Resuming microphone`);
-    this.connectionManager.resumeMicrophone();
+    this.microphoneManager.resumeMicrophone();
   }
 
-  /**
-   * Force stop the microphone completely
-   */
   forceStopMicrophone(): void {
-    console.log(`[RealtimeChat ${this.connectionId}] Force stopping microphone`);
-    this.connectionManager.completelyStopMicrophone();
+    this.microphoneManager.forceStopMicrophone();
   }
 
-  /**
-   * Force resume the microphone
-   */
   forceResumeMicrophone(): void {
-    console.log(`[RealtimeChat ${this.connectionId}] Force resuming microphone`);
-    this.connectionManager.forceResumeMicrophone();
+    this.microphoneManager.forceResumeMicrophone();
   }
 
-  /**
-   * Check if the microphone is paused
-   */
+  setMuted(muted: boolean): void {
+    this.microphoneManager.setMuted(muted);
+  }
+
   isMicrophonePaused(): boolean {
-    return this.connectionManager.audioProcessor.isMicrophonePaused();
+    return this.microphoneManager.isMicrophonePaused();
   }
 
-  /**
-   * Handle messages from the connection
-   */
-  private handleMessage(event: any): void {
-    // Forward message to the message handler
-    this.messageHandler(event);
-  }
-
-  /**
-   * Handle audio activity events
-   */
-  private handleAudioActivity(state: 'start' | 'stop'): void {
-    console.log(`[RealtimeChat ${this.connectionId}] Audio activity: ${state}`);
-  }
-
-  /**
-   * Update the current status and notify the status callback
-   */
-  private updateStatus(status: string): void {
-    console.log(`[RealtimeChat ${this.connectionId}] Status: ${status}`);
-    this.status = status;
-    if (this.statusCallback) {
-      this.statusCallback(status);
+  saveUserMessage(content: string): Promise<void> {
+    if (!content || content.trim() === '') {
+      console.log("Skipping empty user message");
+      return Promise.resolve();
     }
+    
+    // Log that we're explicitly saving a user message
+    console.log(`[RealtimeChat] saveUserMessage called with content length ${content.length}, first 50 chars: "${content.substring(0, 50)}..."`);
+    
+    if (typeof window !== 'undefined' && window.attuneMessageQueue) {
+      // Explicitly set role to 'user' since this method is for user messages
+      window.attuneMessageQueue.queueMessage('user', content, true);
+      return Promise.resolve();
+    }
+    
+    return this.userMessageHandler.saveUserMessage(content);
   }
 
-  /**
-   * Disconnect from the chat
-   */
+  flushPendingMessages(): void {
+    console.log("Forcing flush of all pending messages");
+    this.messageQueue?.flushQueue().catch(err => {
+      console.error("Error flushing message queue:", err);
+    });
+    this.messageEventProcessor.flushPendingMessages();
+    this.userMessageHandler.saveTranscriptIfNotEmpty();
+  }
+
   disconnect(): void {
-    console.log(`[RealtimeChat ${this.connectionId}] Disconnecting`);
-    this.connectionManager.disconnect();
-    this.updateStatus('disconnected');
-  }
-
-  /**
-   * Flush any pending messages before disconnecting
-   * This is important to ensure all messages are properly saved
-   */
-  async flushPendingMessages(): Promise<void> {
-    console.log(`[RealtimeChat ${this.connectionId}] Flushing pending messages`);
-    // No specific flush needed in our implementation
+    console.log("Disconnecting from chat...");
+    this.statusCallback('Disconnected');
+    
+    this.conversationInitializer.cleanup();
+    this.flushPendingMessages();
+    this.connectionManager?.disconnect();
+    this.userMessageHandler.cleanupProcessedMessages();
   }
 }
+
+export * from './messageQueue/types';
+export * from './messageQueue/QueueTypes';

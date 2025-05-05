@@ -1,140 +1,105 @@
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { corsHeaders } from './config.ts';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { corsHeaders } from "./config.ts";
+import { authenticateUser } from "./authService.ts";
+import { getConversationHistory, getBotConfig } from "./conversationService.ts";
+import { requestOpenAIToken } from "./openAIService.ts";
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Parse body & validate
-    let offer;
+    let user = null;
+    let requestBody = null;
+    
     try {
-      // Check if the request has a body before trying to parse it
-      const text = await req.text();
-      
-      if (!text || text.trim() === '') {
-        console.error("[realtime-token] Empty request body");
-        return Response.json(
-          { error: 'Empty request body' }, 
-          { status: 400, headers: corsHeaders }
-        );
+      // Parse request body if present
+      const contentType = req.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        requestBody = await req.json();
       }
-
+    } catch (e) {
+      // If JSON parsing fails, continue without body
+      console.error("Failed to parse request body:", e);
+    }
+    
+    // Get auth header and authenticate user - now with better error handling
+    const authHeader = req.headers.get('Authorization');
+    
+    if (authHeader) {
       try {
-        const body = JSON.parse(text);
-        offer = body.offer;
-        console.log("[realtime-token] Received offer:", offer?.type);
-      } catch (err) {
-        console.error("[realtime-token] JSON parse error:", err);
-        return Response.json(
-          { error: 'Invalid JSON in request body', details: String(err) }, 
-          { status: 400, headers: corsHeaders }
-        );
+        user = await authenticateUser(authHeader);
+        console.log("User authenticated:", user ? user.id : "failed");
+      } catch (authError) {
+        // Log the auth error but continue - we'll handle anonymous access
+        console.error("Authentication error:", authError);
       }
-    } catch (err) {
-      console.error("[realtime-token] Body parsing error:", err);
-      return Response.json(
-        { error: 'Failed to read request body', details: String(err) }, 
-        { status: 400, headers: corsHeaders }
-      );
+    } else {
+      console.log("No Authorization header present, proceeding as anonymous");
+    }
+    
+    // Even if auth fails, we can still provide a limited experience
+    let instructions = "";
+    let recentMessages = [];
+    
+    // Get bot configuration - always needed
+    const botConfig = await getBotConfig();
+    
+    console.log("Retrieved bot configuration:");
+    console.log("Instructions (first 200 chars):", botConfig.instructions.substring(0, 200));
+    console.log("Instructions length:", botConfig.instructions.length);
+    console.log("Voice:", botConfig.voice);
+    
+    instructions = botConfig.instructions;
+    
+    // If authenticated, fetch conversation history
+    if (user) {
+      try {
+        const result = await getConversationHistory(user.id);
+        instructions = result.instructions; // This already includes the base instructions + history
+        recentMessages = result.recentMessages;
+        
+        console.log("Using authenticated instructions with conversation history");
+        console.log("Instructions start (first 200 chars):", instructions.substring(0, 200));
+        console.log("Instructions length:", instructions.length);
+        console.log("Has history:", recentMessages.length > 0);
+      } catch (historyError) {
+        console.error("Error processing conversation history:", historyError);
+        // Continue with base instructions
+      }
+    } else {
+      console.log("No authenticated user, skipping conversation history");
+      instructions += "\n\nNote: The user is not authenticated, so this conversation will not be remembered.";
+      console.log("Using non-authenticated instructions");
+      console.log("Instructions start (first 200 chars):", instructions.substring(0, 200));
+      console.log("Instructions length:", instructions.length);
     }
 
-    if (!offer?.sdp || !offer?.type) {
-      console.error("[realtime-token] Missing offer details:", offer);
-      return Response.json(
-        { error: 'missing or invalid offer' }, 
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    // ADD dummy test response for safe testing
-    if (offer?.sdp === 'dummy-sdp-for-testing') {
-      console.log("[realtime-token] Returning test response for dummy sdp");
-      return Response.json({
-        answer: {
-          type: "answer",
-          sdp: "v=0\no=- 0 0 IN IP4 127.0.0.1\ns=Dummy\nt=0 0\nm=audio 9 UDP/TLS/RTP/SAVPF 111\nc=IN IP4 0.0.0.0\na=rtpmap:111 opus/48000/2"
-        },
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-      }, { headers: corsHeaders });
-    }
-
-    // 1) Secrets / config
-    const apiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!apiKey) {
-      console.error("[realtime-token] OPENAI_API_KEY not set");
-      return Response.json(
-        { error: 'OPENAI_API_KEY not set' }, 
-        { status: 500, headers: corsHeaders }
-      );
-    }
-    const OPENAI_BASE = 'https://api.openai.com';
-
-    // 2) Create realtime session
-    console.log("[realtime-token] Creating session with API key:", apiKey ? "Present (hidden)" : "Missing");
-    const sessionRes = await fetch(`${OPENAI_BASE}/v1/realtime/sessions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        modalities: ['audio', 'text'], // adjust to your use-case
-        model: 'gpt-4o-audio-preview-2024-12-17'
-      })
+    // Request an ephemeral token from OpenAI
+    const data = await requestOpenAIToken(instructions, botConfig.voice);
+    console.log("Session created successfully");
+    
+    // Return session token along with conversation context
+    const result = {
+      ...data,
+      conversation_context: {
+        has_history: recentMessages.length > 0,
+        message_count: recentMessages.length
+      }
+    };
+    
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-    
-    if (!sessionRes.ok) {
-      const body = await sessionRes.text();
-      console.error(`[realtime-token] session create failed: ${sessionRes.status}`, body);
-      return Response.json(
-        { error: 'session create failed', status: sessionRes.status, body },
-        { status: sessionRes.status, headers: corsHeaders }
-      );
-    }
-    
-    const { id: session_id } = await sessionRes.json();
-    console.log('[token] session', session_id);
-
-    // 3) Exchange SDP
-    console.log("[realtime-token] Exchanging SDP with session:", session_id);
-    const sdpRes = await fetch(
-      `${OPENAI_BASE}/v1/realtime/sessions/${session_id}/sdp:exchange`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ offer })
-      }
-    );
-    
-    if (!sdpRes.ok) {
-      const body = await sdpRes.text();
-      console.error(`[realtime-token] SDP exchange failed: ${sdpRes.status}`, body);
-      return Response.json(
-        { error: 'sdp exchange failed', status: sdpRes.status, body },
-        { status: sdpRes.status, headers: corsHeaders }
-      );
-    }
-    
-    const { answer, ice_servers } = await sdpRes.json();
-    console.log("[realtime-token] SDP exchange successful");
-
-    // 4) Success
-    return Response.json(
-      { answer, iceServers: ice_servers }, 
-      { headers: corsHeaders }
-    );
-  } catch (err) {
-    console.error("[realtime-token] Unexpected error:", err);
-    return Response.json(
-      { error: err.message ?? 'unknown' }, 
-      { status: 500, headers: corsHeaders }
-    );
+  } catch (error) {
+    console.error("Error:", error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
