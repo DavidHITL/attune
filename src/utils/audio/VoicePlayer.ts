@@ -17,7 +17,8 @@ export class VoicePlayer {
       console.info('[VoicePlayer] Creating new audio element');
       this.remoteAudioEl = document.createElement('audio');
       this.remoteAudioEl.autoplay = true;
-      this.remoteAudioEl.playsInline = true; 
+      // Use setAttribute for non-standard properties
+      this.remoteAudioEl.setAttribute('playsinline', '');
       this.remoteAudioEl.style.display = 'none';
       document.body.appendChild(this.remoteAudioEl);
     }
