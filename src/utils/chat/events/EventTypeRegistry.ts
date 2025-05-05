@@ -30,7 +30,7 @@ export class EventTypeRegistry {
     'session.created': null,
     'session.disconnected': null,
     'connection.closed': null,
-    'conversation.item.created': null,
+    'conversation.item.created': null, // Special handling for this in the dispatcher
     'rate_limits.updated': null,
     'output_audio_buffer.started': null,
     'output_audio_buffer.stopped': null

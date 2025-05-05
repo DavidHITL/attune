@@ -70,39 +70,49 @@ export class EventDispatcher {
         });
     }
     
-    // Handle conversation item created events specifically to save messages through unified path
+    // IMPROVED: Handle conversation item created events with strict role checking
     if (event.type === 'conversation.item.created') {
-      console.log('[conversation.item.created] raw event →', event.item);
-      
-      // Extract role and content from event
+      // Extract role and content from event with improved validation
       const role = event.item?.role;
+      
+      // Skip if no valid role - critical for preventing misclassification
+      if (role !== 'user' && role !== 'assistant') {
+        console.error(`[EventDispatcher] Invalid role in conversation.item.created: ${role || 'undefined'}`);
+        return;
+      }
+      
+      console.log(`[EventDispatcher] Processing conversation.item.created with role: ${role}`);
+      
       const content = event.item?.content;
       const text = typeof content === 'string' ? content.trim() :
-                   (content?.text || content?.value || '').toString().trim();
+                  (content?.text || content?.value || '').toString().trim();
       
       if (!text) {
         console.warn('[EventDispatcher] No text in item.created, skipping');
         return;
       }
       
-      // CRITICAL: Strictly validate role before saving
-      if (role !== 'user' && role !== 'assistant') {
-        console.error(`[EventDispatcher] Invalid role in conversation.item.created: ${role}`);
+      // Create a fingerprint for this event to prevent duplicates
+      const eventFingerprint = `${role}:${text.substring(0, 50)}:${Date.now()}`;
+      if (this.processedEvents.has(eventFingerprint)) {
+        console.log(`[EventDispatcher] Skipping duplicate conversation.item.created event for ${role}`);
         return;
       }
       
-      // Get the centralized message queue - use unified path for all messages
-      const messageQueue = getMessageQueue();
-      if (messageQueue) {
-        // Queue the message with correct role through unified path
-        console.log(`[EventDispatcher] Queueing ${role} message: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
-        messageQueue.queueMessage(role, text, true);
-      } else {
-        // Fallback to direct save if no queue
-        messageSaveService.saveMessageToDatabase({
-          role,
-          content: text
-        });
+      // Mark as processed
+      this.processedEvents.add(eventFingerprint);
+      
+      // Route to the appropriate handler based on role
+      if (role === 'user') {
+        console.log('[EventDispatcher] Routing USER conversation.item to user handler');
+        // Set explicit role and route to user handler
+        event.explicitRole = 'user';
+        this.userEventHandler.handleEvent(event);
+      } else if (role === 'assistant') {
+        console.log('[EventDispatcher] Routing ASSISTANT conversation.item to assistant handler');
+        // Set explicit role and route to assistant handler
+        event.explicitRole = 'assistant'; 
+        this.assistantEventHandler.handleEvent(event);
       }
       
       return; // handled, don't fall through
