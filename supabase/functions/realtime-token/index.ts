@@ -43,13 +43,11 @@ serve(async (req) => {
       console.error("[realtime-token] OPENAI_API_KEY not set");
       return Response.json({ error: 'OPENAI_API_KEY not set' }, { status: 500, headers: corsHeaders });
     }
-    
-    // Updated base URL to the new audio/realtime prefix
-    const OPENAI_BASE = 'https://api.openai.com/v1/audio/realtime';
+    const OPENAI_BASE = 'https://api.openai.com';
 
-    // 2) Create realtime session - updated endpoint
+    // 2) Create realtime session
     console.log("[realtime-token] Creating session with API key:", apiKey ? "Present (hidden)" : "Missing");
-    const sessionRes = await fetch(`${OPENAI_BASE}/sessions`, {
+    const sessionRes = await fetch(`${OPENAI_BASE}/v1/realtime/sessions`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -73,10 +71,10 @@ serve(async (req) => {
     const { id: sessionId } = await sessionRes.json();
     console.log('[token] session', sessionId);
 
-    // 3) Exchange SDP with updated URL
+    // 3) Exchange SDP with CORRECTED URL (sdp-exchange instead of sdp_exchange)
     console.log("[realtime-token] Exchanging SDP with session:", sessionId);
     const exchangeRes = await fetch(
-      `${OPENAI_BASE}/sessions/${sessionId}/sdp-exchange`,
+      `${OPENAI_BASE}/v1/realtime/sessions/${sessionId}/sdp-exchange`,
       {
         method: 'POST',
         headers: {
@@ -101,6 +99,7 @@ serve(async (req) => {
     
     const { answer, ice_servers } = await exchangeRes.json();
     console.log("[realtime-token] SDP exchange successful");
+    console.log("[realtime-token] READY");
 
     // 4) Success
     return Response.json({ answer, iceServers: ice_servers }, { headers: corsHeaders });
