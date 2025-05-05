@@ -2,36 +2,53 @@
 import { WebRTCConnection } from '../audio/WebRTCConnection';
 import { AudioProcessor } from '../audio/AudioProcessor';
 import { MessageCallback, SaveMessageCallback } from '../types';
+import { VoicePlayer } from './VoicePlayer';
 
 export class ConnectionManager {
   private webRTCConnection: WebRTCConnection;
   private audioProcessor: AudioProcessor;
+  private isTestMode: boolean;
   
   constructor(
     private messageHandler: (event: any) => void,
     private audioActivityCallback: (state: 'start' | 'stop') => void,
-    private saveMessageCallback?: SaveMessageCallback
+    private saveMessageCallback?: SaveMessageCallback,
+    testMode: boolean = false
   ) {
-    this.webRTCConnection = new WebRTCConnection();
+    this.isTestMode = testMode;
+    this.webRTCConnection = new WebRTCConnection(this.isTestMode);
     this.audioProcessor = new AudioProcessor(audioActivityCallback);
   }
   
   async initialize(): Promise<boolean> {
     try {
       // First, initialize microphone to ensure we have audio tracks
-      console.log("Setting up audio...");
+      console.log("[ConnectionManager] Setting up audio...");
       const microphone = await this.audioProcessor.initMicrophone();
       
-      console.log("Initializing WebRTC connection...");
+      console.log("[ConnectionManager] Initializing WebRTC connection" + 
+        (this.isTestMode ? " in test mode" : ""));
+        
       // Pass the message handler to the WebRTC connection
-      await this.webRTCConnection.init(this.messageHandler);
+      await this.webRTCConnection.init((event) => {
+        // Handle track events for audio playback
+        if (event.type === 'track' && event.track && event.track.kind === 'audio') {
+          console.log('[ConnectionManager] Received audio track, attaching to player');
+          if (event.streams && event.streams.length > 0) {
+            VoicePlayer.attachRemoteStream(event.streams[0]);
+          }
+        }
+        
+        // Pass all events to the original message handler
+        this.messageHandler(event);
+      });
       
       // Now that connection is established, add audio track
       this.webRTCConnection.addAudioTrack(microphone);
       
       return true;
     } catch (error) {
-      console.error("Connection error:", error);
+      console.error("[ConnectionManager] Connection error:", error);
       throw error;
     }
   }
@@ -78,5 +95,7 @@ export class ConnectionManager {
     this.webRTCConnection.disconnect();
     // Clean up audio resources
     this.audioProcessor.cleanup();
+    // Clean up VoicePlayer resources
+    VoicePlayer.cleanup();
   }
 }

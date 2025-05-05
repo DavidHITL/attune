@@ -8,6 +8,8 @@ import { TranscriptProcessor } from './TranscriptProcessor';
 import { TranscriptContentExtractor } from './TranscriptContentExtractor';
 import { UserEventDebugger } from './UserEventDebugger';
 import { EventTypeRegistry } from '../../EventTypeRegistry';
+import { getMessageQueue } from '../../../messageQueue/QueueProvider';
+import { toast } from 'sonner';
 
 export class UserEventProcessor {
   private textPropertyFinder: TextPropertyFinder;
@@ -15,6 +17,7 @@ export class UserEventProcessor {
   private transcriptContentExtractor: TranscriptContentExtractor;
   private eventDebugger: UserEventDebugger;
   private processedCount: number = 0;
+  private processedTranscripts = new Set<string>();
   
   constructor(private messageQueue: MessageQueue) {
     this.textPropertyFinder = new TextPropertyFinder();
@@ -23,6 +26,11 @@ export class UserEventProcessor {
     this.eventDebugger = UserEventDebugger.getInstance();
     
     console.log('[UserEventProcessor] Initialized');
+    
+    // Clear processed transcripts every 10 minutes to avoid memory buildup
+    setInterval(() => {
+      this.processedTranscripts.clear();
+    }, 600000);
   }
   
   /**
@@ -61,9 +69,36 @@ export class UserEventProcessor {
         const transcript = event.transcript;
         
         if (transcript && typeof transcript === 'string' && transcript.trim()) {
+          // Create fingerprint for deduplication
+          const transcriptFingerprint = `${event.type}:${transcript.substring(0, 50)}`;
+          
+          // Skip if we've already processed this exact transcript
+          if (this.processedTranscripts.has(transcriptFingerprint)) {
+            console.log(`[UserEventProcessor] #${processId} Skipping duplicate transcript`);
+            return;
+          }
+          
+          // Mark as processed
+          this.processedTranscripts.add(transcriptFingerprint);
+          
           console.log(`[UserEventProcessor] #${processId} Found transcript in input_audio_transcription: "${transcript.substring(0, 30)}${transcript.length > 30 ? '...' : ''}"`);
-          // Use the transcript processor with the 'user' role
-          this.transcriptProcessor.saveMessage(transcript, 'user', true);
+          
+          // Try using the global message queue first for consistency 
+          const globalMessageQueue = getMessageQueue();
+          if (globalMessageQueue) {
+            console.log(`[UserEventProcessor] #${processId} Using global message queue for transcript`);
+            globalMessageQueue.queueMessage('user', transcript, true);
+            
+            // Show toast notification
+            toast.success("Speech transcribed", {
+              description: transcript.substring(0, 50) + (transcript.length > 50 ? "..." : ""),
+              duration: 3000
+            });
+          } else {
+            // Fall back to local message queue
+            console.log(`[UserEventProcessor] #${processId} Using local message queue for transcript`);
+            this.transcriptProcessor.saveMessage(transcript, 'user', true);
+          }
         } else {
           console.log(`[UserEventProcessor] #${processId} No valid transcript found in input_audio_transcription event`);
         }

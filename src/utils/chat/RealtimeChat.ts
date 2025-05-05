@@ -1,4 +1,5 @@
-import { ConnectionManager } from './ConnectionManager';
+
+import { ConnectionManager } from '../audio/ConnectionManager';
 import { MessageQueue } from './messageQueue';
 import { ResponseParser } from './ResponseParser';
 import { UserMessageHandler } from './user-messages/UserMessageHandler';
@@ -15,12 +16,15 @@ export class RealtimeChat {
   private messageEventProcessor: MessageEventProcessor;
   private conversationInitializer: ConversationInitializer;
   private microphoneManager: MicrophoneControlManager;
+  private testMode: boolean;
   
   constructor(
     private messageCallback: MessageCallback,
     private statusCallback: StatusCallback,
-    private saveMessageCallback: SaveMessageCallback
+    private saveMessageCallback: SaveMessageCallback,
+    testMode: boolean = false
   ) {
+    this.testMode = testMode;
     this.responseParser = new ResponseParser();
     this.messageQueue = new MessageQueue(this.saveMessageCallback);
     this.userMessageHandler = new UserMessageHandler(this.saveMessageCallback);
@@ -44,7 +48,8 @@ export class RealtimeChat {
         (state: 'start' | 'stop') => {
           this.statusCallback(`Audio ${state}`);
         },
-        this.saveMessageCallback
+        this.saveMessageCallback,
+        this.testMode
       );
       
       const initSuccess = await this.connectionManager.initialize();

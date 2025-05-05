@@ -1,9 +1,9 @@
-
 import { WebRTCConnection } from '../audio/WebRTCConnection';
 import { AudioProcessor } from '../audio/AudioProcessor';
 import { MessageCallback, SaveMessageCallback } from '../types';
 import { MessageQueue } from './messageQueue';
 import { MessageQueuePublicInterface } from './queue/types';
+import { VoicePlayer } from '../audio/VoicePlayer';
 
 export class ConnectionManager {
   private webRTCConnection: WebRTCConnection;

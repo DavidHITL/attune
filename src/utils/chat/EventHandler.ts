@@ -32,13 +32,17 @@ export class EventHandler {
     this.userEventHandler = new UserEventHandler(messageQueue);
     const assistantEventHandler = new AssistantEventHandler(messageQueue, responseParser);
     
+    // Initialize transcript handler with a save function that uses the message queue
+    this.transcriptHandler = new TranscriptHandler((text: string) => {
+      this.messageQueue.queueMessage('user', text, true);
+    });
+    
     // Initialize support services
     this.eventDispatcher = new EventDispatcher(
       this.userEventHandler,
       assistantEventHandler
     );
     
-    this.transcriptHandler = new TranscriptHandler(messageQueue);
     this.speechEventHandler = new SpeechEventHandler(this.transcriptHandler);
     this.loggingHandler = new LoggingHandler();
     this.eventIdentifier = new EventIdentifier();

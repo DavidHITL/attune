@@ -1,4 +1,3 @@
-
 /**
  * Event Dispatcher is the central routing mechanism for all events
  * It identifies event types and routes them to specialized handlers
@@ -41,6 +40,45 @@ export class EventDispatcher {
       return;
     }
     
+    // ENHANCED: Handle Whisper transcription events specifically with increased logging
+    if (event.type === 'conversation.item.input_audio_transcription.completed') {
+      console.log('[EventDispatcher] Processing input_audio_transcription.completed event');
+      const transcript = event.transcript;
+      
+      if (transcript && typeof transcript === 'string' && transcript.trim() !== '') {
+        console.log(`[EventDispatcher] Found transcript text: "${transcript.substring(0, 50)}${transcript.length > 50 ? '...' : ''}"`);
+        
+        // Create a fingerprint to prevent duplicate processing
+        const eventFingerprint = `transcript:${transcript.substring(0, 50)}:${Date.now()}`;
+        if (this.processedEvents.has(eventFingerprint)) {
+          console.log('[EventDispatcher] Skipping duplicate transcript event');
+          return;
+        }
+        
+        // Mark as processed
+        this.processedEvents.add(eventFingerprint);
+        
+        // Get the message queue and queue this as a user message with high priority
+        const messageQueue = getMessageQueue();
+        if (messageQueue) {
+          console.log('[EventDispatcher] Queueing transcript text as user message');
+          // High priority ensures this is processed immediately
+          messageQueue.queueMessage('user', transcript, true);
+        } else {
+          console.error('[EventDispatcher] No message queue available for transcript text');
+          // As a fallback, try to use the message save service directly
+          messageSaveService.saveMessageToDatabase({
+            role: 'user',
+            content: transcript
+          }).catch(err => {
+            console.error('[EventDispatcher] Failed to save transcript via direct service:', err);
+          });
+        }
+      } else {
+        console.log('[EventDispatcher] No valid transcript text in event');
+      }
+    }
+    
     // NEW: First handle session events which require special processing
     if (event.type === 'session.created') {
       console.log('[EventDispatcher] Processing session.created event');
@@ -70,7 +108,8 @@ export class EventDispatcher {
         });
     }
     
-    // IMPROVED: Handle conversation item created events with strict role checking
+    // IMPROVED: Handle conversation item created events with strict role checking 
+    // and skip assistant role to prevent duplicate message handling
     if (event.type === 'conversation.item.created') {
       // Extract role and content from event with improved validation
       const role = event.item?.role;
@@ -78,6 +117,13 @@ export class EventDispatcher {
       // Skip if no valid role - critical for preventing misclassification
       if (role !== 'user' && role !== 'assistant') {
         console.error(`[EventDispatcher] Invalid role in conversation.item.created: ${role || 'undefined'}`);
+        return;
+      }
+      
+      // Skip assistant messages from conversation.item.created to prevent duplicates
+      // Assistant messages are already handled via response events like response.done
+      if (role === 'assistant') {
+        console.log('[EventDispatcher] Skipping ASSISTANT conversation.item.created to prevent duplicates');
         return;
       }
       
@@ -102,18 +148,12 @@ export class EventDispatcher {
       // Mark as processed
       this.processedEvents.add(eventFingerprint);
       
-      // Route to the appropriate handler based on role
-      if (role === 'user') {
-        console.log('[EventDispatcher] Routing USER conversation.item to user handler');
-        // Set explicit role and route to user handler
-        event.explicitRole = 'user';
-        this.userEventHandler.handleEvent(event);
-      } else if (role === 'assistant') {
-        console.log('[EventDispatcher] Routing ASSISTANT conversation.item to assistant handler');
-        // Set explicit role and route to assistant handler
-        event.explicitRole = 'assistant'; 
-        this.assistantEventHandler.handleEvent(event);
-      }
+      // Route only user messages from conversation.item.created
+      // We explicitly only handle user role here since we're skipping assistant role
+      console.log('[EventDispatcher] Routing USER conversation.item to user handler');
+      // Set explicit role and route to user handler
+      event.explicitRole = 'user';
+      this.userEventHandler.handleEvent(event);
       
       return; // handled, don't fall through
     }

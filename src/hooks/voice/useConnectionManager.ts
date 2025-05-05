@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
 import { MessageCallback, StatusCallback, SaveMessageCallback } from '@/utils/types';
@@ -22,6 +21,9 @@ export const useConnectionManager = (
   const { user } = useAuth();
   const connectionId = Math.random().toString(36).substring(2, 9);
   
+  // Use test mode in development for safer testing
+  const useTestMode = process.env.NODE_ENV === 'development';
+  
   const startConversation = useCallback(async (): Promise<void> => {
     try {
       console.log(`[ConnectionManager ${connectionId}] Starting conversation, creating chat client...`);
@@ -34,7 +36,7 @@ export const useConnectionManager = (
         chatClientRef.current = null;
       }
       
-      console.log(`[ConnectionManager ${connectionId}] Creating new RealtimeChatClient instance`);
+      console.log(`[ConnectionManager ${connectionId}] Creating new RealtimeChatClient instance with testMode: ${useTestMode}`);
       
       // Create a wrapper for the message handler to validate event types
       const validatedMessageHandler: MessageCallback = (event) => {
@@ -54,11 +56,12 @@ export const useConnectionManager = (
         handleMessageEvent(event);
       };
       
-      // Create chat client with validated event handlers
+      // Create chat client with validated event handlers and test mode
       chatClientRef.current = new RealtimeChatClient(
         validatedMessageHandler, 
         setStatus,
-        saveMessage
+        saveMessage,
+        useTestMode
       );
       
       console.log(`[ConnectionManager ${connectionId}] Initializing chat connection`);
@@ -82,7 +85,7 @@ export const useConnectionManager = (
       setIsMicOn(false);
       throw error; // Re-throw to allow proper error handling
     }
-  }, [chatClientRef, handleMessageEvent, saveMessage, setStatus, setIsConnected, setIsMicOn, setConnectionError, user, connectionId]);
+  }, [chatClientRef, handleMessageEvent, saveMessage, setStatus, setIsConnected, setIsMicOn, setConnectionError, user, connectionId, useTestMode]);
 
   const endConversation = useCallback(async () => {
     console.log(`[ConnectionManager ${connectionId}] Ending conversation`);

@@ -1,92 +1,104 @@
 
-import { SessionManager } from './SessionManager';
-import { AudioHandler } from './AudioHandler';
-import { PeerConnectionHandler } from './PeerConnectionHandler';
-import { OpenAIRealtime } from './OpenAIRealtime';
+import { PeerConnectionBase } from './PeerConnectionBase';
+import { VoiceTokenFetcher } from './VoiceTokenFetcher';
+import { DataChannelManager } from './DataChannelManager';
+import { MessageCallback } from '../types';
 
-export class WebRTCConnection {
-  private sessionManager: SessionManager;
-  private audioHandler: AudioHandler;
-  private peerConnectionHandler: PeerConnectionHandler;
-  private openAIRealtime: OpenAIRealtime;
-  private hasReceivedSessionCreated: boolean = false;
+export class WebRTCConnection extends PeerConnectionBase {
+  private channelId: string | null = null;
+  private messageCallback: MessageCallback | null = null;
+  private dataChannelManager: DataChannelManager;
+  private isTestMode: boolean;
   
-  constructor() {
-    this.sessionManager = new SessionManager();
-    this.audioHandler = new AudioHandler();
-    this.openAIRealtime = new OpenAIRealtime();
+  constructor(testMode: boolean = false) {
+    super();
+    this.channelId = null;
+    this.messageCallback = null;
+    this.dataChannelManager = new DataChannelManager();
+    this.isTestMode = testMode;
   }
   
-  async init(onMessage: (event: any) => void): Promise<void> {
+  async init(messageCallback: MessageCallback): Promise<void> {
+    this.messageCallback = messageCallback;
+    this.dataChannelManager.setMessageCallback(messageCallback);
+    
     try {
-      console.log("Initializing WebRTC connection");
-      
-      // Initialize peer connection handler with message callback
-      this.peerConnectionHandler = new PeerConnectionHandler(onMessage);
-      
-      // Get session token
-      const sessionData = await this.sessionManager.getSessionToken();
-      
-      this.hasReceivedSessionCreated = false;
-      
-      // Setup peer connection
-      const pc = await this.peerConnectionHandler.setupPeerConnection();
-      
-      // Set up remote audio
-      pc.ontrack = (event) => this.audioHandler.setupRemoteAudio(event);
-      
-      // Important: Get microphone access BEFORE creating the offer
-      console.log("Requesting microphone access...");
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log("Microphone access granted, adding tracks to peer connection");
-      
-      // Add all audio tracks from the microphone to the peer connection
-      stream.getAudioTracks().forEach(track => {
-        console.log("Adding audio track to peer connection:", track.label);
-        pc.addTrack(track, stream);
+      // Create WebRTC peer connection
+      this.peerConnection = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
       });
       
-      // Create offer and set local description
-      const offer = await this.peerConnectionHandler.createLocalOffer();
+      // Set up data channel for messages
+      this.dataChannel = this.dataChannelManager.setupDataChannel(this.peerConnection);
       
-      // Exchange SDP with OpenAI
-      const answer = await this.openAIRealtime.exchangeSDP(
-        sessionData.client_secret.value, 
-        offer.sdp!
-      );
+      // Handle ICE candidates
+      this.peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          console.log('[WebRTCConnection] New ICE candidate');
+        }
+      };
       
-      // Set remote description
-      await this.peerConnectionHandler.setRemoteDescription(answer);
+      // Handle tracks (for receiving audio)
+      this.peerConnection.ontrack = (event) => {
+        console.log('[WebRTCConnection] Remote track received:', event.track.kind);
+        if (this.messageCallback) {
+          // Forward the track event to the message handler
+          this.messageCallback(event);
+        }
+      };
       
+      // Create offer
+      const offer = await this.peerConnection.createOffer();
+      await this.peerConnection.setLocalDescription(offer);
+      
+      // Wait for ICE gathering to complete
+      await this.waitForIceGatheringComplete();
+      
+      if (!this.peerConnection.localDescription) {
+        throw new Error('No local description available');
+      }
+      
+      try {
+        // Get token from Supabase Edge Function
+        let response;
+        
+        if (this.isTestMode) {
+          console.log('[WebRTCConnection] Using test mode with dummy token');
+          response = await VoiceTokenFetcher.fetchTestToken();
+        } else {
+          response = await VoiceTokenFetcher.fetchVoiceToken(
+            this.peerConnection.localDescription
+          );
+        }
+        
+        // Apply remote description
+        const { answer, iceServers } = response;
+        
+        await this.peerConnection.setRemoteDescription(
+          new RTCSessionDescription(typeof answer === 'string' ? JSON.parse(answer) : answer)
+        );
+        
+        console.log('[WebRTCConnection] Connection established');
+      } catch (e) {
+        console.error('[WebRTCConnection] Connection error:', e);
+        this.setCallError('Voice connection failed. Please refresh your API keys or try later.');
+        this.teardownPeer();
+        throw e;
+      }
     } catch (error) {
-      console.error("WebRTC connection error:", error);
+      console.error('[WebRTCConnection] Error initializing connection:', error);
       throw error;
     }
   }
   
-  addAudioTrack(microphone: MediaStream): void {
-    this.peerConnectionHandler?.addAudioTrack(microphone);
+  sendMessage(message: any): void {
+    this.dataChannelManager.sendMessage(message);
   }
   
-  setMuted(muted: boolean): void {
-    this.audioHandler.setMuted(muted);
-  }
-  
-  isSessionCreated(): boolean {
-    return this.hasReceivedSessionCreated;
-  }
-  
-  setSessionCreated(created: boolean): void {
-    this.hasReceivedSessionCreated = created;
-  }
-  
-  disconnect(): void {
-    // Clean up peer connection
-    this.peerConnectionHandler?.disconnect();
-    
-    // Clean up audio
-    this.audioHandler.cleanup();
-    
-    console.log("WebRTC connection closed");
+  override disconnect(): void {
+    this.dataChannelManager.close();
+    super.disconnect();
+    this.channelId = null;
+    this.messageCallback = null;
   }
 }
