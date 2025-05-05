@@ -9,25 +9,30 @@ serve(async (req) => {
   }
 
   try {
-    // 0) Parse body & validate
+    // Parse body & validate
     let offer;
     try {
       const body = await req.json();
       offer = body.offer;
+      console.log("[realtime-token] Received offer:", offer?.type);
     } catch (err) {
-      console.error("JSON parse error:", err);
+      console.error("[realtime-token] JSON parse error:", err);
       return Response.json({ error: 'invalid JSON in request body' }, { status: 400, headers: corsHeaders });
     }
 
     if (!offer?.sdp || !offer?.type) {
-      return Response.json({ error: 'missing offer' }, { status: 400, headers: corsHeaders });
+      console.error("[realtime-token] Missing offer details:", offer);
+      return Response.json({ error: 'missing or invalid offer' }, { status: 400, headers: corsHeaders });
     }
 
     // ADD dummy test response for safe testing
     if (offer?.sdp === 'dummy-sdp-for-testing') {
       console.log("[realtime-token] Returning test response for dummy sdp");
       return Response.json({
-        answer: "v=0\\no=- 0 0 IN IP4 127.0.0.1\\ns=Dummy\\nt=0 0\\nm=audio 9 UDP/TLS/RTP/SAVPF 111\\nc=IN IP4 0.0.0.0\\na=rtpmap:111 opus/48000/2",
+        answer: {
+          type: "answer",
+          sdp: "v=0\no=- 0 0 IN IP4 127.0.0.1\ns=Dummy\nt=0 0\nm=audio 9 UDP/TLS/RTP/SAVPF 111\nc=IN IP4 0.0.0.0\na=rtpmap:111 opus/48000/2"
+        },
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
       }, { headers: corsHeaders });
     }

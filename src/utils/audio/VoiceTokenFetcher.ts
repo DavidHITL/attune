@@ -6,7 +6,7 @@ export class VoiceTokenFetcher {
    * Fetches a voice token from the Supabase Edge Function
    */
   static async fetchVoiceToken(offer: RTCSessionDescriptionInit): Promise<{ 
-    answer: string; 
+    answer: RTCSessionDescriptionInit; 
     iceServers?: RTCIceServer[] 
   }> {
     try {
@@ -49,7 +49,7 @@ export class VoiceTokenFetcher {
       }
       
       console.log('[VoiceTokenFetcher] Successfully received token');
-      return response.data as { answer: string; iceServers?: RTCIceServer[] };
+      return response.data as { answer: RTCSessionDescriptionInit; iceServers?: RTCIceServer[] };
     } catch (error) {
       console.error('[VoiceTokenFetcher] Error fetching voice token:', error);
       throw error;
@@ -60,7 +60,7 @@ export class VoiceTokenFetcher {
    * Helper method to create a test token for testing without hitting the actual API
    */
   static async fetchTestToken(): Promise<{ 
-    answer: string; 
+    answer: RTCSessionDescriptionInit; 
     iceServers?: RTCIceServer[] 
   }> {
     try {

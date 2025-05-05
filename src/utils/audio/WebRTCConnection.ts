@@ -82,24 +82,28 @@ export class WebRTCConnection extends PeerConnectionBase {
         console.log('[WebRTCConnection] Got response, applying remote description');
         const { answer, iceServers } = response;
         
-        // Parse answer if it's a string
-        let parsedAnswer;
-        if (typeof answer === 'string') {
-          try {
-            parsedAnswer = JSON.parse(answer);
-            console.log('[WebRTCConnection] Parsed string answer successfully');
-          } catch (e) {
-            console.log('[WebRTCConnection] Answer is a string but not JSON, using directly');
-            parsedAnswer = { type: 'answer', sdp: answer };
-          }
-        } else {
-          console.log('[WebRTCConnection] Answer is already an object');
-          parsedAnswer = answer;
+        // Ensure answer is in the right format
+        if (!answer) {
+          throw new Error('No answer in response');
         }
         
+        console.log('[WebRTCConnection] Answer type:', typeof answer);
+        
+        const answerObj = typeof answer === 'string' 
+          ? { type: 'answer' as RTCSdpType, sdp: answer } 
+          : answer;
+        
         await this.peerConnection.setRemoteDescription(
-          new RTCSessionDescription(parsedAnswer)
+          new RTCSessionDescription(answerObj)
         );
+        
+        // Apply any ICE servers from the response
+        if (iceServers && iceServers.length > 0) {
+          console.log('[WebRTCConnection] Updating ICE servers:', iceServers.length);
+          this.peerConnection.setConfiguration({
+            iceServers: iceServers
+          });
+        }
         
         console.log('[WebRTCConnection] Connection established');
       } catch (e) {
