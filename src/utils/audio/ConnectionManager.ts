@@ -2,6 +2,7 @@
 import { WebRTCConnection } from '../audio/WebRTCConnection';
 import { AudioProcessor } from '../audio/AudioProcessor';
 import { MessageCallback, SaveMessageCallback } from '../types';
+import { VoicePlayer } from './VoicePlayer';
 
 export class ConnectionManager {
   private webRTCConnection: WebRTCConnection;
@@ -24,7 +25,18 @@ export class ConnectionManager {
       
       console.log("Initializing WebRTC connection...");
       // Pass the message handler to the WebRTC connection
-      await this.webRTCConnection.init(this.messageHandler);
+      await this.webRTCConnection.init((event) => {
+        // Handle track events for audio playback
+        if (event.type === 'track' && event.track && event.track.kind === 'audio') {
+          console.log('[ConnectionManager] Received audio track, attaching to player');
+          if (event.streams && event.streams.length > 0) {
+            VoicePlayer.attachRemoteStream(event.streams[0]);
+          }
+        }
+        
+        // Pass all events to the original message handler
+        this.messageHandler(event);
+      });
       
       // Now that connection is established, add audio track
       this.webRTCConnection.addAudioTrack(microphone);
@@ -78,5 +90,7 @@ export class ConnectionManager {
     this.webRTCConnection.disconnect();
     // Clean up audio resources
     this.audioProcessor.cleanup();
+    // Clean up VoicePlayer resources
+    VoicePlayer.cleanup();
   }
 }
