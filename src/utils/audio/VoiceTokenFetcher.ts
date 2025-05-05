@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { SUPABASE_URL, SUPABASE_KEY } from '@/env';
+import { SUPABASE_KEY } from '@/env';
 
 export class VoiceTokenFetcher {
   /**
@@ -30,8 +30,8 @@ export class VoiceTokenFetcher {
         }
       };
       
-      // Build the URL using environment variables
-      const url = `${SUPABASE_URL}/functions/v1/realtime-token`;
+      // Hardcode the URL directly instead of using environment variable
+      const url = "https://pixnanztazgzrtwzdpfi.supabase.co/functions/v1/realtime-token";
       
       // Get current session
       const { data: { session } } = await supabase.auth.getSession();
