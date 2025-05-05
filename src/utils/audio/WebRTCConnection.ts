@@ -55,8 +55,19 @@ export class WebRTCConnection {
         offer.sdp!
       );
       
+      console.log("Received answer from OpenAI:", answer);
+      
       // Set remote description
       await this.peerConnectionHandler.setRemoteDescription(answer);
+      
+      // Set session created after successful connection
+      setTimeout(() => {
+        if (!this.hasReceivedSessionCreated) {
+          console.log("Simulating session.created event after successful connection");
+          onMessage({ type: 'session.created' });
+          this.hasReceivedSessionCreated = true;
+        }
+      }, 500);
       
     } catch (error) {
       console.error("WebRTC connection error:", error);

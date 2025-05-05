@@ -1,8 +1,9 @@
 
 // WebSocket configuration and constants
 
-// WebSocket connection URL
-export const WS_URL = import.meta.env.VITE_ATTUNE_WEBSOCKET_URL || 'ws://localhost:8080';
+// WebSocket connection URL - updated to use OpenAI's Realtime API directly without relying on env variable
+// Note: In a production environment, this should ideally go through a secure backend
+export const WS_URL = 'https://api.openai.com/v1/realtime';
 
 // Reconnection settings
 export const MAX_RECONNECT_ATTEMPTS = 3;

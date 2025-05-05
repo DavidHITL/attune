@@ -1,7 +1,8 @@
 
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
-import { CONNECTION_TIMEOUT_MS } from './websocket-config';
+import { CONNECTION_TIMEOUT_MS, WS_URL } from './websocket-config';
+import { WebRTCConnection } from '../../../utils/audio/WebRTCConnection';
 
 /**
  * Creates a WebSocket connection with timeout handling
@@ -16,46 +17,58 @@ export const createWebSocketConnection = (
   return new Promise((resolve, reject) => {
     // Generate a unique session ID
     const sessionId = uuidv4();
-    console.log(`[WebSocketUtils] Creating connection with session ID: ${sessionId}`);
+    console.log(`[WebSocketUtils] Creating WebRTC connection with session ID: ${sessionId}`);
     
     // Set a connection timeout
     const connectionTimeout = setTimeout(() => {
       reject(new Error('Connection timed out'));
     }, CONNECTION_TIMEOUT_MS);
     
-    // Create WebSocket connection
-    const websocket = new WebSocket(`${url}?session_id=${sessionId}`);
+    // Create a mock WebSocket that actually uses WebRTC
+    const webrtcConnection = new WebRTCConnection();
     
-    // Set up WebSocket event listeners
-    websocket.onopen = () => {
-      clearTimeout(connectionTimeout);
-      console.log('[WebSocketUtils] Connection opened successfully');
-      onOpen(sessionId);
-      resolve({ websocket, sessionId });
-    };
-    
-    websocket.onmessage = (event) => {
-      try {
-        // Process incoming messages using the provided handler
-        const parsedData = JSON.parse(event.data);
-        onMessage(parsedData);
-      } catch (error) {
-        console.error('[WebSocketUtils] Error parsing message:', error);
-      }
-    };
-    
-    websocket.onclose = (event) => {
-      clearTimeout(connectionTimeout);
-      console.log('[WebSocketUtils] Connection closed', event);
-      onClose(event);
-    };
-    
-    websocket.onerror = (error) => {
-      clearTimeout(connectionTimeout);
-      console.error('[WebSocketUtils] WebSocket error:', error);
-      onError(error);
-      reject(error);
-    };
+    // Initialize the WebRTC connection
+    webrtcConnection.init(onMessage)
+      .then(() => {
+        clearTimeout(connectionTimeout);
+        console.log('[WebSocketUtils] WebRTC connection established successfully');
+        
+        // Create a mock WebSocket object that wraps the WebRTC connection
+        const mockWebSocket = {
+          send: (data: string) => {
+            try {
+              // The WebRTC connection expects JSON parsed objects
+              const jsonData = JSON.parse(data);
+              const peerConnectionHandler = webrtcConnection['peerConnectionHandler'];
+              
+              // If this is a data channel and it's open, send the data
+              if (peerConnectionHandler && peerConnectionHandler['dc']) {
+                peerConnectionHandler['dc'].send(data);
+              } else {
+                console.warn('[WebSocketUtils] Data channel not ready or not available');
+              }
+            } catch (error) {
+              console.error('[WebSocketUtils] Error sending data:', error);
+            }
+          },
+          close: () => {
+            webrtcConnection.disconnect();
+          },
+          readyState: WebSocket.OPEN,
+        } as unknown as WebSocket;
+        
+        // Call the open handler
+        onOpen(sessionId);
+        
+        // Resolve with the mock websocket and session ID
+        resolve({ websocket: mockWebSocket, sessionId });
+      })
+      .catch((error) => {
+        clearTimeout(connectionTimeout);
+        console.error('[WebSocketUtils] WebRTC connection error:', error);
+        onError(error as Event);
+        reject(error);
+      });
   });
 };
 
@@ -64,15 +77,8 @@ export const createWebSocketConnection = (
  */
 export const cleanupWebSocketConnection = (websocket: WebSocket | null): void => {
   if (websocket) {
-    // Remove event listeners to prevent memory leaks
-    websocket.onopen = null;
-    websocket.onmessage = null;
-    websocket.onclose = null;
-    websocket.onerror = null;
-    
-    // Close the connection if it's open
-    if (websocket.readyState === WebSocket.OPEN || 
-        websocket.readyState === WebSocket.CONNECTING) {
+    // Check if this is our mock WebSocket with the close method
+    if (websocket.close) {
       websocket.close();
     }
   }
