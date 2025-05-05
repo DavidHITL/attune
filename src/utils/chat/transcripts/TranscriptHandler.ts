@@ -13,10 +13,11 @@ export class TranscriptHandler {
   private directHandler: DirectTranscriptHandler;
   private finalHandler: FinalTranscriptHandler;
   private lastCheckTime: number = 0;
-  // IMPROVED: More aggressive saving (500ms)
-  private saveIntervalMs: number = 500; 
+  // More aggressive saving (300ms)
+  private saveIntervalMs: number = 300; 
   private lastSaveTime: number = 0;
-  private forceSaveAfterMs: number = 1000; // Force save after 1 second without saves
+  private forceSaveAfterMs: number = 800; // Force save after 800ms without saves
+  private speechEndedTimer: number | null = null;
   
   constructor(private messageQueue: MessageQueue) {
     this.accumulator = new TranscriptAccumulator();
@@ -27,7 +28,7 @@ export class TranscriptHandler {
     
     // Set up periodic check for stale transcripts
     if (typeof window !== 'undefined') {
-      setInterval(() => this.checkForStalledTranscripts(), 1000);
+      setInterval(() => this.checkForStalledTranscripts(), 800);
     }
   }
 
@@ -36,7 +37,14 @@ export class TranscriptHandler {
       this.accumulator.accumulateText(deltaText);
       console.log(`📝 Accumulating transcript delta: "${deltaText}"`);
       
-      // IMPROVED: Check if we should save accumulated text based on time
+      // Clear any pending speech ended timer when we get new deltas
+      if (this.speechEndedTimer) {
+        console.log("🔄 Clearing speech ended timer due to new transcript data");
+        clearTimeout(this.speechEndedTimer);
+        this.speechEndedTimer = null;
+      }
+      
+      // Check if we should save accumulated text based on time
       const now = Date.now();
       if (now - this.lastCheckTime > this.saveIntervalMs && this.hasAccumulatedTranscript()) {
         console.log("🕒 Time threshold reached, saving accumulated transcript");
@@ -66,18 +74,38 @@ export class TranscriptHandler {
   handleSpeechStarted(): void {
     this.speechTracker.markSpeechStarted();
     console.log("🎙️ User speech started - preparing to capture transcript");
+    
+    // Clear any pending speech ended timer
+    if (this.speechEndedTimer) {
+      clearTimeout(this.speechEndedTimer);
+      this.speechEndedTimer = null;
+    }
   }
 
   handleSpeechStopped(): void {
-    console.log("🎤 User speech stopped - checking for transcript");
+    console.log("🎤 User speech stopped - scheduling final transcript capture");
     
+    // Set a short timer to allow any final deltas to arrive before saving
+    if (this.speechEndedTimer === null) {
+      this.speechEndedTimer = setTimeout(() => {
+        console.log("⏱️ Speech ended timer triggered - capturing final transcript");
+        this.captureAndSaveFinalTranscript();
+        this.speechEndedTimer = null;
+      }, 500) as unknown as number; // Short delay to ensure all deltas arrive
+    }
+  }
+  
+  private captureAndSaveFinalTranscript(): void {
     if (this.speechTracker.isSpeechDetected()) {
       if (this.hasAccumulatedTranscript()) {
         const accumulatedText = this.accumulator.getAccumulatedText();
-        console.log(`🔴 SPEECH STOPPED WITH TRANSCRIPT: "${accumulatedText}"`);
+        console.log(`🔴 SPEECH ENDED WITH FINAL TRANSCRIPT: "${accumulatedText.substring(0, 50)}${accumulatedText.length > 50 ? '...' : ''}"`);
         
-        // Save immediately when speech stops
+        // Save with explicit user role through the final handler
         this.finalHandler.handleFinalTranscript(accumulatedText);
+        
+        // Reset accumulator after capturing final transcript
+        this.accumulator.reset();
       } else {
         console.log("⚠️ Speech stopped but no transcript accumulated");
       }
@@ -90,16 +118,15 @@ export class TranscriptHandler {
   }
 
   handleAudioBufferCommitted(): void {
-    console.log("Audio buffer committed, checking if we need to save partial transcript");
+    console.log("Audio buffer committed, checking for speech finalization");
     
+    // If speech was detected but no more deltas for some time, this could be the end
     if (this.speechTracker.isSpeechDetected() && 
         this.hasAccumulatedTranscript() &&
-        this.accumulator.isTranscriptStale()) {
-      
-      const accumulatedText = this.accumulator.getAccumulatedText();
-      console.log(`📝 Saving stale transcript on buffer commit: "${accumulatedText}"`);
-      this.finalHandler.handleFinalTranscript(accumulatedText);
-      this.lastSaveTime = Date.now();
+        Date.now() - this.lastSaveTime > this.forceSaveAfterMs) {
+        
+      console.log("📢 Audio buffer committed with no recent deltas - treating as speech end");
+      this.captureAndSaveFinalTranscript();
     }
   }
 
@@ -109,6 +136,9 @@ export class TranscriptHandler {
       console.log(`🔴 FLUSHING PENDING TRANSCRIPT: "${accumulatedText}"`);
       this.finalHandler.handleFinalTranscript(accumulatedText);
       this.lastSaveTime = Date.now();
+      
+      // Clear the accumulator after flushing
+      this.accumulator.reset();
     } else {
       console.log("No pending transcript to flush");
     }
@@ -131,15 +161,15 @@ export class TranscriptHandler {
     return this.speechTracker.isSpeechDetected();
   }
   
-  // ADDED: Periodic check for stalled transcripts
+  // Periodic check for stalled transcripts
   private checkForStalledTranscripts(): void {
     const now = Date.now();
-    // If we have accumulated transcript and it's been more than 1 second since last save
+    // If we have accumulated transcript and it's been more than forceSaveAfterMs since last save
     if (this.hasAccumulatedTranscript() && 
-        (now - this.lastSaveTime > this.forceSaveAfterMs)) {
+        (now - this.lastSaveTime > this.forceSaveAfterMs) &&
+        this.speechTracker.isSpeechDetected()) {
       console.log(`⚠️ Found stalled transcript (${now - this.lastSaveTime}ms since last save), force saving`);
-      this.flushPendingTranscript();
+      this.captureAndSaveFinalTranscript();
     }
   }
 }
-

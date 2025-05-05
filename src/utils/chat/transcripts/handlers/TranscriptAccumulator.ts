@@ -8,10 +8,25 @@ export class TranscriptAccumulator {
   private lastDeltaTime: number = 0;
   private debugId: string;
   private accumulationCount: number = 0;
+  private significantChangeDetected: boolean = false;
+  private lastContentHash: string = '';
   
   constructor() {
     this.debugId = `TA-${Date.now().toString(36)}`;
     console.log(`[TranscriptAccumulator ${this.debugId}] Initialized`);
+  }
+  
+  /**
+   * Simple string hash for change detection
+   */
+  private simpleHash(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash.toString(36);
   }
   
   /**
@@ -24,14 +39,25 @@ export class TranscriptAccumulator {
       this.userTranscript += deltaText;
       this.lastDeltaTime = Date.now();
       
+      // Check if this is a significant change
+      const newContentHash = this.simpleHash(this.userTranscript);
+      if (newContentHash !== this.lastContentHash) {
+        this.significantChangeDetected = true;
+        this.lastContentHash = newContentHash;
+      }
+      
       console.log(`[TranscriptAccumulator ${this.debugId}] #${this.accumulationCount} Accumulated text: "${deltaText}" (${deltaText.length} chars)`, {
         previousTotalLength: prevLength,
         newTotalLength: this.userTranscript.length,
         deltaLength: deltaText.length,
         totalAccumulations: this.accumulationCount,
+        significantChange: this.significantChangeDetected,
         timestamp: new Date(this.lastDeltaTime).toISOString(),
         contentPreview: this.userTranscript.substring(0, 50) + (this.userTranscript.length > 50 ? '...' : '')
       });
+      
+      // Reset the significant change flag after logging
+      this.significantChangeDetected = false;
     }
   }
   
@@ -43,6 +69,9 @@ export class TranscriptAccumulator {
       const oldText = this.userTranscript;
       this.userTranscript = text;
       this.lastTranscriptTime = Date.now();
+      
+      // Update content hash
+      this.lastContentHash = this.simpleHash(text);
       
       console.log(`[TranscriptAccumulator ${this.debugId}] Set full transcript (${text.length} chars): "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`, {
         oldLength: oldText.length,
@@ -66,6 +95,7 @@ export class TranscriptAccumulator {
     this.userTranscript = '';
     this.lastTranscriptTime = 0;
     this.lastDeltaTime = 0;
+    this.lastContentHash = '';
     
     console.log(`[TranscriptAccumulator ${this.debugId}] Resetting transcript`, {
       hadContent,
@@ -96,7 +126,7 @@ export class TranscriptAccumulator {
   /**
    * Check if the transcript is considered stale based on timing
    */
-  isTranscriptStale(staleThresholdMs: number = 1500): boolean {
+  isTranscriptStale(staleThresholdMs: number = 1000): boolean {
     const timeSinceLastUpdate = Date.now() - this.getLastTranscriptTime();
     const isStale = timeSinceLastUpdate > staleThresholdMs;
     
@@ -138,6 +168,7 @@ export class TranscriptAccumulator {
       accumulationCount: this.accumulationCount,
       lastTranscriptTime: this.lastTranscriptTime > 0 ? new Date(this.lastTranscriptTime).toISOString() : 'never',
       lastDeltaTime: this.lastDeltaTime > 0 ? new Date(this.lastDeltaTime).toISOString() : 'never',
+      contentHash: this.lastContentHash,
       contentPreview: this.userTranscript.substring(0, 100) + (this.userTranscript.length > 100 ? '...' : '')
     };
   }
