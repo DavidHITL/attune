@@ -1,12 +1,13 @@
-import { SaveMessageCallback } from '../../../types';
-import { MessageQueueCore } from '../MessageQueueCore';
-import { messageSaveService } from '../../messaging/MessageSaveService';
+
+import { Message } from '../../../types';
+import { MessageQueueCore } from './MessageQueueCore';
+import { messageSaveService } from '../messaging/MessageSaveService';
 
 /**
  * Handles message processing and saving
  */
 export class MessageProcessor {
-  constructor(private saveMessageCallback: SaveMessageCallback) {}
+  constructor(private saveMessageCallback: (message: Partial<Message>) => Promise<Message | null>) {}
   
   /**
    * Process all messages in the queue

@@ -55,3 +55,4 @@ export type MediaRecorderState = 'recording' | 'paused' | 'inactive';
 export type MessageCallback = (event: any) => void;
 export type StatusCallback = (status: string) => void;
 export type SaveMessageCallback = (message: Partial<Message>) => Promise<Message | null>;
+
