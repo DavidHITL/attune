@@ -17,7 +17,7 @@ export class EventTypeRegistry {
     'input_audio_buffer.append': 'user',
     'input_audio_activity_started': 'user',
     'input_audio_activity_stopped': 'user',
-    'conversation.item.input_audio_transcription.completed': 'user', // Explicit mapping for audio transcription
+    'conversation.item.input_audio_transcription.completed': 'user', // Added new event for transcription
     
     // Assistant events
     'response.done': 'assistant',
@@ -72,8 +72,7 @@ export class EventTypeRegistry {
     
     // Fallback to pattern matching for unknown event types
     if (eventType.includes('audio_transcript') || 
-        eventType.includes('input_audio') ||
-        eventType.includes('input_audio_transcription')) { // Added pattern match
+        eventType.includes('input_audio')) {
       console.log(`[EventTypeRegistry] Pattern-matched unknown event ${eventType} as user event`);
       return 'user';
     }

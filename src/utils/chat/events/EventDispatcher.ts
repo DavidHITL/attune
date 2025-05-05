@@ -40,39 +40,22 @@ export class EventDispatcher {
       return;
     }
     
-    // ENHANCED: Handle Whisper transcription events specifically with increased logging
+    // ENHANCED: Handle Whisper transcription events specifically
     if (event.type === 'conversation.item.input_audio_transcription.completed') {
       console.log('[EventDispatcher] Processing input_audio_transcription.completed event');
-      const transcript = event.transcript;
+      const text = event.transcript;
       
-      if (transcript && typeof transcript === 'string' && transcript.trim() !== '') {
-        console.log(`[EventDispatcher] Found transcript text: "${transcript.substring(0, 50)}${transcript.length > 50 ? '...' : ''}"`);
+      if (text && typeof text === 'string' && text.trim() !== '') {
+        console.log(`[EventDispatcher] Found transcript text: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}""`);
         
-        // Create a fingerprint to prevent duplicate processing
-        const eventFingerprint = `transcript:${transcript.substring(0, 50)}:${Date.now()}`;
-        if (this.processedEvents.has(eventFingerprint)) {
-          console.log('[EventDispatcher] Skipping duplicate transcript event');
-          return;
-        }
-        
-        // Mark as processed
-        this.processedEvents.add(eventFingerprint);
-        
-        // Get the message queue and queue this as a user message with high priority
+        // Get the message queue and queue this as a user message
         const messageQueue = getMessageQueue();
         if (messageQueue) {
           console.log('[EventDispatcher] Queueing transcript text as user message');
           // High priority ensures this is processed immediately
-          messageQueue.queueMessage('user', transcript, true);
+          messageQueue.queueMessage('user', text, true);
         } else {
           console.error('[EventDispatcher] No message queue available for transcript text');
-          // As a fallback, try to use the message save service directly
-          messageSaveService.saveMessageToDatabase({
-            role: 'user',
-            content: transcript
-          }).catch(err => {
-            console.error('[EventDispatcher] Failed to save transcript via direct service:', err);
-          });
         }
       } else {
         console.log('[EventDispatcher] No valid transcript text in event');
