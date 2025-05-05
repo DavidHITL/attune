@@ -36,12 +36,12 @@ export const useChatClient = () => {
   
   // Get enhanced message handler that's aware of sessions
   const getEnhancedHandler = useCallback((websocketRef) => {
-    const { enhancedMessageHandler } = useEnhancedMessageHandler(
-      combinedMessageHandler, 
+    const { enhancedMessageHandler } = useEnhancedMessageHandler({
+      messageHandler: combinedMessageHandler, 
       handleSessionCreated, 
       websocketRef,
       sendSessionUpdate
-    );
+    });
     return enhancedMessageHandler;
   }, [combinedMessageHandler, handleSessionCreated, sendSessionUpdate]);
   
