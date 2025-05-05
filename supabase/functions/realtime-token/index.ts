@@ -89,9 +89,12 @@ serve(async (req) => {
     console.log('[realtime-token] OpenAI status', exchangeRes.status);
     console.log('[realtime-token] OpenAI body', await exchangeRes.clone().text());
     
-    // Return OpenAI's response directly if not successful
+    // Return OpenAI's response directly if not successful, but now WITH CORS headers
     if (!exchangeRes.ok) {
-      return new Response(await exchangeRes.text(), { status: exchangeRes.status });
+      return new Response(await exchangeRes.text(), { 
+        status: exchangeRes.status,
+        headers: corsHeaders 
+      });
     }
     
     const { answer, ice_servers } = await exchangeRes.json();
