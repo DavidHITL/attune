@@ -52,7 +52,7 @@ export const useTranscriptSaver = () => {
           created_at: new Date().toISOString()
         } as Message;
       } else {
-        // Fallback to direct save if no queue
+        // Fallback to central message save service if no queue
         const savedMessage = await messageSaveService.saveMessageToDatabase({
           role: role,
           content: transcript

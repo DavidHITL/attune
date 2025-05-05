@@ -41,8 +41,8 @@ export const useTranscriptProcessor = (
         // Use the unified queue path with high priority for transcripts
         messageQueue.queueMessage(role, cleanedTranscript, true);
       } else {
-        console.log(`[TranscriptProcessor] No message queue available, using direct save for ${role} transcript`);
-        // Fall back to direct save if no queue
+        console.log(`[TranscriptProcessor] No message queue available, using central message save service for ${role} transcript`);
+        // Fall back to centralized save service if no queue
         await messageSaveService.saveMessageToDatabase({
           role, 
           content: cleanedTranscript

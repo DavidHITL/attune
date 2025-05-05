@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 import { toast } from 'sonner';
 import { messageSaveService } from '@/utils/chat/messaging/MessageSaveService';
+import { getMessageQueue } from '@/utils/chat/messageQueue/QueueProvider';
 
 export const useTranscriptHandler = () => {
   const handleTranscriptEvent = useCallback((event: any) => {
@@ -38,7 +39,22 @@ export const useTranscriptHandler = () => {
       return;
     }
 
-    // Use the centralized message save service - single save path
+    // First try to use the centralized message queue
+    const messageQueue = getMessageQueue();
+    if (messageQueue) {
+      console.log(`[useTranscriptHandler] Using message queue for ${messageRole} message`);
+      messageQueue.queueMessage(messageRole, transcriptContent, true);
+      
+      // Show toast for user feedback
+      toast.success(messageRole === 'user' ? "Message queued" : "Response queued", {
+        description: transcriptContent?.substring(0, 50) + (transcriptContent!.length > 50 ? "..." : ""),
+        duration: 2000
+      });
+      
+      return;
+    }
+    
+    // Fallback: Use the centralized message save service
     messageSaveService.saveMessageToDatabase({
       role: messageRole,
       content: transcriptContent
