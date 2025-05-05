@@ -10,6 +10,7 @@ import { messageSaveService } from '../../messaging/MessageSaveService';
 
 export class AssistantEventHandler {
   private processedResponses = new Set<string>();
+  private eventCount = 0;
   
   constructor(
     private messageQueue: MessageQueue,
@@ -27,6 +28,8 @@ export class AssistantEventHandler {
    * Handle incoming assistant events
    */
   handleEvent(event: any): void {
+    this.eventCount++;
+    
     // Validate that we're handling the right event type
     if (event && event.type) {
       // CRITICAL FIX: Always force 'assistant' role in AssistantEventHandler
@@ -36,13 +39,17 @@ export class AssistantEventHandler {
       // We should only be handling assistant events, log an error if not
       if (explicitRole && explicitRole !== 'assistant') {
         console.error(`[AssistantEventHandler] Received event with incorrect explicit role: ${explicitRole}, type: ${event.type}`);
+        console.error(`[AssistantEventHandler] This is a critical routing error`);
+        return; // Don't process events with mismatched roles - critical protection
       }
       
       // CRITICAL FIX: Always force correct role in assistant event handler
       event.explicitRole = 'assistant';
       
       // CRITICAL FIX: Add debug logging
-      console.log(`[AssistantEventHandler] Processing event: ${event.type} with FORCED ASSISTANT role`);
+      if (this.eventCount % 10 === 0 || event.type === 'response.done') {
+        console.log(`[AssistantEventHandler] Processing event: ${event.type} with FORCED ASSISTANT role, event #${this.eventCount}`);
+      }
       
       // Process the event with the response parser - pass 'assistant' as the guaranteed role
       this.responseParser.processEvent(event, 'assistant');

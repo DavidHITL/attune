@@ -23,7 +23,15 @@ export class TranscriptProcessor {
   saveMessage(transcriptContent: string, role: 'user' | 'assistant', priority: boolean = true): void {
     // Validate role to prevent incorrect role assignments
     if (role !== 'user' && role !== 'assistant') {
+      console.error(`[TranscriptProcessor] CRITICAL ERROR: Invalid role: ${role}`);
       throw new Error(`Invalid role: ${role}. Must be 'user' or 'assistant'.`);
+    }
+    
+    // In TranscriptProcessor within UserEventProcessor, enforce 'user' role
+    if (role !== 'user') {
+      console.error(`[TranscriptProcessor] Security check: Attempted to save non-user message in user processor`);
+      console.log(`[TranscriptProcessor] Forcing role to 'user' for security`);
+      role = 'user';
     }
     
     if (!transcriptContent || transcriptContent.trim() === '') {
@@ -39,6 +47,7 @@ export class TranscriptProcessor {
     this.lastTranscriptContent = transcriptContent;
     
     // Add message to queue with specified priority and role
+    console.log(`[TranscriptProcessor] Saving USER message: "${transcriptContent.substring(0, 30)}${transcriptContent.length > 30 ? '...' : ''}"`);
     this.messageQueue.queueMessage(role, transcriptContent, priority);
     
     // Show notification for user feedback (only for user messages)

@@ -32,16 +32,24 @@ export class UserEventProcessor {
     this.processedCount++;
     const processId = this.processedCount;
     
-    // CRITICAL FIX: Ensure event has explicit role or get it from registry
-    const role = event.explicitRole || EventTypeRegistry.getRoleForEvent(event.type);
+    // CRITICAL FIX: Validate the event has explicit role or get it from registry
+    let role = event.explicitRole;
+    
+    // If no explicit role, try to get from registry, but this shouldn't happen
+    // since UserEventHandler should have set explicitRole='user'
+    if (!role) {
+      role = EventTypeRegistry.getRoleForEvent(event.type);
+      console.warn(`[UserEventProcessor] #${processId} Missing explicitRole, had to determine from registry: ${role}`);
+    }
     
     // Log incoming event for debugging
-    console.log(`[UserEventProcessor] #${processId} Processing event: ${event.type}, determined role: ${role || 'unknown'}`);
+    console.log(`[UserEventProcessor] #${processId} Processing event: ${event.type}, role: ${role || 'unknown'}`);
     
     // CRITICAL FIX: Only process if this is a user event
     if (role !== 'user') {
-      console.error(`[UserEventProcessor] #${processId} CRITICAL ERROR: Received non-user event: ${event.type}, role: ${role}`);
-      return;
+      console.error(`[UserEventProcessor] #${processId} CRITICAL ERROR: Received non-user event in user processor: ${event.type}, role: ${role}`);
+      console.error(`[UserEventProcessor] #${processId} This indicates a serious routing issue that needs to be fixed`);
+      return; // Absolutely critical to stop processing if role is wrong
     }
     
     try {

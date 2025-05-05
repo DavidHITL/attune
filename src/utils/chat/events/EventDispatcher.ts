@@ -12,6 +12,11 @@ import { handleSessionCreated } from './handlers/SessionEventHandler';
 
 export class EventDispatcher {
   private processedEvents = new Set<string>();
+  private dispatchedEventCount = {
+    user: 0,
+    assistant: 0,
+    unknown: 0
+  };
   
   constructor(
     private userEventHandler: UserEventHandler,
@@ -21,6 +26,8 @@ export class EventDispatcher {
     setInterval(() => {
       this.processedEvents.clear();
     }, 300000); // Clear every 5 minutes
+    
+    console.log('[EventDispatcher] Initialized with event handlers');
   }
 
   /**
@@ -115,6 +122,7 @@ export class EventDispatcher {
       // NEW: Don't log errors for session events which are handled above
       if (!event.type.startsWith('session.') && !event.type.startsWith('output_audio_buffer')) {
         console.warn(`[EventDispatcher] UNCLASSIFIED EVENT: ${event.type}`);
+        this.dispatchedEventCount.unknown++;
       }
       return;
     }
@@ -123,6 +131,7 @@ export class EventDispatcher {
     if (isAssistantEvent) {
       // Set explicit role marker to prevent any confusion downstream
       event.explicitRole = 'assistant';
+      this.dispatchedEventCount.assistant++;
       
       // Send to assistant handler
       this.assistantEventHandler.handleEvent(event);
@@ -130,9 +139,15 @@ export class EventDispatcher {
     else if (isUserEvent) {
       // Set explicit role marker to prevent any confusion downstream
       event.explicitRole = 'user';
+      this.dispatchedEventCount.user++;
       
       // Send to user handler
       this.userEventHandler.handleEvent(event);
+    }
+    
+    // Periodically log dispatch statistics for debugging
+    if ((this.dispatchedEventCount.user + this.dispatchedEventCount.assistant) % 100 === 0) {
+      console.log(`[EventDispatcher] Event stats - User: ${this.dispatchedEventCount.user}, Assistant: ${this.dispatchedEventCount.assistant}, Unknown: ${this.dispatchedEventCount.unknown}`);
     }
   }
 }

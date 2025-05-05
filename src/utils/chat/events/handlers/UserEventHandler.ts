@@ -10,6 +10,7 @@ export class UserEventHandler {
   
   constructor(private messageQueue: MessageQueue) {
     this.userEventProcessor = new UserEventProcessor(messageQueue);
+    console.log('[UserEventHandler] Initialized');
   }
   
   /**
@@ -25,10 +26,15 @@ export class UserEventHandler {
       // We should only be handling user events, log an error if not
       if (explicitRole && explicitRole !== 'user') {
         console.error(`[UserEventHandler] Received event with incorrect explicit role: ${explicitRole}`);
+        console.error(`[UserEventHandler] Event type: ${event.type}`);
+        return; // Don't process events with mismatched roles - critical protection
       }
       
       // Always force correct role in user event handler
       event.explicitRole = 'user';
+      
+      // Add more debug logging
+      console.log(`[UserEventHandler] Processing event type: ${event.type} with forced USER role`);
       
       // Process the event with forced 'user' role
       this.userEventProcessor.processEvent(event);
