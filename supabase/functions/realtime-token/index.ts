@@ -71,10 +71,10 @@ serve(async (req) => {
     const { id: sessionId } = await sessionRes.json();
     console.log('[token] session', sessionId);
 
-    // 3) Exchange SDP with CORRECTED URL (sdp-exchanges instead of sdp:exchange)
+    // 3) Exchange SDP with CORRECTED URL (sdp_exchange instead of sdp-exchanges)
     console.log("[realtime-token] Exchanging SDP with session:", sessionId);
     const exchangeRes = await fetch(
-      `${OPENAI_BASE}/v1/realtime/sessions/${sessionId}/sdp-exchanges`,
+      `${OPENAI_BASE}/v1/realtime/sessions/${sessionId}/sdp_exchange`,
       {
         method: 'POST',
         headers: {
