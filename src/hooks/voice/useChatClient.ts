@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
@@ -14,6 +15,7 @@ export const useChatClient = () => {
   const [status, setStatus] = useState<string>('disconnected');
   const [isMuted, setIsMuted] = useState(false);
   const { conversationId, setConversationId } = useConversationId();
+  const [hasReceivedSessionCreated, setHasReceivedSessionCreated] = useState(false);
   
   // Ref to hold the WebSocket instance
   const chatClientRef = useRef<WebSocket | null>(null);
@@ -23,6 +25,40 @@ export const useChatClient = () => {
     voiceActivityState,
     combinedMessageHandler
   } = useMessageEventHandler(chatClientRef);
+  
+  // Enhanced message handler to detect session.created events
+  const enhancedMessageHandler = useCallback((event: any) => {
+    // Process the event with the standard handler first
+    combinedMessageHandler(event);
+    
+    // Check for session.created to send the session.update with audio transcription configuration
+    if (event.type === 'session.created') {
+      console.log('[ChatClient] Session created event detected, will send session.update');
+      setHasReceivedSessionCreated(true);
+      
+      // Send the session.update event
+      if (chatClientRef.current?.readyState === WebSocket.OPEN) {
+        console.log('[ChatClient] Sending session.update with input_audio_transcription configuration');
+        chatClientRef.current.send(JSON.stringify({
+          type: "session.update",
+          session: {
+            input_audio_transcription: { model: "whisper-1" },
+            // Include other required session settings
+            modalities: ["text", "audio"],
+            voice: "alloy",
+            input_audio_format: "pcm16",
+            output_audio_format: "pcm16",
+            turn_detection: {
+              type: "server_vad", // Let the server detect turns
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 1000
+            }
+          }
+        }));
+      }
+    }
+  }, [combinedMessageHandler]);
   
   // Function to start the WebSocket connection
   const startConversation = useCallback(async () => {
@@ -38,6 +74,7 @@ export const useChatClient = () => {
     setIsConnected(false);
     setStatus('connecting');
     setConnectionError(null);
+    setHasReceivedSessionCreated(false);
     
     try {
       // Generate a unique session ID
@@ -73,8 +110,8 @@ export const useChatClient = () => {
       };
       
       chatClientRef.current.onmessage = (event) => {
-        // Process incoming messages using the combined handler
-        combinedMessageHandler(JSON.parse(event.data));
+        // Process incoming messages using the enhanced handler
+        enhancedMessageHandler(JSON.parse(event.data));
       };
       
       chatClientRef.current.onclose = (event) => {
@@ -82,6 +119,7 @@ export const useChatClient = () => {
         setIsConnected(false);
         setStatus('disconnected');
         chatClientRef.current = null;
+        setHasReceivedSessionCreated(false);
         
         // Clear conversation ID on disconnect
         setConversationId(null);
@@ -118,7 +156,7 @@ export const useChatClient = () => {
         duration: 3000
       });
     }
-  }, [combinedMessageHandler, setConversationId, conversationId]);
+  }, [enhancedMessageHandler, setConversationId, conversationId]);
   
   // Function to end the WebSocket connection
   const endConversation = useCallback(() => {
@@ -129,6 +167,7 @@ export const useChatClient = () => {
       setIsConnected(false);
       setStatus('disconnected');
       setConnectionError(null);
+      setHasReceivedSessionCreated(false);
       
       // Clear conversation ID on disconnect
       setConversationId(null);
@@ -148,50 +187,16 @@ export const useChatClient = () => {
     setIsMuted(prevIsMuted => !prevIsMuted);
   }, []);
   
-  // Add this function to your existing chat client implementation
-  // This should be called after the session is created
-  const updateSessionConfig = async (chatClient) => {
-    if (!chatClient.current) return;
-    
-    try {
-      // Send session.update event after session is created
-      await chatClient.current.send(JSON.stringify({
-        type: "session.update",
-        session: {
-          input_audio_transcription: { model: "whisper-1" },
-          // Include other session settings as needed
-          modalities: ["text", "audio"],
-          voice: "alloy",
-          input_audio_format: "pcm16",
-          output_audio_format: "pcm16",
-          turn_detection: {
-            type: "server_vad", // Let the server detect turns
-            threshold: 0.5,
-            prefix_padding_ms: 300,
-            silence_duration_ms: 1000
-          }
-        }
-      }));
-      
-      console.log("[ChatClient] Session updated to enable input audio transcription");
-    } catch (error) {
-      console.error("[ChatClient] Error updating session config:", error);
-    }
-  };
-  
-  // Ensure this function is called after receiving the session.created event
-  // in your existing chat client implementation
-  
   return {
     status,
     isConnected,
     voiceActivityState,
     isMuted,
     connectionError,
+    hasReceivedSessionCreated,
     startConversation,
     endConversation,
     toggleMute,
-    chatClientRef,
-    updateSessionConfig
+    chatClientRef
   };
 };
