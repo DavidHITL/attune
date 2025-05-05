@@ -64,14 +64,24 @@ export class WebRTCConnection {
       setTimeout(() => {
         if (!this.hasReceivedSessionCreated) {
           console.log("Simulating session.created event after successful connection");
-          onMessage({ type: 'session.created' });
           this.hasReceivedSessionCreated = true;
+          // Send the message through the data channel instead of directly calling onMessage
+          this.sendMessage({ type: 'session.created' });
         }
       }, 500);
       
     } catch (error) {
       console.error("WebRTC connection error:", error);
       throw error;
+    }
+  }
+  
+  // Method to safely send messages through the data channel
+  sendMessage(message: any): void {
+    if (this.peerConnectionHandler) {
+      this.peerConnectionHandler.sendMessage(message);
+    } else {
+      console.warn("Cannot send message - peer connection handler not initialized");
     }
   }
   

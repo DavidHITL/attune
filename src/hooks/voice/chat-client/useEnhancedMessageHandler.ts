@@ -1,5 +1,4 @@
 
-import { useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
 /**
@@ -11,20 +10,9 @@ interface MessageEvent {
 }
 
 /**
- * Interface for session-related events
+ * Interface for creating an enhanced message handler
  */
-interface SessionEvent extends MessageEvent {
-  type: 'session.created' | 'session.update' | 'session.disconnected';
-  session?: {
-    id: string;
-    [key: string]: any;
-  };
-}
-
-/**
- * Props for the enhanced message handler hook
- */
-interface EnhancedMessageHandlerProps {
+interface CreateEnhancedMessageHandlerOptions {
   messageHandler: (event: MessageEvent) => void;
   handleSessionCreated: () => void;
   websocketRef: React.RefObject<WebSocket>;
@@ -32,30 +20,29 @@ interface EnhancedMessageHandlerProps {
 }
 
 /**
- * Hook for creating an enhanced message handler that processes session events
- * with improved typing and error handling
+ * Factory function to create an enhanced message handler with proper state tracking
  */
-export const useEnhancedMessageHandler = ({
-  messageHandler,
-  handleSessionCreated,
-  websocketRef,
-  sendSessionUpdate
-}: EnhancedMessageHandlerProps) => {
-  // Track if session update has been sent to avoid duplicate updates
-  const sessionUpdateSentRef = useRef<boolean>(false);
+export const createEnhancedMessageHandler = (
+  options: CreateEnhancedMessageHandlerOptions
+) => {
+  const { messageHandler, handleSessionCreated, websocketRef, sendSessionUpdate } = options;
+  
+  // Use a local variable for session update tracking instead of React's useRef
+  let sessionUpdateSent = false;
   
   /**
    * Reset session update tracking when needed
    */
-  const resetSessionUpdateTracking = useCallback(() => {
-    sessionUpdateSentRef.current = false;
-  }, []);
+  const resetSessionUpdateTracking = () => {
+    sessionUpdateSent = false;
+    console.log('[EnhancedMessageHandler] Session update tracking reset');
+  };
   
   /**
    * Enhanced message handler that tracks session events
    * with improved error handling and type checking
    */
-  const enhancedMessageHandler = useCallback((event: MessageEvent) => {
+  const enhancedMessageHandler = (event: MessageEvent) => {
     try {
       // Validate event before processing
       if (!event || typeof event !== 'object') {
@@ -76,13 +63,13 @@ export const useEnhancedMessageHandler = ({
           
           // Now send the session.update to configure the speech-to-text model
           // but only if we haven't already sent it for this session
-          if (websocketRef.current && !sessionUpdateSentRef.current) {
+          if (websocketRef.current && !sessionUpdateSent) {
             console.log('[EnhancedMessageHandler] Sending session.update after session.created');
             sendSessionUpdate(websocketRef.current);
-            sessionUpdateSentRef.current = true;
+            sessionUpdateSent = true;
           } else if (!websocketRef.current) {
             console.warn('[EnhancedMessageHandler] WebSocket ref is null, cannot send session.update');
-          } else if (sessionUpdateSentRef.current) {
+          } else if (sessionUpdateSent) {
             console.log('[EnhancedMessageHandler] Session update already sent, skipping duplicate');
           }
         } catch (sessionError) {
@@ -99,10 +86,20 @@ export const useEnhancedMessageHandler = ({
         description: 'An error occurred while processing a message event'
       });
     }
-  }, [messageHandler, handleSessionCreated, websocketRef, sendSessionUpdate]);
+  };
 
   return {
     enhancedMessageHandler,
     resetSessionUpdateTracking
   };
+};
+
+/**
+ * Hook for using the enhanced message handler within React components
+ * This wrapper ensures proper React integration
+ */
+export const useEnhancedMessageHandler = (
+  options: CreateEnhancedMessageHandlerOptions
+) => {
+  return createEnhancedMessageHandler(options);
 };

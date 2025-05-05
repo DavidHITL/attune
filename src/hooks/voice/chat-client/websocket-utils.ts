@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { CONNECTION_TIMEOUT_MS, WS_URL } from './websocket-config';
 import { WebRTCConnection } from '../../../utils/audio/WebRTCConnection';
+import { createEnhancedMessageHandler } from './useEnhancedMessageHandler';
 
 /**
  * Creates a WebSocket connection with timeout handling
@@ -39,14 +40,8 @@ export const createWebSocketConnection = (
             try {
               // The WebRTC connection expects JSON parsed objects
               const jsonData = JSON.parse(data);
-              const peerConnectionHandler = webrtcConnection['peerConnectionHandler'];
-              
-              // If this is a data channel and it's open, send the data
-              if (peerConnectionHandler && peerConnectionHandler['dc']) {
-                peerConnectionHandler['dc'].send(data);
-              } else {
-                console.warn('[WebSocketUtils] Data channel not ready or not available');
-              }
+              // Use the safe sendMessage method
+              webrtcConnection.sendMessage(jsonData);
             } catch (error) {
               console.error('[WebSocketUtils] Error sending data:', error);
             }

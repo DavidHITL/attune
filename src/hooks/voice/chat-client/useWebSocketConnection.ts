@@ -69,6 +69,7 @@ export const useWebSocketConnection = (messageHandler: (event: any) => void) => 
           setIsConnected(false);
           setStatus('error');
           setConnectionError('Connection error. Please try again.');
+          console.error('[WebSocketConnection] Connection error:', error);
         }
       );
       

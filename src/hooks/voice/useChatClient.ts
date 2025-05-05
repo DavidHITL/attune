@@ -1,11 +1,10 @@
-
 import { useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { useMessageEventHandler } from './useMessageEventHandler';
 import { useWebSocketConnection } from './chat-client/useWebSocketConnection';
 import { useSessionManagement } from './chat-client/useSessionManagement';
 import { useAudioControls } from './chat-client/useAudioControls';
-import { useEnhancedMessageHandler } from './chat-client/useEnhancedMessageHandler';
+import { createEnhancedMessageHandler } from './chat-client/useEnhancedMessageHandler';
 
 /**
  * Custom hook for managing the chat client and its connection
@@ -33,19 +32,30 @@ export const useChatClient = () => {
     isMuted,
     toggleMute
   } = useAudioControls();
+
+  // Keep track of whether we've sent a session update
+  const sessionUpdateSentRef = useRef<boolean>(false);
   
-  // Get enhanced message handler that's aware of sessions
-  const getEnhancedHandler = useCallback((websocketRef) => {
-    const { enhancedMessageHandler } = useEnhancedMessageHandler({
-      messageHandler: combinedMessageHandler, 
-      handleSessionCreated, 
-      websocketRef,
-      sendSessionUpdate
-    });
-    return enhancedMessageHandler;
+  // Create a base message handler
+  const baseMessageHandler = useCallback((event: any) => {
+    // Process the event using our combined handler
+    combinedMessageHandler(event);
+    
+    // Special handling for session.created event
+    if (event.type === 'session.created') {
+      console.log("[ChatClient] Received session.created event");
+      handleSessionCreated();
+      
+      // Send session.update if we haven't already
+      if (chatClientRef.current && !sessionUpdateSentRef.current) {
+        console.log("[ChatClient] Sending session.update after session.created");
+        sendSessionUpdate(chatClientRef.current);
+        sessionUpdateSentRef.current = true;
+      }
+    }
   }, [combinedMessageHandler, handleSessionCreated, sendSessionUpdate]);
   
-  // Use the WebSocket connection hook
+  // Use the WebSocket connection hook with our base handler
   const {
     isConnected,
     status,
@@ -53,12 +63,7 @@ export const useChatClient = () => {
     websocketRef,
     startConnection,
     closeConnection
-  } = useWebSocketConnection(
-    // We need a way to set up the handler with access to the websocketRef,
-    // but we can't use enhancedMessageHandler directly because it would
-    // create a circular dependency. So we use this approach:
-    event => getEnhancedHandler(websocketRef)(event)
-  );
+  } = useWebSocketConnection(baseMessageHandler);
   
   // Update the chatClientRef whenever websocketRef changes
   if (chatClientRef.current !== websocketRef.current) {
@@ -73,6 +78,9 @@ export const useChatClient = () => {
     }
     
     try {
+      // Reset the session update tracking
+      sessionUpdateSentRef.current = false;
+      
       // Start the WebSocket connection
       const sessionId = await startConnection();
       
@@ -95,6 +103,9 @@ export const useChatClient = () => {
   const endConversation = useCallback(() => {
     closeConnection();
     resetSession();
+    
+    // Reset our session update tracking
+    sessionUpdateSentRef.current = false;
     
     // Show toast notification
     toast.success("Call ended", {
