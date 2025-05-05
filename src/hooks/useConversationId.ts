@@ -1,7 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
 
 // Extending Window interface to include our global variable
 declare global {
@@ -10,7 +8,6 @@ declare global {
   }
 }
 
-// Export the original function as well
 export async function getOrCreateConversationId(userId: string) {
   // Return cached id if we already made one this session
   if (window.__attuneConversationId) {
@@ -53,70 +50,3 @@ export async function getOrCreateConversationId(userId: string) {
     throw error;
   }
 }
-
-// Create and export the hook that was missing
-export const useConversationId = () => {
-  const { user } = useAuth();
-  const [conversationId, setConversationId] = useState<string | null>(
-    window.__attuneConversationId || null
-  );
-
-  // Function to create or get the conversation ID
-  const createConversation = useCallback(async () => {
-    if (!user) {
-      console.log('[useConversationId] No user available, cannot create conversation');
-      return;
-    }
-    
-    try {
-      const id = await getOrCreateConversationId(user.id);
-      setConversationId(id);
-      return id;
-    } catch (error) {
-      console.error('[useConversationId] Error creating conversation:', error);
-    }
-  }, [user]);
-
-  // Reset conversation ID
-  const resetConversationId = useCallback(() => {
-    setConversationId(null);
-    if (window.__attuneConversationId) {
-      delete window.__attuneConversationId;
-    }
-  }, []);
-
-  // Listen for conversation ID ready events
-  useEffect(() => {
-    const handleConversationIdReady = (event: CustomEvent) => {
-      if (event.detail?.conversationId) {
-        setConversationId(event.detail.conversationId);
-      }
-    };
-
-    // Use the global ID if already set
-    if (window.__attuneConversationId) {
-      setConversationId(window.__attuneConversationId);
-    }
-
-    // Add event listener for conversation ID ready events
-    document.addEventListener(
-      'conversationIdReady', 
-      handleConversationIdReady as EventListener
-    );
-
-    return () => {
-      document.removeEventListener(
-        'conversationIdReady', 
-        handleConversationIdReady as EventListener
-      );
-    };
-  }, []);
-
-  return {
-    conversationId,
-    setConversationId,
-    createConversation,
-    resetConversationId,
-    isInitialized: !!conversationId
-  };
-};

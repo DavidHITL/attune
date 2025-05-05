@@ -45,42 +45,35 @@ export class SessionManager {
       console.log("Calling realtime-token edge function with auth:", !!accessToken);
       
       // Call the edge function with explicit handling for both auth and non-auth cases
-      // Improved error handling with try/catch
-      try {
-        const response = await supabase.functions.invoke('realtime-token', {
-          method: 'POST',
-          headers: headers,
-          body: { anonymous: !accessToken }
-        });
-        
-        if (response.error) {
-          console.error("Error from edge function:", response.error);
-          throw new Error(`Failed to get session token: ${response.error.message || 'Unknown error'}`);
-        }
-        
-        const data = response.data;
-        
-        if (!data || !data.client_secret?.value) {
-          console.error("Invalid session token response:", data);
-          throw new Error("Invalid session token response");
-        }
-
-        // Log conversation context for debugging
-        if (data.conversation_context) {
-          console.log(
-            "Conversation context:", 
-            data.conversation_context.has_history ? 
-              `Loaded ${data.conversation_context.message_count} previous messages` : 
-              "No previous conversation history"
-          );
-        }
-        
-        return data;
-      } catch (invokeError) {
-        // More detailed error for edge function invocation failures
-        console.error("Failed to invoke realtime-token function:", invokeError);
-        throw new Error(`Failed to get voice authorization: ${invokeError.message || 'Edge function error'}`);
+      const response = await supabase.functions.invoke('realtime-token', {
+        method: 'POST',
+        headers: headers,
+        body: { anonymous: !accessToken }
+      });
+      
+      if (response.error) {
+        console.error("Error from edge function:", response.error);
+        throw new Error(`Failed to get session token: ${response.error.message || 'Unknown error'}`);
       }
+      
+      const data = response.data;
+      
+      if (!data || !data.client_secret?.value) {
+        console.error("Invalid session token response:", data);
+        throw new Error("Invalid session token response");
+      }
+
+      // Log conversation context for debugging
+      if (data.conversation_context) {
+        console.log(
+          "Conversation context:", 
+          data.conversation_context.has_history ? 
+            `Loaded ${data.conversation_context.message_count} previous messages` : 
+            "No previous conversation history"
+        );
+      }
+      
+      return data;
     } catch (error) {
       console.error("Error in getSessionToken:", error);
       throw error;
