@@ -32,6 +32,11 @@ export const useTranscriptHandler = () => {
     else if (event.type === 'response.content_part.done' && event.content_part?.text) {
       transcriptContent = event.content_part.text;
     }
+    // Handle conversation.item.input_audio_transcription.completed events
+    else if (event.type === 'conversation.item.input_audio_transcription.completed' && event.transcript) {
+      transcriptContent = event.transcript;
+      console.log(`[useTranscriptHandler] Extracted transcript from input_audio_transcription: "${transcriptContent.substring(0, 50)}${transcriptContent.length > 50 ? '...' : ''}"`);
+    }
     
     // Skip processing if no valid content was found
     if (!transcriptContent || transcriptContent.trim() === '') {

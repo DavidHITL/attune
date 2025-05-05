@@ -63,6 +63,19 @@ export class TranscriptContentExtractor {
         });
       }
     }
+    // New handler for conversation.item.input_audio_transcription.completed events
+    else if (event.type === 'conversation.item.input_audio_transcription.completed' && event.transcript) {
+      transcriptContent = event.transcript;
+      extractionPath = 'input-audio-transcription-completed';
+      
+      if (this.debugEnabled) {
+        console.log(`[TranscriptExtractor] #${extractionId} Input audio transcription completed: "${transcriptContent?.substring(0, 50)}${transcriptContent && transcriptContent.length > 50 ? '...' : ''}"`, {
+          length: transcriptContent?.length,
+          timestamp: new Date().toISOString(),
+          path: extractionPath
+        });
+      }
+    }
     else if (event.type === 'response.audio_transcript.delta') {
       isDelta = true;
       transcriptContent = this.handleDeltaEvent(event, extractionId);

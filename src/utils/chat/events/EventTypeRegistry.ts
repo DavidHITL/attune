@@ -17,6 +17,7 @@ export class EventTypeRegistry {
     'input_audio_buffer.append': 'user',
     'input_audio_activity_started': 'user',
     'input_audio_activity_stopped': 'user',
+    'conversation.item.input_audio_transcription.completed': 'user', // New event for transcription
     
     // Assistant events
     'response.done': 'assistant',

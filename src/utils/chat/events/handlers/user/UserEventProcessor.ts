@@ -53,6 +53,23 @@ export class UserEventProcessor {
     }
     
     try {
+      // Special handling for conversation.item.input_audio_transcription.completed events
+      if (event.type === 'conversation.item.input_audio_transcription.completed') {
+        console.log(`[UserEventProcessor] #${processId} Processing input audio transcription completed event`);
+        
+        // Extract the transcript from the event
+        const transcript = event.transcript;
+        
+        if (transcript && typeof transcript === 'string' && transcript.trim()) {
+          console.log(`[UserEventProcessor] #${processId} Found transcript in input_audio_transcription: "${transcript.substring(0, 30)}${transcript.length > 30 ? '...' : ''}"`);
+          // Use the transcript processor with the 'user' role
+          this.transcriptProcessor.saveMessage(transcript, 'user', true);
+        } else {
+          console.log(`[UserEventProcessor] #${processId} No valid transcript found in input_audio_transcription event`);
+        }
+        return;
+      }
+      
       // Debug the event structure before extraction
       this.eventDebugger.analyzeEvent(event);
       
