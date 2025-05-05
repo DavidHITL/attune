@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export class VoiceTokenFetcher {
   /**
@@ -28,8 +29,10 @@ export class VoiceTokenFetcher {
         }
       };
       
-      // Log the detailed request being sent
-      console.log('[VoiceTokenFetcher] Sending request to realtime-token edge function');
+      // Enhanced diagnostic logging - log the URL and full request body
+      const url = `${supabase.functions.url}/realtime-token`;
+      console.log(`TOKEN → POST ${url}`);
+      console.log(`TOKEN → Request body = ${JSON.stringify(requestBody)}`);
       
       const response = await supabase.functions.invoke('realtime-token', { 
         body: requestBody,
@@ -38,13 +41,29 @@ export class VoiceTokenFetcher {
         }
       });
 
-      // Enhanced error handling with detailed logging
+      // Log the response status and details
+      const responseStatus = response.error ? response.error.status || 500 : 200;
+      console.log(`TOKEN → Status = ${responseStatus}`);
+      
+      let responseText = '';
       if (response.error) {
-        console.error('[VoiceTokenFetcher] Edge function error:', response.error);
-        console.error('[VoiceTokenFetcher] Error details:', JSON.stringify(response.error));
-        throw new Error(`VoiceConnectionError: Edge function returned error: ${response.error.message}`);
+        responseText = JSON.stringify(response.error);
+        console.log(`TOKEN → Error response = ${responseText}`);
+        
+        // Show toast with error details
+        const truncatedResponse = responseText.substring(0, 100) + (responseText.length > 100 ? '...' : '');
+        toast.error(`Voice connection failed (${responseStatus})`, {
+          description: truncatedResponse,
+          duration: 5000
+        });
+
+        throw new Error(`VoiceConnectionError: Edge function returned error (${responseStatus}): ${responseText}`);
+      } else {
+        responseText = JSON.stringify(response.data);
+        console.log(`TOKEN → Success response = ${responseText}`);
       }
       
+      // Validate response structure
       if (!response.data) {
         console.error('[VoiceTokenFetcher] Empty response from edge function');
         throw new Error('VoiceConnectionError: No data received from server');
