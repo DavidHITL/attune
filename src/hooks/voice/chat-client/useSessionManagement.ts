@@ -12,7 +12,7 @@ export const useSessionManagement = () => {
   // Function to send session creation event
   const sendSessionCreate = useCallback((websocket: WebSocket, sessionId: string) => {
     if (websocket.readyState === WebSocket.OPEN) {
-      console.log('Sending session.create event');
+      console.log('[SessionManagement] Sending session.create event');
       websocket.send(JSON.stringify({
         type: "session.create",
         session_id: sessionId,
@@ -35,7 +35,7 @@ export const useSessionManagement = () => {
   // Function to send session update event
   const sendSessionUpdate = useCallback((websocket: WebSocket) => {
     if (websocket.readyState === WebSocket.OPEN) {
-      console.log('[ChatClient] Sending session.update with input_audio_transcription configuration');
+      console.log('[SessionManagement] Sending session.update with input_audio_transcription configuration');
       websocket.send(JSON.stringify({
         type: "session.update",
         session: {
@@ -58,7 +58,7 @@ export const useSessionManagement = () => {
   
   // Handle session created event
   const handleSessionCreated = useCallback(() => {
-    console.log('[ChatClient] Session created event detected');
+    console.log('[SessionManagement] Session created event detected');
     setHasReceivedSessionCreated(true);
   }, []);
   

@@ -2,30 +2,35 @@
 import { useCallback } from 'react';
 
 /**
- * Hook for enhancing message handling with session awareness
+ * Hook for creating an enhanced message handler that processes session events
  */
 export const useEnhancedMessageHandler = (
-  combinedMessageHandler: (event: any) => void,
-  onSessionCreated: () => void,
-  webSocketRef: React.MutableRefObject<WebSocket | null>,
+  messageHandler: (event: any) => void,
+  handleSessionCreated: () => void,
+  websocketRef: React.RefObject<WebSocket>,
   sendSessionUpdate: (websocket: WebSocket) => void
 ) => {
-  // Enhanced message handler to detect session.created events
+  /**
+   * Enhanced message handler that tracks session events
+   */
   const enhancedMessageHandler = useCallback((event: any) => {
-    // Process the event with the standard handler first
-    combinedMessageHandler(event);
+    // First, let the original message handler process the event
+    messageHandler(event);
     
-    // Check for session.created to send the session.update with audio transcription configuration
+    // Special handling for session events
     if (event.type === 'session.created') {
-      console.log('[ChatClient] Session created event detected, will send session.update');
-      onSessionCreated();
+      console.log('[EnhancedMessageHandler] Detected session.created event');
       
-      // Send the session.update event
-      if (webSocketRef.current?.readyState === WebSocket.OPEN) {
-        sendSessionUpdate(webSocketRef.current);
+      // Notify session manager that session was created
+      handleSessionCreated();
+      
+      // Now send the session.update to configure the speech-to-text model
+      if (websocketRef.current) {
+        console.log('[EnhancedMessageHandler] Sending session.update after session.created');
+        sendSessionUpdate(websocketRef.current);
       }
     }
-  }, [combinedMessageHandler, onSessionCreated, webSocketRef, sendSessionUpdate]);
+  }, [messageHandler, handleSessionCreated, websocketRef, sendSessionUpdate]);
 
   return {
     enhancedMessageHandler
