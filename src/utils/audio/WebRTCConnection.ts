@@ -24,11 +24,13 @@ export class WebRTCConnection extends PeerConnectionBase {
     
     try {
       // Create WebRTC peer connection
+      console.log('[WebRTCConnection] Creating peer connection');
       this.peerConnection = new RTCPeerConnection({
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
       });
       
       // Set up data channel for messages
+      console.log('[WebRTCConnection] Setting up data channel');
       this.dataChannel = this.dataChannelManager.setupDataChannel(this.peerConnection);
       
       // Handle ICE candidates
@@ -48,10 +50,12 @@ export class WebRTCConnection extends PeerConnectionBase {
       };
       
       // Create offer
+      console.log('[WebRTCConnection] Creating offer');
       const offer = await this.peerConnection.createOffer();
       await this.peerConnection.setLocalDescription(offer);
       
       // Wait for ICE gathering to complete
+      console.log('[WebRTCConnection] Waiting for ICE gathering to complete');
       await this.waitForIceGatheringComplete();
       
       if (!this.peerConnection.localDescription) {
@@ -60,23 +64,46 @@ export class WebRTCConnection extends PeerConnectionBase {
       
       try {
         // Get token from Supabase Edge Function
+        console.log('[WebRTCConnection] Fetching voice token');
         let response;
         
         if (this.isTestMode) {
           console.log('[WebRTCConnection] Using test mode with dummy token');
           response = await VoiceTokenFetcher.fetchTestToken();
         } else {
+          console.log('[WebRTCConnection] Using actual localDescription:', 
+            this.peerConnection.localDescription.type);
           response = await VoiceTokenFetcher.fetchVoiceToken(
             this.peerConnection.localDescription
           );
         }
         
         // Apply remote description
+        console.log('[WebRTCConnection] Got response, applying remote description');
         const { answer, iceServers } = response;
         
+        // Ensure answer is in the right format
+        if (!answer) {
+          throw new Error('No answer in response');
+        }
+        
+        console.log('[WebRTCConnection] Answer type:', typeof answer);
+        
+        const answerObj = typeof answer === 'string' 
+          ? { type: 'answer' as RTCSdpType, sdp: answer } 
+          : answer;
+        
         await this.peerConnection.setRemoteDescription(
-          new RTCSessionDescription(typeof answer === 'string' ? JSON.parse(answer) : answer)
+          new RTCSessionDescription(answerObj)
         );
+        
+        // Apply any ICE servers from the response
+        if (iceServers && iceServers.length > 0) {
+          console.log('[WebRTCConnection] Updating ICE servers:', iceServers.length);
+          this.peerConnection.setConfiguration({
+            iceServers: iceServers
+          });
+        }
         
         console.log('[WebRTCConnection] Connection established');
       } catch (e) {

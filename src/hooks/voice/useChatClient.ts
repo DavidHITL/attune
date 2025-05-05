@@ -1,13 +1,10 @@
-
 import { useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { v4 as uuidv4 } from 'uuid';
 import { useMessageEventHandler } from './useMessageEventHandler';
 import { useWebSocketConnection } from './chat-client/useWebSocketConnection';
 import { useSessionManagement } from './chat-client/useSessionManagement';
 import { useAudioControls } from './chat-client/useAudioControls';
 import { createEnhancedMessageHandler } from './chat-client/useEnhancedMessageHandler';
-import { useConversationId } from '../useConversationId';
 
 /**
  * Custom hook for managing the chat client and its connection

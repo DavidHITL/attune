@@ -6,7 +6,7 @@ import { VoicePlayer } from './VoicePlayer';
 
 export class ConnectionManager {
   private webRTCConnection: WebRTCConnection;
-  private audioProcessor: AudioProcessor;
+  public audioProcessor: AudioProcessor;
   private isTestMode: boolean;
   
   constructor(
