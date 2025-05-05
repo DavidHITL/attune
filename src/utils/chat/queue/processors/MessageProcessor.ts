@@ -1,6 +1,7 @@
+
 import { SaveMessageCallback } from '../../../types';
 import { MessageQueueCore } from '../MessageQueueCore';
-import { messageSaveService } from '../../messaging/MessageSaveService';
+import { messageSaveService } from '../../messaging/MessageServiceExport';
 
 /**
  * Handles message processing and saving
