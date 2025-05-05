@@ -32,7 +32,7 @@ export class TranscriptEventHandler {
       return; // We don't save interim transcripts - only final ones
     }
     
-    // Handle conversation.item.input_audio_transcription.completed events - final transcripts from OpenAI
+    // Enhanced handling for conversation.item.input_audio_transcription.completed events
     if (event.type === "conversation.item.input_audio_transcription.completed" && event.transcript) {
       const finalTranscript = event.transcript;
       if (finalTranscript.trim() === '') {
