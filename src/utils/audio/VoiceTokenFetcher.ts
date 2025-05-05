@@ -30,7 +30,9 @@ export class VoiceTokenFetcher {
       };
       
       // Enhanced diagnostic logging - log the URL and full request body
-      const url = `${supabase.functions.url}/realtime-token`;
+      // Manually construct the URL since the 'url' property is protected
+      const projectRef = supabase.supabaseUrl.split('https://')[1].split('.')[0];
+      const url = `https://${projectRef}.supabase.co/functions/v1/realtime-token`;
       console.log(`TOKEN → POST ${url}`);
       console.log(`TOKEN → Request body = ${JSON.stringify(requestBody)}`);
       
