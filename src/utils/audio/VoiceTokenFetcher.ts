@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { SUPABASE_URL } from '@/env';
 
 export class VoiceTokenFetcher {
   /**
@@ -29,12 +30,12 @@ export class VoiceTokenFetcher {
         }
       };
       
-      // Enhanced diagnostic logging - log the URL and full request body
-      // Manually construct the URL since the 'url' property is protected
-      const projectRef = supabase.supabaseUrl.split('https://')[1].split('.')[0];
-      const url = `https://${projectRef}.supabase.co/functions/v1/realtime-token`;
-      console.log(`TOKEN → POST ${url}`);
-      console.log(`TOKEN → Request body = ${JSON.stringify(requestBody)}`);
+      // Use the environment variable directly instead of accessing protected property
+      const url = `${SUPABASE_URL}/functions/v1/realtime-token`;
+      
+      // Enhanced diagnostic logging using the specified format
+      console.log('TOKEN ▶︎ POST', url);
+      console.log('TOKEN ▶︎ body', JSON.stringify(requestBody));
       
       const response = await supabase.functions.invoke('realtime-token', { 
         body: requestBody,
@@ -43,14 +44,14 @@ export class VoiceTokenFetcher {
         }
       });
 
-      // Log the response status and details
+      // Log the response status and details in the requested format
       const responseStatus = response.error ? response.error.status || 500 : 200;
-      console.log(`TOKEN → Status = ${responseStatus}`);
+      console.log('TOKEN ▶︎ status', responseStatus);
       
       let responseText = '';
       if (response.error) {
         responseText = JSON.stringify(response.error);
-        console.log(`TOKEN → Error response = ${responseText}`);
+        console.log('TOKEN ▶︎ text', responseText);
         
         // Show toast with error details
         const truncatedResponse = responseText.substring(0, 100) + (responseText.length > 100 ? '...' : '');
@@ -62,7 +63,7 @@ export class VoiceTokenFetcher {
         throw new Error(`VoiceConnectionError: Edge function returned error (${responseStatus}): ${responseText}`);
       } else {
         responseText = JSON.stringify(response.data);
-        console.log(`TOKEN → Success response = ${responseText}`);
+        console.log('TOKEN ▶︎ text', responseText);
       }
       
       // Validate response structure
