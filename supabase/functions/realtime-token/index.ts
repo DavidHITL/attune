@@ -83,16 +83,54 @@ serve(async (req) => {
     const data = await requestOpenAIToken(instructions, botConfig.voice);
     console.log("Session created successfully");
     
-    // Return session token along with conversation context
-    const result = {
-      ...data,
-      conversation_context: {
-        has_history: recentMessages.length > 0,
-        message_count: recentMessages.length
-      }
-    };
+    // Extract session_id and client_secret for SDP exchange
+    const session_id = data.session_id;
+    const apiKey = data.client_secret.value;
     
-    return new Response(JSON.stringify(result), {
+    console.log("[token] session", session_id);
+    
+    // Check if we have an SDP offer in the request
+    const offer = requestBody?.offer;
+    if (!offer) {
+      console.error("Missing SDP offer in request");
+      return new Response(JSON.stringify({ error: "Missing SDP offer" }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    // Perform SDP exchange with OpenAI
+    const OPENAI_BASE = "https://api.openai.com/v1";
+    const sdpRes = await fetch(`${OPENAI_BASE}/realtime/sessions/${session_id}/sdp:exchange`, {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${apiKey}`, 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify({ offer })
+    });
+    
+    // Check if SDP exchange failed
+    if (!sdpRes.ok) {
+      console.error("SDP exchange failed with status:", sdpRes.status);
+      return new Response(JSON.stringify({ 
+        error: 'sdp exchange failed', 
+        status: sdpRes.status 
+      }), { 
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    // Extract answer and ice_servers from response
+    const sdpData = await sdpRes.json();
+    const answer = JSON.stringify(sdpData.answer);
+    const iceServers = sdpData.ice_servers;
+    
+    console.log("SDP exchange successful, returning answer and ice servers");
+    
+    // Return the expected response format
+    return new Response(JSON.stringify({ answer, iceServers }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
