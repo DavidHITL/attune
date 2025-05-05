@@ -1,175 +1,121 @@
-
-import { MessageQueue } from '../messageQueue';
-import { DirectTranscriptHandler } from './handlers/DirectTranscriptHandler';
-import { FinalTranscriptHandler } from './handlers/FinalTranscriptHandler';
-import { TranscriptAccumulator } from './handlers/TranscriptAccumulator';
-import { SpeechStateTracker } from './handlers/SpeechStateTracker';
-import { TranscriptNotifier } from './handlers/TranscriptNotifier';
+import { EventTypeRegistry } from '../events/EventTypeRegistry';
+import { toast } from 'sonner';
+import { getMessageQueue } from '../messageQueue/QueueProvider';
 
 export class TranscriptHandler {
-  private accumulator: TranscriptAccumulator;
-  private speechTracker: SpeechStateTracker;
-  private notifier: TranscriptNotifier;
-  private directHandler: DirectTranscriptHandler;
-  private finalHandler: FinalTranscriptHandler;
-  private lastCheckTime: number = 0;
-  // More aggressive saving (300ms)
-  private saveIntervalMs: number = 300; 
-  private lastSaveTime: number = 0;
-  private forceSaveAfterMs: number = 800; // Force save after 800ms without saves
-  private speechEndedTimer: number | null = null;
+  private lastTranscriptContent: string = '';
+  private processedTranscripts = new Set<string>();
   
-  constructor(private messageQueue: MessageQueue) {
-    this.accumulator = new TranscriptAccumulator();
-    this.speechTracker = new SpeechStateTracker();
-    this.notifier = new TranscriptNotifier();
-    this.directHandler = new DirectTranscriptHandler(messageQueue);
-    this.finalHandler = new FinalTranscriptHandler(messageQueue, this.accumulator);
-    
-    // Set up periodic check for stale transcripts
-    if (typeof window !== 'undefined') {
-      setInterval(() => this.checkForStalledTranscripts(), 800);
+  constructor(
+    private saveUserMessage: (text: string) => void
+  ) {}
+  
+  handleTranscriptEvents(event: any): void {
+    // Verify this is a user event to avoid handling assistant events
+    if (!EventTypeRegistry.isUserEvent(event.type)) {
+      console.log(`[TranscriptHandler] Not a user event: ${event.type}, skipping`);
+      return;
     }
-  }
-
-  handleTranscriptDelta(deltaText: string): void {
-    if (deltaText) {
-      this.accumulator.accumulateText(deltaText);
-      console.log(`📝 Accumulating transcript delta: "${deltaText}"`);
-      
-      // Clear any pending speech ended timer when we get new deltas
-      if (this.speechEndedTimer) {
-        console.log("🔄 Clearing speech ended timer due to new transcript data");
-        clearTimeout(this.speechEndedTimer);
-        this.speechEndedTimer = null;
+    
+    // Handle direct transcript events - show feedback but don't save
+    if (event.type === "transcript" && event.transcript && event.transcript.trim()) {
+      if (this.lastTranscriptContent !== event.transcript) {
+        this.lastTranscriptContent = event.transcript;
+        
+        // Only show toast for interim feedback, don't save messages
+        toast.info("Speech detected", { 
+          description: event.transcript.substring(0, 50) + (event.transcript.length > 50 ? "..." : ""),
+          duration: 2000
+        });
+      }
+      return; // We don't save interim transcripts - only final ones
+    }
+    
+    // Handle conversation.item.input_audio_transcription.completed events - final transcripts from OpenAI
+    if (event.type === "conversation.item.input_audio_transcription.completed" && event.transcript) {
+      const finalTranscript = event.transcript;
+      if (finalTranscript.trim() === '') {
+        return; // Skip empty transcripts
       }
       
-      // Check if we should save accumulated text based on time
-      const now = Date.now();
-      if (now - this.lastCheckTime > this.saveIntervalMs && this.hasAccumulatedTranscript()) {
-        console.log("🕒 Time threshold reached, saving accumulated transcript");
-        const accumulatedText = this.accumulator.getAccumulatedText();
-        this.finalHandler.handleFinalTranscript(accumulatedText);
-        this.lastCheckTime = now;
-        this.lastSaveTime = now;
+      // Create a fingerprint for deduplication
+      const transcriptFingerprint = `${event.type}:${finalTranscript.substring(0, 50)}`;
+      
+      // Skip if we've already processed this exact transcript
+      if (this.processedTranscripts.has(transcriptFingerprint)) {
+        console.log('[TranscriptHandler] Skipping duplicate input audio transcription');
+        return;
       }
-    }
-  }
-
-  handleDirectTranscript(transcript: string): void {
-    console.log(`📝 Handling direct transcript: "${transcript.substring(0, 50)}..."`);
-    this.directHandler.handleDirectTranscript(transcript);
-    this.lastSaveTime = Date.now();
-  }
-
-  handleFinalTranscript(text: string | undefined): void {
-    console.log(`📝 Handling final transcript: "${text?.substring(0, 50) || 'undefined'}..."`);
-    this.finalHandler.handleFinalTranscript(text);
-    
-    // Reset the last check time after handling a final transcript
-    this.lastCheckTime = Date.now();
-    this.lastSaveTime = Date.now();
-  }
-
-  handleSpeechStarted(): void {
-    this.speechTracker.markSpeechStarted();
-    console.log("🎙️ User speech started - preparing to capture transcript");
-    
-    // Clear any pending speech ended timer
-    if (this.speechEndedTimer) {
-      clearTimeout(this.speechEndedTimer);
-      this.speechEndedTimer = null;
-    }
-  }
-
-  handleSpeechStopped(): void {
-    console.log("🎤 User speech stopped - scheduling final transcript capture");
-    
-    // Set a short timer to allow any final deltas to arrive before saving
-    if (this.speechEndedTimer === null) {
-      this.speechEndedTimer = setTimeout(() => {
-        console.log("⏱️ Speech ended timer triggered - capturing final transcript");
-        this.captureAndSaveFinalTranscript();
-        this.speechEndedTimer = null;
-      }, 500) as unknown as number; // Short delay to ensure all deltas arrive
-    }
-  }
-  
-  private captureAndSaveFinalTranscript(): void {
-    if (this.speechTracker.isSpeechDetected()) {
-      if (this.hasAccumulatedTranscript()) {
-        const accumulatedText = this.accumulator.getAccumulatedText();
-        console.log(`🔴 SPEECH ENDED WITH FINAL TRANSCRIPT: "${accumulatedText.substring(0, 50)}${accumulatedText.length > 50 ? '...' : ''}"`);
+      
+      // Mark this transcript as processed
+      this.processedTranscripts.add(transcriptFingerprint);
+      this.lastTranscriptContent = finalTranscript;
         
-        // Save with explicit user role through the final handler
-        this.finalHandler.handleFinalTranscript(accumulatedText);
-        
-        // Reset accumulator after capturing final transcript
-        this.accumulator.reset();
+      console.log(`[TranscriptHandler] Saving final user transcript from input_audio_transcription: "${finalTranscript.substring(0, 50)}..."`);
+      
+      toast.success("Speech transcribed", { 
+        description: finalTranscript.substring(0, 50) + (finalTranscript.length > 50 ? "..." : ""),
+        duration: 2000
+      });
+      
+      // Try to use message queue first, fall back to direct save if not available
+      const messageQueue = getMessageQueue();
+      if (messageQueue) {
+        console.log('[TranscriptHandler] Using message queue to save user transcript');
+        // CRITICAL FIX: Explicitly set role to 'user' since this is a user transcript handler
+        messageQueue.queueMessage('user', finalTranscript, true);
       } else {
-        console.log("⚠️ Speech stopped but no transcript accumulated");
+        console.log('[TranscriptHandler] No message queue available, using direct save');
+        // Fall back to direct save method
+        this.saveUserMessage(finalTranscript);
       }
       
-      // Reset speech tracking after handling
-      this.speechTracker.reset();
+      return; // We've handled this event
     }
     
-    this.lastSaveTime = Date.now();
-  }
-
-  handleAudioBufferCommitted(): void {
-    console.log("Audio buffer committed, checking for speech finalization");
-    
-    // If speech was detected but no more deltas for some time, this could be the end
-    if (this.speechTracker.isSpeechDetected() && 
-        this.hasAccumulatedTranscript() &&
-        Date.now() - this.lastSaveTime > this.forceSaveAfterMs) {
-        
-      console.log("📢 Audio buffer committed with no recent deltas - treating as speech end");
-      this.captureAndSaveFinalTranscript();
-    }
-  }
-
-  flushPendingTranscript(): void {
-    if (this.hasAccumulatedTranscript()) {
-      const accumulatedText = this.accumulator.getAccumulatedText();
-      console.log(`🔴 FLUSHING PENDING TRANSCRIPT: "${accumulatedText}"`);
-      this.finalHandler.handleFinalTranscript(accumulatedText);
-      this.lastSaveTime = Date.now();
+    // Handle final transcript completion - this is where we save user transcripts
+    if (event.type === "response.audio_transcript.done" && event.transcript?.text) {
+      const finalTranscript = event.transcript.text;
+      if (finalTranscript.trim() === '') {
+        return; // Skip empty transcripts
+      }
       
-      // Clear the accumulator after flushing
-      this.accumulator.reset();
-    } else {
-      console.log("No pending transcript to flush");
+      // Create a fingerprint for deduplication
+      const transcriptFingerprint = `${event.type}:${finalTranscript.substring(0, 50)}`;
+      
+      // Skip if we've already processed this exact transcript
+      if (this.processedTranscripts.has(transcriptFingerprint)) {
+        console.log('[TranscriptHandler] Skipping duplicate transcript');
+        return;
+      }
+      
+      // Mark this transcript as processed
+      this.processedTranscripts.add(transcriptFingerprint);
+      this.lastTranscriptContent = finalTranscript;
+        
+      console.log(`[TranscriptHandler] Saving final user transcript: "${finalTranscript.substring(0, 50)}..."`);
+      
+      toast.success("Speech transcribed", { 
+        description: finalTranscript.substring(0, 50) + (finalTranscript.length > 50 ? "..." : ""),
+        duration: 2000
+      });
+      
+      // Try to use message queue first, fall back to direct save if not available
+      const messageQueue = getMessageQueue();
+      if (messageQueue) {
+        console.log('[TranscriptHandler] Using message queue to save user transcript');
+        // CRITICAL FIX: Explicitly set role to 'user' since this is a user transcript handler
+        messageQueue.queueMessage('user', finalTranscript, true);
+      } else {
+        console.log('[TranscriptHandler] No message queue available, using direct save');
+        // Fall back to direct save method
+        this.saveUserMessage(finalTranscript);
+      }
     }
-  }
-
-  private hasAccumulatedTranscript(): boolean {
-    const text = this.accumulator.getAccumulatedText();
-    return !!text && text.trim() !== '';
-  }
-
-  getTranscript(): string {
-    return this.accumulator.getAccumulatedText();
-  }
-
-  clearTranscript(): void {
-    this.accumulator.reset();
-  }
-
-  isUserSpeechDetected(): boolean {
-    return this.speechTracker.isSpeechDetected();
   }
   
-  // Periodic check for stalled transcripts
-  private checkForStalledTranscripts(): void {
-    const now = Date.now();
-    // If we have accumulated transcript and it's been more than forceSaveAfterMs since last save
-    if (this.hasAccumulatedTranscript() && 
-        (now - this.lastSaveTime > this.forceSaveAfterMs) &&
-        this.speechTracker.isSpeechDetected()) {
-      console.log(`⚠️ Found stalled transcript (${now - this.lastSaveTime}ms since last save), force saving`);
-      this.captureAndSaveFinalTranscript();
-    }
+  // Clear processed transcripts (for testing or session resets)
+  clearProcessedTranscripts() {
+    this.processedTranscripts.clear();
   }
 }

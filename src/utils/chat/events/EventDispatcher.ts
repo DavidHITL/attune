@@ -1,4 +1,3 @@
-
 /**
  * Event Dispatcher is the central routing mechanism for all events
  * It identifies event types and routes them to specialized handlers
