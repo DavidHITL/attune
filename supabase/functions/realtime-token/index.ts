@@ -10,13 +10,22 @@ serve(async (req) => {
 
   try {
     // 0) Parse body & validate
-    const { offer } = await req.json();
+    let offer;
+    try {
+      const body = await req.json();
+      offer = body.offer;
+    } catch (err) {
+      console.error("JSON parse error:", err);
+      return Response.json({ error: 'invalid JSON in request body' }, { status: 400, headers: corsHeaders });
+    }
+
     if (!offer?.sdp || !offer?.type) {
       return Response.json({ error: 'missing offer' }, { status: 400, headers: corsHeaders });
     }
 
     // ADD dummy test response for safe testing
     if (offer?.sdp === 'dummy-sdp-for-testing') {
+      console.log("[realtime-token] Returning test response for dummy sdp");
       return Response.json({
         answer: "v=0\\no=- 0 0 IN IP4 127.0.0.1\\ns=Dummy\\nt=0 0\\nm=audio 9 UDP/TLS/RTP/SAVPF 111\\nc=IN IP4 0.0.0.0\\na=rtpmap:111 opus/48000/2",
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
@@ -26,11 +35,13 @@ serve(async (req) => {
     // 1) Secrets / config
     const apiKey = Deno.env.get('OPENAI_API_KEY');
     if (!apiKey) {
+      console.error("[realtime-token] OPENAI_API_KEY not set");
       return Response.json({ error: 'OPENAI_API_KEY not set' }, { status: 500, headers: corsHeaders });
     }
     const OPENAI_BASE = 'https://api.openai.com';
 
     // 2) Create realtime session
+    console.log("[realtime-token] Creating session with API key:", apiKey ? "Present (hidden)" : "Missing");
     const sessionRes = await fetch(`${OPENAI_BASE}/v1/realtime/sessions`, {
       method: 'POST',
       headers: {
@@ -42,17 +53,21 @@ serve(async (req) => {
         model: 'gpt-4o-audio-preview-2024-12-17'
       })
     });
+    
     if (!sessionRes.ok) {
       const body = await sessionRes.text();
+      console.error(`[realtime-token] session create failed: ${sessionRes.status}`, body);
       return Response.json(
         { error: 'session create failed', status: sessionRes.status, body },
         { status: sessionRes.status, headers: corsHeaders }
       );
     }
+    
     const { id: session_id } = await sessionRes.json();
     console.log('[token] session', session_id);
 
     // 3) Exchange SDP
+    console.log("[realtime-token] Exchanging SDP with session:", session_id);
     const sdpRes = await fetch(
       `${OPENAI_BASE}/v1/realtime/sessions/${session_id}/sdp:exchange`,
       {
@@ -64,19 +79,23 @@ serve(async (req) => {
         body: JSON.stringify({ offer })
       }
     );
+    
     if (!sdpRes.ok) {
       const body = await sdpRes.text();
+      console.error(`[realtime-token] SDP exchange failed: ${sdpRes.status}`, body);
       return Response.json(
         { error: 'sdp exchange failed', status: sdpRes.status, body },
         { status: sdpRes.status, headers: corsHeaders }
       );
     }
+    
     const { answer, ice_servers } = await sdpRes.json();
+    console.log("[realtime-token] SDP exchange successful");
 
     // 4) Success
     return Response.json({ answer, iceServers: ice_servers }, { headers: corsHeaders });
   } catch (err) {
-    console.error(err);
+    console.error("[realtime-token] Unexpected error:", err);
     return Response.json({ error: err.message ?? 'unknown' }, { status: 500, headers: corsHeaders });
   }
 });

@@ -22,7 +22,7 @@ export const useConnectionManager = (
   const connectionId = Math.random().toString(36).substring(2, 9);
   
   // Use test mode in development for safer testing
-  const useTestMode = process.env.NODE_ENV === 'development';
+  const useTestMode = true; // Always use test mode for now to help debug
   
   const startConversation = useCallback(async (): Promise<void> => {
     try {

@@ -12,6 +12,10 @@ export class VoiceTokenFetcher {
     try {
       // Invoke Supabase edge function
       console.log('[VoiceTokenFetcher] Fetching voice token with offer type:', offer.type);
+      console.log('[VoiceTokenFetcher] Offer SDP length:', offer.sdp?.length || 0);
+      
+      // Log the detailed request being sent
+      console.log('[VoiceTokenFetcher] Sending request to realtime-token edge function');
       
       const response = await supabase.functions.invoke('realtime-token', { 
         body: { offer },
@@ -20,9 +24,10 @@ export class VoiceTokenFetcher {
         }
       });
 
-      // Enhanced error handling
+      // Enhanced error handling with detailed logging
       if (response.error) {
         console.error('[VoiceTokenFetcher] Edge function error:', response.error);
+        console.error('[VoiceTokenFetcher] Error details:', JSON.stringify(response.error));
         throw new Error(`VoiceConnectionError: Edge function returned error: ${response.error.message}`);
       }
       
@@ -59,6 +64,7 @@ export class VoiceTokenFetcher {
     iceServers?: RTCIceServer[] 
   }> {
     try {
+      console.log('[VoiceTokenFetcher] Fetching test token');
       // Create a dummy offer with a special type that signals the edge function
       // to return a test response instead of calling the OpenAI API
       const dummyOffer: RTCSessionDescriptionInit = {

@@ -24,11 +24,13 @@ export class WebRTCConnection extends PeerConnectionBase {
     
     try {
       // Create WebRTC peer connection
+      console.log('[WebRTCConnection] Creating peer connection');
       this.peerConnection = new RTCPeerConnection({
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
       });
       
       // Set up data channel for messages
+      console.log('[WebRTCConnection] Setting up data channel');
       this.dataChannel = this.dataChannelManager.setupDataChannel(this.peerConnection);
       
       // Handle ICE candidates
@@ -48,10 +50,12 @@ export class WebRTCConnection extends PeerConnectionBase {
       };
       
       // Create offer
+      console.log('[WebRTCConnection] Creating offer');
       const offer = await this.peerConnection.createOffer();
       await this.peerConnection.setLocalDescription(offer);
       
       // Wait for ICE gathering to complete
+      console.log('[WebRTCConnection] Waiting for ICE gathering to complete');
       await this.waitForIceGatheringComplete();
       
       if (!this.peerConnection.localDescription) {
@@ -60,22 +64,41 @@ export class WebRTCConnection extends PeerConnectionBase {
       
       try {
         // Get token from Supabase Edge Function
+        console.log('[WebRTCConnection] Fetching voice token');
         let response;
         
         if (this.isTestMode) {
           console.log('[WebRTCConnection] Using test mode with dummy token');
           response = await VoiceTokenFetcher.fetchTestToken();
         } else {
+          console.log('[WebRTCConnection] Using actual localDescription:', 
+            this.peerConnection.localDescription.type);
           response = await VoiceTokenFetcher.fetchVoiceToken(
             this.peerConnection.localDescription
           );
         }
         
         // Apply remote description
+        console.log('[WebRTCConnection] Got response, applying remote description');
         const { answer, iceServers } = response;
         
+        // Parse answer if it's a string
+        let parsedAnswer;
+        if (typeof answer === 'string') {
+          try {
+            parsedAnswer = JSON.parse(answer);
+            console.log('[WebRTCConnection] Parsed string answer successfully');
+          } catch (e) {
+            console.log('[WebRTCConnection] Answer is a string but not JSON, using directly');
+            parsedAnswer = { type: 'answer', sdp: answer };
+          }
+        } else {
+          console.log('[WebRTCConnection] Answer is already an object');
+          parsedAnswer = answer;
+        }
+        
         await this.peerConnection.setRemoteDescription(
-          new RTCSessionDescription(typeof answer === 'string' ? JSON.parse(answer) : answer)
+          new RTCSessionDescription(parsedAnswer)
         );
         
         console.log('[WebRTCConnection] Connection established');
