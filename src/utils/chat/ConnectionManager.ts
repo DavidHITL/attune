@@ -3,6 +3,7 @@ import { WebRTCConnection } from '../audio/WebRTCConnection';
 import { AudioProcessor } from '../audio/AudioProcessor';
 import { MessageCallback, SaveMessageCallback } from '../types';
 import { MessageQueue } from './messageQueue';
+import { MessageQueuePublicInterface } from './queue/types';
 
 export class ConnectionManager {
   private webRTCConnection: WebRTCConnection;
@@ -41,7 +42,9 @@ export class ConnectionManager {
       // Make message queue available globally for conversation initialization
       if (this.messageQueue && typeof window !== 'undefined') {
         console.log(`[ConnectionManager ${this.debugId}] Registering global message queue`);
-        window.attuneMessageQueue = {
+        
+        // Create public interface to expose only the necessary methods
+        const publicInterface: MessageQueuePublicInterface = {
           setConversationInitialized: () => {
             console.log(`[ConnectionManager ${this.debugId}] Marking conversation as initialized`);
             this.messageQueue?.setConversationInitialized();
@@ -75,6 +78,8 @@ export class ConnectionManager {
             return this.messageQueue ? this.messageQueue.flushQueue() : Promise.resolve();
           }
         };
+        
+        window.attuneMessageQueue = publicInterface;
       }
       
       return true;

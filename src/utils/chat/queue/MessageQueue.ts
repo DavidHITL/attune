@@ -1,3 +1,4 @@
+
 import { Message, SaveMessageCallback } from '../../types';
 import { MessageQueueCore } from './MessageQueueCore';
 import { MessageProcessor } from './processors/MessageProcessor';
@@ -5,12 +6,13 @@ import { QueueInitializer } from './initialization/QueueInitializer';
 import { getOrCreateConversationId } from '@/hooks/useConversationId';
 import { supabase } from '@/integrations/supabase/client';
 import { MessageDeduplicator } from './processors/MessageDeduplicator';
+import { MessageQueuePublicInterface } from './types';
 
 // Extending Window interface to include our global variable for the message queue
 declare global {
   interface Window {
     __attuneConversationId?: string;
-    attuneMessageQueue?: MessageQueue;
+    attuneMessageQueue?: MessageQueuePublicInterface;
   }
 }
 
