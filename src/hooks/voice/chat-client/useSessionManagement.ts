@@ -9,28 +9,8 @@ export const useSessionManagement = () => {
   const { conversationId, setConversationId } = useConversationId();
   const [hasReceivedSessionCreated, setHasReceivedSessionCreated] = useState(false);
   
-  // Function to send session creation event
-  const sendSessionCreate = useCallback((websocket: WebSocket, sessionId: string) => {
-    if (websocket.readyState === WebSocket.OPEN) {
-      console.log('[SessionManagement] Sending session.create event');
-      websocket.send(JSON.stringify({
-        type: "session.create",
-        session_id: sessionId,
-        configuration: {
-          modalities: ["text", "audio"],
-          voice: "alloy",
-          input_audio_format: "pcm16",
-          output_audio_format: "pcm16",
-          turn_detection: {
-            type: "server_vad", // Let the server detect turns
-            threshold: 0.5,
-            prefix_padding_ms: 300,
-            silence_duration_ms: 1000
-          }
-        }
-      }));
-    }
-  }, []);
+  // We're removing the session.create function as it's not supported by OpenAI's API
+  // The WebRTC connection already establishes the session during SDP exchange
   
   // Function to send session update event
   const sendSessionUpdate = useCallback((websocket: WebSocket) => {
@@ -73,7 +53,6 @@ export const useSessionManagement = () => {
     setConversationId,
     hasReceivedSessionCreated,
     setHasReceivedSessionCreated,
-    sendSessionCreate,
     sendSessionUpdate,
     handleSessionCreated,
     resetSession

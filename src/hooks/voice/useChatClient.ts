@@ -23,7 +23,6 @@ export const useChatClient = () => {
     setConversationId,
     hasReceivedSessionCreated,
     handleSessionCreated,
-    sendSessionCreate,
     sendSessionUpdate,
     resetSession
   } = useSessionManagement();
@@ -82,12 +81,12 @@ export const useChatClient = () => {
       sessionUpdateSentRef.current = false;
       
       // Start the WebSocket connection
-      const sessionId = await startConnection();
+      await startConnection();
       
-      if (sessionId && websocketRef.current) {
-        // Send session.create event after connection is open
-        sendSessionCreate(websocketRef.current, sessionId);
-      }
+      // We're not sending session.create anymore since it's not supported
+      // The WebRTC connection already establishes the session
+      console.log("[ChatClient] Connection established, waiting for session.created event");
+      
     } catch (error) {
       console.error('[ChatClient] Failed to start conversation:', error);
       
@@ -97,7 +96,7 @@ export const useChatClient = () => {
         duration: 3000
       });
     }
-  }, [isConnected, startConnection, websocketRef, sendSessionCreate]);
+  }, [isConnected, startConnection]);
   
   // Function to end the WebSocket connection
   const endConversation = useCallback(() => {
