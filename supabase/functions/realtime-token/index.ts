@@ -9,6 +9,14 @@ serve(async (req) => {
       return Response.json({ error: 'missing offer' }, { status: 400 });
     }
 
+    // ADD dummy test response for safe testing
+    if (offer?.type === 'dummy-test') {
+      return Response.json({
+        answer: "v=0\\no=- 0 0 IN IP4 127.0.0.1\\ns=Dummy\\nt=0 0\\nm=audio 9 UDP/TLS/RTP/SAVPF 111\\nc=IN IP4 0.0.0.0\\na=rtpmap:111 opus/48000/2",
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+      });
+    }
+
     // 1) Secrets / config
     const apiKey = Deno.env.get('OPENAI_API_KEY');
     if (!apiKey) {
