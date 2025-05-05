@@ -1,3 +1,4 @@
+
 import { MessageQueue } from '../messageQueue';
 import { ResponseParser } from '../ResponseParser';
 import { EventHandler } from '../EventHandler';
@@ -8,6 +9,7 @@ import { MessageCallback, StatusCallback, SaveMessageCallback } from '../../type
 import { MessageEventHandler } from '../handlers/MessageEventHandler';
 import { toast } from 'sonner';
 import { ConnectionManager } from '../../audio/ConnectionManager';
+import { MicrophoneControlManager } from '../microphone/MicrophoneControlManager';
 
 export class RealtimeChatCore {
   private connectionManager: ConnectionManager;
@@ -18,6 +20,7 @@ export class RealtimeChatCore {
   private microphoneManager: MicrophoneManager;
   private transcriptHandler: TranscriptEventHandler;
   private messageEventHandler: MessageEventHandler;
+  private microphoneControlManager: MicrophoneControlManager;
   
   constructor(
     messageCallback: MessageCallback,
@@ -76,6 +79,9 @@ export class RealtimeChatCore {
     );
     
     this.microphoneManager = new MicrophoneManager(this.connectionManager);
+    
+    // Initialize microphone control manager
+    this.microphoneControlManager = new MicrophoneControlManager(this.connectionManager);
   }
 
   async init() {
@@ -107,23 +113,23 @@ export class RealtimeChatCore {
 
   // Forward necessary methods to their respective managers
   pauseMicrophone() {
-    this.microphoneManager.pauseMicrophone();
+    this.microphoneControlManager.pauseMicrophone();
   }
   
   resumeMicrophone() {
-    this.microphoneManager.resumeMicrophone();
+    this.microphoneControlManager.resumeMicrophone();
   }
   
   forceStopMicrophone() {
-    this.microphoneManager.completelyStopMicrophone();
+    this.microphoneControlManager.forceStopMicrophone();
   }
   
   forceResumeMicrophone() {
-    this.microphoneManager.forceResumeMicrophone();
+    this.microphoneControlManager.forceResumeMicrophone();
   }
   
   isMicrophonePaused() {
-    return this.microphoneManager.isMicrophonePaused();
+    return this.microphoneControlManager.isMicrophonePaused();
   }
   
   setMuted(muted: boolean) {

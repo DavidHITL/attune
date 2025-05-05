@@ -2,6 +2,7 @@
 // Import the ConnectionManager from the audio folder 
 import { ConnectionManager } from '../audio/ConnectionManager';
 import { MessageCallback, StatusCallback, SaveMessageCallback } from '../types';
+import { MicrophoneControlManager } from './microphone/MicrophoneControlManager';
 
 /**
  * Main class for handling Realtime Chat interactions
@@ -12,6 +13,7 @@ export class RealtimeChat {
   private status: string = 'disconnected';
   private connectionId: string;
   private testMode: boolean;
+  private microphoneManager: MicrophoneControlManager;
 
   constructor(
     private messageHandler: MessageCallback,
@@ -30,6 +32,9 @@ export class RealtimeChat {
       this.saveMessageCallback,
       this.testMode
     );
+    
+    // Create microphone manager to handle microphone controls
+    this.microphoneManager = new MicrophoneControlManager(this.connectionManager);
   }
 
   async init(): Promise<void> {
@@ -50,7 +55,46 @@ export class RealtimeChat {
    */
   setMuted(muted: boolean): void {
     console.log(`[RealtimeChat ${this.connectionId}] Setting muted: ${muted}`);
-    this.connectionManager.setMuted(muted);
+    this.microphoneManager.setMuted(muted);
+  }
+
+  /**
+   * Pause microphone - stops recording but keeps the track active
+   */
+  pauseMicrophone(): void {
+    console.log(`[RealtimeChat ${this.connectionId}] Pausing microphone`);
+    this.microphoneManager.pauseMicrophone();
+  }
+
+  /**
+   * Resume microphone after pausing
+   */
+  resumeMicrophone(): void {
+    console.log(`[RealtimeChat ${this.connectionId}] Resuming microphone`);
+    this.microphoneManager.resumeMicrophone();
+  }
+
+  /**
+   * Force stop microphone - completely stops the track
+   */
+  forceStopMicrophone(): void {
+    console.log(`[RealtimeChat ${this.connectionId}] Force stopping microphone`);
+    this.microphoneManager.forceStopMicrophone();
+  }
+
+  /**
+   * Force resume microphone - reinitializes the track
+   */
+  forceResumeMicrophone(): void {
+    console.log(`[RealtimeChat ${this.connectionId}] Force resuming microphone`);
+    this.microphoneManager.forceResumeMicrophone();
+  }
+
+  /**
+   * Check if microphone is currently paused
+   */
+  isMicrophonePaused(): boolean {
+    return this.microphoneManager.isMicrophonePaused();
   }
 
   /**
