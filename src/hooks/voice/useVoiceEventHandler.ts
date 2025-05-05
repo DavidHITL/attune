@@ -2,12 +2,12 @@
 import { useCallback } from 'react';
 import { useVoiceActivityState } from './useVoiceActivityState';
 import { useVoiceChatLogger } from './useVoiceChatLogger';
-import { useTranscriptHandler } from './useTranscriptHandler';
+import { useVoiceEventProcessing } from './event-handlers/useVoiceEventProcessing';
 
-export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>) => {
+export const useVoiceEventHandler = () => {
   const { voiceActivityState, handleMessageEvent: handleVoiceActivityEvent } = useVoiceActivityState();
   const { logSpeechEvents } = useVoiceChatLogger();
-  const { handleTranscriptEvent } = useTranscriptHandler();
+  const { processVoiceEvent } = useVoiceEventProcessing();
   
   const handleVoiceEvent = useCallback((event: any) => {
     // Process voice activity state changes
@@ -16,16 +16,9 @@ export const useVoiceEventHandler = (chatClientRef: React.MutableRefObject<any>)
     // Log speech and transcript events
     logSpeechEvents(event);
     
-    // Skip any events that need special handling by system components
-    if (event.type === 'input_audio_buffer.append' || 
-        event.type === 'input_audio_activity_started' ||
-        event.type === 'input_audio_activity_stopped') {
-      return;
-    }
-    
-    // Use our transcript handler to process the event
-    handleTranscriptEvent(event);
-  }, [handleVoiceActivityEvent, logSpeechEvents, handleTranscriptEvent]);
+    // Use our specialized processor for voice events
+    processVoiceEvent(event);
+  }, [handleVoiceActivityEvent, logSpeechEvents, processVoiceEvent]);
 
   return {
     voiceActivityState,
