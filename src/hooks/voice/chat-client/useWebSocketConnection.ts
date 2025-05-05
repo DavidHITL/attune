@@ -1,10 +1,9 @@
-
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
 
 // Define the WebSocket URL
-const WS_URL = process.env.NEXT_PUBLIC_ATTUNE_WEBSOCKET_URL || 'ws://localhost:8080';
+const WS_URL = import.meta.env.VITE_ATTUNE_WEBSOCKET_URL || 'ws://localhost:8080';
 
 // Maximum number of reconnection attempts
 const MAX_RECONNECT_ATTEMPTS = 3;
