@@ -17,6 +17,11 @@ export class VoiceTokenFetcher {
       // Log the detailed request being sent
       console.log('[VoiceTokenFetcher] Sending request to realtime-token edge function');
       
+      // Make sure we have a valid offer before sending
+      if (!offer || !offer.sdp || !offer.type) {
+        throw new Error('VoiceConnectionError: Invalid offer object');
+      }
+      
       const response = await supabase.functions.invoke('realtime-token', { 
         body: { offer },
         headers: {
@@ -68,7 +73,7 @@ export class VoiceTokenFetcher {
       // Create a dummy offer with a special type that signals the edge function
       // to return a test response instead of calling the OpenAI API
       const dummyOffer: RTCSessionDescriptionInit = {
-        type: 'offer', // Using a valid RTCSdpType value
+        type: 'offer',
         sdp: 'dummy-sdp-for-testing'
       };
       

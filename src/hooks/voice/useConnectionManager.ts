@@ -22,8 +22,8 @@ export const useConnectionManager = (
   const { user } = useAuth();
   const connectionId = Math.random().toString(36).substring(2, 9);
   
-  // Use test mode in development for safer testing
-  const useTestMode = true; // Always use test mode for now to help debug
+  // Always use test mode for safer testing
+  const useTestMode = true;
   
   const startConversation = useCallback(async (): Promise<void> => {
     try {

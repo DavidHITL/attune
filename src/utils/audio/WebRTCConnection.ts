@@ -16,6 +16,8 @@ export class WebRTCConnection extends PeerConnectionBase {
     this.messageCallback = null;
     this.dataChannelManager = new DataChannelManager();
     this.isTestMode = testMode;
+    
+    console.log(`[WebRTCConnection] Created with testMode=${testMode}`);
   }
   
   async init(messageCallback: MessageCallback): Promise<void> {
@@ -87,10 +89,13 @@ export class WebRTCConnection extends PeerConnectionBase {
           throw new Error('No answer in response');
         }
         
-        console.log('[WebRTCConnection] Answer type:', typeof answer);
+        // Log the answer format for debugging
+        console.log('[WebRTCConnection] Answer type:', typeof answer, 
+          'structure:', JSON.stringify(answer).substring(0, 100) + '...');
         
-        const answerObj = typeof answer === 'string' 
-          ? { type: 'answer' as RTCSdpType, sdp: answer } 
+        // Make sure we have a proper RTCSessionDescription object
+        const answerObj = (typeof answer === 'string')
+          ? { type: 'answer', sdp: answer } 
           : answer;
         
         await this.peerConnection.setRemoteDescription(
@@ -105,10 +110,20 @@ export class WebRTCConnection extends PeerConnectionBase {
           });
         }
         
-        console.log('[WebRTCConnection] Connection established');
+        console.log('[WebRTCConnection] Connection established successfully');
+        
+        // Simulate conversation initialization for test mode
+        if (this.isTestMode && this.messageCallback) {
+          console.log('[WebRTCConnection] Test mode: Simulating session created event');
+          setTimeout(() => {
+            if (this.messageCallback) {
+              this.messageCallback({ type: 'session.created', id: 'test-session-id' });
+            }
+          }, 500);
+        }
       } catch (e) {
         console.error('[WebRTCConnection] Connection error:', e);
-        this.setCallError('Voice connection failed. Please refresh your API keys or try later.');
+        this.setCallError('Voice connection failed. Please try again or check your API keys.');
         this.teardownPeer();
         throw e;
       }
@@ -119,6 +134,23 @@ export class WebRTCConnection extends PeerConnectionBase {
   }
   
   sendMessage(message: any): void {
+    if (this.isTestMode) {
+      console.log('[WebRTCConnection] Test mode: Simulating sending message:', message);
+      // If in test mode, simulate response for specific message types
+      if (message.type === 'session.update') {
+        console.log('[WebRTCConnection] Test mode: Simulating session updated response');
+        setTimeout(() => {
+          if (this.messageCallback) {
+            this.messageCallback({ 
+              type: 'session.updated', 
+              session: { ...message.session } 
+            });
+          }
+        }, 300);
+      }
+      return;
+    }
+    
     this.dataChannelManager.sendMessage(message);
   }
   

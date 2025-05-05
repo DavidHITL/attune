@@ -12,17 +12,42 @@ serve(async (req) => {
     // Parse body & validate
     let offer;
     try {
-      const body = await req.json();
-      offer = body.offer;
-      console.log("[realtime-token] Received offer:", offer?.type);
+      // Check if the request has a body before trying to parse it
+      const text = await req.text();
+      
+      if (!text || text.trim() === '') {
+        console.error("[realtime-token] Empty request body");
+        return Response.json(
+          { error: 'Empty request body' }, 
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      try {
+        const body = JSON.parse(text);
+        offer = body.offer;
+        console.log("[realtime-token] Received offer:", offer?.type);
+      } catch (err) {
+        console.error("[realtime-token] JSON parse error:", err);
+        return Response.json(
+          { error: 'Invalid JSON in request body', details: String(err) }, 
+          { status: 400, headers: corsHeaders }
+        );
+      }
     } catch (err) {
-      console.error("[realtime-token] JSON parse error:", err);
-      return Response.json({ error: 'invalid JSON in request body' }, { status: 400, headers: corsHeaders });
+      console.error("[realtime-token] Body parsing error:", err);
+      return Response.json(
+        { error: 'Failed to read request body', details: String(err) }, 
+        { status: 400, headers: corsHeaders }
+      );
     }
 
     if (!offer?.sdp || !offer?.type) {
       console.error("[realtime-token] Missing offer details:", offer);
-      return Response.json({ error: 'missing or invalid offer' }, { status: 400, headers: corsHeaders });
+      return Response.json(
+        { error: 'missing or invalid offer' }, 
+        { status: 400, headers: corsHeaders }
+      );
     }
 
     // ADD dummy test response for safe testing
@@ -41,7 +66,10 @@ serve(async (req) => {
     const apiKey = Deno.env.get('OPENAI_API_KEY');
     if (!apiKey) {
       console.error("[realtime-token] OPENAI_API_KEY not set");
-      return Response.json({ error: 'OPENAI_API_KEY not set' }, { status: 500, headers: corsHeaders });
+      return Response.json(
+        { error: 'OPENAI_API_KEY not set' }, 
+        { status: 500, headers: corsHeaders }
+      );
     }
     const OPENAI_BASE = 'https://api.openai.com';
 
@@ -98,9 +126,15 @@ serve(async (req) => {
     console.log("[realtime-token] SDP exchange successful");
 
     // 4) Success
-    return Response.json({ answer, iceServers: ice_servers }, { headers: corsHeaders });
+    return Response.json(
+      { answer, iceServers: ice_servers }, 
+      { headers: corsHeaders }
+    );
   } catch (err) {
     console.error("[realtime-token] Unexpected error:", err);
-    return Response.json({ error: err.message ?? 'unknown' }, { status: 500, headers: corsHeaders });
+    return Response.json(
+      { error: err.message ?? 'unknown' }, 
+      { status: 500, headers: corsHeaders }
+    );
   }
 });
