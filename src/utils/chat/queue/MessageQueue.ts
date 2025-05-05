@@ -124,7 +124,7 @@ export class MessageQueue {
         this.initializer.isInitialized()
       );
     } catch (error) {
-      throw new Error(`Error processing queue: ${error}`);
+      console.error(`[MessageQueue] Error processing queue: ${error}`);
     } finally {
       this.queueCore.setProcessing(false);
     }

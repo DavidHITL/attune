@@ -45,6 +45,7 @@ export class MessageSaveService {
       // Prevent duplicate saves with a simple content key
       const contentKey = `${message.role}:${message.content.substring(0, 100)}`;
       if (this.recentlySavedContent.has(contentKey)) {
+        console.log(`[MessageSaveService] Skipping duplicate ${message.role} message`);
         return null;
       }
       
@@ -77,6 +78,8 @@ export class MessageSaveService {
         user_id: message.user_id
       };
       
+      console.log(`[MessageSaveService] Saving ${message.role} message: "${message.content.substring(0, 50)}${message.content.length > 50 ? '...' : ''}" to conversation ${message.conversation_id}`);
+      
       // Perform database insert
       const { data: savedMessage, error } = await supabase
         .from("messages")
@@ -92,12 +95,30 @@ export class MessageSaveService {
         throw new Error("Failed to save message");
       }
       
+      console.log(`[MessageSaveService] Successfully saved ${message.role} message with ID: ${savedMessage.id}`);
+      
       return savedMessage as Message;
     } catch (error) {
+      console.error(`[MessageSaveService] Error saving ${message?.role || 'unknown'} message:`, error);
       throw error;
     } finally {
       this.activeInserts--;
     }
+  }
+  
+  /**
+   * Check if message is being processed to prevent duplicates
+   */
+  public isMessageBeingProcessed(role: 'user' | 'assistant', content: string): boolean {
+    const contentKey = `${role}:${content.substring(0, 100)}`;
+    return this.recentlySavedContent.has(contentKey);
+  }
+  
+  /**
+   * Get current number of active inserts
+   */
+  public getActiveInsertsCount(): number {
+    return this.activeInserts;
   }
 }
 

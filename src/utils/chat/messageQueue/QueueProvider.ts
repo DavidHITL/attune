@@ -39,6 +39,6 @@ export const getMessageQueue = (): MessageQueue | null => {
 export const resetMessageQueue = (): void => {
   messageQueueInstance = null;
   if (typeof window !== 'undefined') {
-    window.attuneMessageQueue = null;
+    window.attuneMessageQueue = undefined;
   }
 };

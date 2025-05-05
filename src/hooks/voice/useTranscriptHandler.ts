@@ -2,7 +2,6 @@
 import { useCallback } from 'react';
 import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
 import { toast } from 'sonner';
-import { messageSaveService } from '@/utils/chat/messaging/MessageSaveService';
 import { getMessageQueue } from '@/utils/chat/messageQueue/QueueProvider';
 
 export const useTranscriptHandler = () => {
@@ -54,23 +53,9 @@ export const useTranscriptHandler = () => {
       return;
     }
     
-    // Fallback: Use the centralized message save service
-    messageSaveService.saveMessageToDatabase({
-      role: messageRole,
-      content: transcriptContent
-    }).then(() => {
-      // Show toast for user feedback
-      toast.success(messageRole === 'user' ? "Message saved" : "Response received", {
-        description: transcriptContent?.substring(0, 50) + (transcriptContent!.length > 50 ? "..." : ""),
-        duration: 3000
-      });
-    }).catch((error) => {
-      toast.error("Failed to save message", {
-        description: error instanceof Error ? error.message : "Unknown error",
-        duration: 4000
-      });
-    });
-    
+    // This code should never run if the centralized approach is working correctly
+    // It's kept as a fallback as the last line of defense
+    console.error(`[useTranscriptHandler] No message queue available for ${messageRole} message`);
   }, []);
 
   return {

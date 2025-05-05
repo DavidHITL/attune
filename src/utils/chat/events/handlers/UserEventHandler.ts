@@ -24,7 +24,7 @@ export class UserEventHandler {
       
       // We should only be handling user events, log an error if not
       if (explicitRole && explicitRole !== 'user') {
-        console.error(`Received event with incorrect explicit role: ${explicitRole}`);
+        console.error(`[UserEventHandler] Received event with incorrect explicit role: ${explicitRole}`);
       }
       
       // Always force correct role in user event handler

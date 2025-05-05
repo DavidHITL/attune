@@ -76,7 +76,7 @@ export class UserEventProcessor {
   }
   
   /**
-   * Flush any accumulated transcript before disconnection
+   * Flush accumulated transcript before disconnection
    */
   flushAccumulatedTranscript(): void {
     console.log('[UserEventProcessor] Flushing any accumulated transcript');
