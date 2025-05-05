@@ -54,6 +54,45 @@ export class RealtimeChat {
   }
 
   /**
+   * Pause the microphone
+   */
+  pauseMicrophone(): void {
+    console.log(`[RealtimeChat ${this.connectionId}] Pausing microphone`);
+    this.connectionManager.pauseMicrophone();
+  }
+
+  /**
+   * Resume the microphone
+   */
+  resumeMicrophone(): void {
+    console.log(`[RealtimeChat ${this.connectionId}] Resuming microphone`);
+    this.connectionManager.resumeMicrophone();
+  }
+
+  /**
+   * Force stop the microphone completely
+   */
+  forceStopMicrophone(): void {
+    console.log(`[RealtimeChat ${this.connectionId}] Force stopping microphone`);
+    this.connectionManager.completelyStopMicrophone();
+  }
+
+  /**
+   * Force resume the microphone
+   */
+  forceResumeMicrophone(): void {
+    console.log(`[RealtimeChat ${this.connectionId}] Force resuming microphone`);
+    this.connectionManager.forceResumeMicrophone();
+  }
+
+  /**
+   * Check if the microphone is paused
+   */
+  isMicrophonePaused(): boolean {
+    return this.connectionManager.audioProcessor.isMicrophonePaused();
+  }
+
+  /**
    * Handle messages from the connection
    */
   private handleMessage(event: any): void {
