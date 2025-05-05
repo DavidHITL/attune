@@ -7,23 +7,28 @@ import { VoicePlayer } from './VoicePlayer';
 export class ConnectionManager {
   private webRTCConnection: WebRTCConnection;
   private audioProcessor: AudioProcessor;
+  private isTestMode: boolean;
   
   constructor(
     private messageHandler: (event: any) => void,
     private audioActivityCallback: (state: 'start' | 'stop') => void,
-    private saveMessageCallback?: SaveMessageCallback
+    private saveMessageCallback?: SaveMessageCallback,
+    testMode: boolean = false
   ) {
-    this.webRTCConnection = new WebRTCConnection();
+    this.isTestMode = testMode;
+    this.webRTCConnection = new WebRTCConnection(this.isTestMode);
     this.audioProcessor = new AudioProcessor(audioActivityCallback);
   }
   
   async initialize(): Promise<boolean> {
     try {
       // First, initialize microphone to ensure we have audio tracks
-      console.log("Setting up audio...");
+      console.log("[ConnectionManager] Setting up audio...");
       const microphone = await this.audioProcessor.initMicrophone();
       
-      console.log("Initializing WebRTC connection...");
+      console.log("[ConnectionManager] Initializing WebRTC connection" + 
+        (this.isTestMode ? " in test mode" : ""));
+        
       // Pass the message handler to the WebRTC connection
       await this.webRTCConnection.init((event) => {
         // Handle track events for audio playback
@@ -43,7 +48,7 @@ export class ConnectionManager {
       
       return true;
     } catch (error) {
-      console.error("Connection error:", error);
+      console.error("[ConnectionManager] Connection error:", error);
       throw error;
     }
   }

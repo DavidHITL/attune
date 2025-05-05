@@ -8,12 +8,14 @@ export class WebRTCConnection extends PeerConnectionBase {
   private channelId: string | null = null;
   private messageCallback: MessageCallback | null = null;
   private dataChannelManager: DataChannelManager;
+  private isTestMode: boolean;
   
-  constructor() {
+  constructor(testMode: boolean = false) {
     super();
     this.channelId = null;
     this.messageCallback = null;
     this.dataChannelManager = new DataChannelManager();
+    this.isTestMode = testMode;
   }
   
   async init(messageCallback: MessageCallback): Promise<void> {
@@ -36,6 +38,15 @@ export class WebRTCConnection extends PeerConnectionBase {
         }
       };
       
+      // Handle tracks (for receiving audio)
+      this.peerConnection.ontrack = (event) => {
+        console.log('[WebRTCConnection] Remote track received:', event.track.kind);
+        if (this.messageCallback) {
+          // Forward the track event to the message handler
+          this.messageCallback(event);
+        }
+      };
+      
       // Create offer
       const offer = await this.peerConnection.createOffer();
       await this.peerConnection.setLocalDescription(offer);
@@ -49,16 +60,27 @@ export class WebRTCConnection extends PeerConnectionBase {
       
       try {
         // Get token from Supabase Edge Function
-        const { answer, iceServers } = await VoiceTokenFetcher.fetchVoiceToken(
-          this.peerConnection.localDescription
-        );
+        let response;
+        
+        if (this.isTestMode) {
+          console.log('[WebRTCConnection] Using test mode with dummy token');
+          response = await VoiceTokenFetcher.fetchTestToken();
+        } else {
+          response = await VoiceTokenFetcher.fetchVoiceToken(
+            this.peerConnection.localDescription
+          );
+        }
         
         // Apply remote description
-        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(JSON.parse(answer)));
+        const { answer, iceServers } = response;
+        
+        await this.peerConnection.setRemoteDescription(
+          new RTCSessionDescription(typeof answer === 'string' ? JSON.parse(answer) : answer)
+        );
         
         console.log('[WebRTCConnection] Connection established');
       } catch (e) {
-        console.error(e);
+        console.error('[WebRTCConnection] Connection error:', e);
         this.setCallError('Voice connection failed. Please refresh your API keys or try later.');
         this.teardownPeer();
         throw e;
