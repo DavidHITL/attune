@@ -24,7 +24,8 @@ export class VoicePlayer {
     if (!this.audioEl) {
       this.audioEl = document.createElement('audio');
       this.audioEl.autoplay = true;
-      this.audioEl.playsInline = true;
+      // Use setAttribute for non-standard properties
+      this.audioEl.setAttribute('playsInline', 'true');
       this.audioEl.style.display = 'none';
       document.body.appendChild(this.audioEl);
     }

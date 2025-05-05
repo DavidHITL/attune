@@ -7,12 +7,14 @@ export class WebRTCConnection {
   private channelId: string | null = null;
   private messageCallback: MessageCallback | null = null;
   private callError: string | null = null;
+  private dataChannel: RTCDataChannel | null = null;
   
   constructor() {
     this.peerConnection = null;
     this.channelId = null;
     this.messageCallback = null;
     this.callError = null;
+    this.dataChannel = null;
   }
   
   private setCallError(message: string) {
@@ -30,8 +32,8 @@ export class WebRTCConnection {
       });
       
       // Set up data channel for messages
-      const dataChannel = this.peerConnection.createDataChannel('messages');
-      dataChannel.onmessage = (event) => {
+      this.dataChannel = this.peerConnection.createDataChannel('messages');
+      this.dataChannel.onmessage = (event) => {
         if (this.messageCallback) {
           try {
             const message = JSON.parse(event.data);
@@ -132,6 +134,22 @@ export class WebRTCConnection {
     });
   }
   
+  // Add the missing sendMessage method
+  sendMessage(message: any): void {
+    if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
+      console.warn('[WebRTCConnection] Cannot send message: data channel not open');
+      return;
+    }
+    
+    try {
+      const messageString = typeof message === 'string' ? message : JSON.stringify(message);
+      this.dataChannel.send(messageString);
+      console.log('[WebRTCConnection] Message sent successfully');
+    } catch (error) {
+      console.error('[WebRTCConnection] Error sending message:', error);
+    }
+  }
+  
   addAudioTrack(stream: MediaStream): void {
     if (!this.peerConnection) {
       console.error('[WebRTCConnection] Cannot add track: no peer connection');
@@ -165,12 +183,17 @@ export class WebRTCConnection {
   disconnect(): void {
     console.log('[WebRTCConnection] Disconnecting...');
     
+    if (this.dataChannel) {
+      this.dataChannel.close();
+    }
+    
     if (this.peerConnection) {
       // Close connection
       this.peerConnection.close();
       this.peerConnection = null;
     }
     
+    this.dataChannel = null;
     this.channelId = null;
     this.messageCallback = null;
     console.log('[WebRTCConnection] Disconnected');
