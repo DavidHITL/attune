@@ -44,10 +44,11 @@ serve(async (req) => {
       return Response.json({ error: 'OPENAI_API_KEY not set' }, { status: 500, headers: corsHeaders });
     }
     
-    // Using the latest correct endpoints for the OpenAI Realtime API
-    const OPENAI_BASE = 'https://api.openai.com/v1/audio/realtime';
+    // Using the CORRECT OpenAI Realtime API endpoints
+    // Base URL for all realtime API operations
+    const OPENAI_BASE = 'https://api.openai.com/v1/realtime';
 
-    // 2) Create realtime session - with updated endpoint and model name
+    // 2) Create realtime session
     console.log("[realtime-token] Creating session with API key:", apiKey ? "Present (hidden)" : "Missing");
     console.log("[realtime-token] Using model: gpt-4o-realtime-preview-2024-12-17");
     const sessionRes = await fetch(`${OPENAI_BASE}/sessions`, {
@@ -58,7 +59,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         modalities: ['audio', 'text'], // adjust to your use-case
-        model: 'gpt-4o-realtime-preview-2024-12-17' // Updated to match the correct model name
+        model: 'gpt-4o-realtime-preview-2024-12-17' // Using the correct model name
       })
     });
     
