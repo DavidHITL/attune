@@ -10,15 +10,29 @@ export class VoiceTokenFetcher {
     iceServers?: RTCIceServer[] 
   }> {
     try {
-      // Invoke Supabase edge function
+      // Validate offer before sending
+      if (!offer || !offer.type || !offer.sdp) {
+        console.error('[VoiceTokenFetcher] Invalid offer provided:', offer);
+        throw new Error('VoiceConnectionError: Invalid offer object');
+      }
+      
+      // Log the offer details for debugging
       console.log('[VoiceTokenFetcher] Fetching voice token with offer type:', offer.type);
       console.log('[VoiceTokenFetcher] Offer SDP length:', offer.sdp?.length || 0);
+      
+      // Format the request body properly - this was likely the issue
+      const requestBody = {
+        offer: {
+          type: offer.type,
+          sdp: offer.sdp
+        }
+      };
       
       // Log the detailed request being sent
       console.log('[VoiceTokenFetcher] Sending request to realtime-token edge function');
       
       const response = await supabase.functions.invoke('realtime-token', { 
-        body: { offer },
+        body: requestBody,
         headers: {
           'Content-Type': 'application/json'
         }
