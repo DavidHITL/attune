@@ -41,6 +41,28 @@ export class EventDispatcher {
       return;
     }
     
+    // ENHANCED: Handle Whisper transcription events specifically
+    if (event.type === 'conversation.item.input_audio_transcription.completed') {
+      console.log('[EventDispatcher] Processing input_audio_transcription.completed event');
+      const text = event.transcript;
+      
+      if (text && typeof text === 'string' && text.trim() !== '') {
+        console.log(`[EventDispatcher] Found transcript text: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}""`);
+        
+        // Get the message queue and queue this as a user message
+        const messageQueue = getMessageQueue();
+        if (messageQueue) {
+          console.log('[EventDispatcher] Queueing transcript text as user message');
+          // High priority ensures this is processed immediately
+          messageQueue.queueMessage('user', text, true);
+        } else {
+          console.error('[EventDispatcher] No message queue available for transcript text');
+        }
+      } else {
+        console.log('[EventDispatcher] No valid transcript text in event');
+      }
+    }
+    
     // NEW: First handle session events which require special processing
     if (event.type === 'session.created') {
       console.log('[EventDispatcher] Processing session.created event');
