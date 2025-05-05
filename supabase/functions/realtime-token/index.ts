@@ -68,33 +68,33 @@ serve(async (req) => {
       );
     }
     
-    const { id: session_id } = await sessionRes.json();
-    console.log('[token] session', session_id);
+    const { id: sessionId } = await sessionRes.json();
+    console.log('[token] session', sessionId);
 
-    // 3) Exchange SDP
-    console.log("[realtime-token] Exchanging SDP with session:", session_id);
-    const sdpRes = await fetch(
-      `${OPENAI_BASE}/v1/realtime/sessions/${session_id}/sdp:exchange`,
+    // 3) Exchange SDP with CORRECTED URL (sdp-exchanges instead of sdp:exchange)
+    console.log("[realtime-token] Exchanging SDP with session:", sessionId);
+    const exchangeRes = await fetch(
+      `${OPENAI_BASE}/v1/realtime/sessions/${sessionId}/sdp-exchanges`,
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ offer })
       }
     );
     
-    if (!sdpRes.ok) {
-      const body = await sdpRes.text();
-      console.error(`[realtime-token] SDP exchange failed: ${sdpRes.status}`, body);
-      return Response.json(
-        { error: 'sdp exchange failed', status: sdpRes.status, body },
-        { status: sdpRes.status, headers: corsHeaders }
-      );
+    // Add enhanced logging
+    console.log('[realtime-token] OpenAI status', exchangeRes.status);
+    console.log('[realtime-token] OpenAI body', await exchangeRes.clone().text());
+    
+    // Return OpenAI's response directly if not successful
+    if (!exchangeRes.ok) {
+      return new Response(await exchangeRes.text(), { status: exchangeRes.status });
     }
     
-    const { answer, ice_servers } = await sdpRes.json();
+    const { answer, ice_servers } = await exchangeRes.json();
     console.log("[realtime-token] SDP exchange successful");
 
     // 4) Success
