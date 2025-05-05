@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { MessageCallback } from '../types';
 
@@ -84,19 +83,42 @@ export class WebRTCConnection {
   
   private async fetchVoiceToken(offer: RTCSessionDescriptionInit) {
     // TODO: Verify SUPABASE edge function name and deployment
-    const { data, error } = await supabase.functions.invoke('realtime-token', { 
+    const response = await supabase.functions.invoke('realtime-token', { 
       body: { offer } 
     });
 
-    // New defensive block
-    if (error || !data) {
-      throw new Error('[Voice] realtime-token failed: ' + (error?.message || 'no data'));
+    // Enhanced error handling
+    if (response.error) {
+      console.error('[WebRTCConnection] Edge function error:', response.error);
+      throw new Error(`VoiceConnectionError: Edge function returned error: ${response.error.message}`);
     }
-    if (typeof data !== 'object') {
-      console.error('[Voice] Expected JSON, got:', data);
-      throw new Error('Invalid JSON from realtime-token');
+    
+    if (!response.data) {
+      console.error('[WebRTCConnection] Empty response from edge function');
+      throw new Error('VoiceConnectionError: No data received from server');
     }
-    return data as { answer: string; iceServers?: RTCIceServer[] };
+    
+    // Validate response structure
+    if (typeof response.data !== 'object') {
+      console.error('[WebRTCConnection] Expected JSON object, got:', response.data);
+      throw new Error('VoiceConnectionError: Malformed response from server');
+    }
+    
+    // Check if response has required fields
+    if (!response.data.answer) {
+      console.error('[WebRTCConnection] Missing answer in response:', response.data);
+      throw new Error('VoiceConnectionError: Missing SDP answer from server');
+    }
+    
+    try {
+      // Verify the answer is valid JSON before continuing
+      JSON.parse(response.data.answer);
+    } catch (error) {
+      console.error('[WebRTCConnection] Invalid SDP answer format:', error);
+      throw new Error('VoiceConnectionError: Invalid SDP answer format');
+    }
+    
+    return response.data as { answer: string; iceServers?: RTCIceServer[] };
   }
   
   private teardownPeer() {
