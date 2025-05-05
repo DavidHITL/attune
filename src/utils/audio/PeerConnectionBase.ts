@@ -6,11 +6,13 @@ export abstract class PeerConnectionBase {
   protected peerConnection: RTCPeerConnection | null = null;
   protected dataChannel: RTCDataChannel | null = null;
   protected callError: string | null = null;
+  protected messageQueue: string[] = []; // Queue to store messages before channel is open
 
   constructor() {
     this.peerConnection = null;
     this.dataChannel = null;
     this.callError = null;
+    this.messageQueue = [];
   }
 
   protected setCallError(message: string) {
@@ -46,6 +48,28 @@ export abstract class PeerConnectionBase {
     });
   }
 
+  // Flush any queued messages if the data channel is open
+  protected flushMessageQueue(): void {
+    if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
+      return;
+    }
+    
+    console.log(`[WebRTC] Flushing ${this.messageQueue.length} queued messages`);
+    
+    while (this.messageQueue.length > 0) {
+      const message = this.messageQueue.shift();
+      if (message) {
+        try {
+          this.dataChannel.send(message);
+        } catch (error) {
+          console.error('[WebRTC] Error sending queued message:', error);
+          this.messageQueue.unshift(message);
+          break;
+        }
+      }
+    }
+  }
+
   protected teardownPeer() {
     if (this.peerConnection) {
       this.peerConnection.close();
@@ -67,6 +91,8 @@ export abstract class PeerConnectionBase {
     }
     
     this.dataChannel = null;
+    // Clear message queue
+    this.messageQueue = [];
     console.log('[WebRTC] Disconnected');
   }
 
@@ -91,10 +117,20 @@ export abstract class PeerConnectionBase {
     }
     
     try {
-      stream.getAudioTracks().forEach(track => {
-        console.log('[WebRTC] Adding audio track:', track.label);
-        this.peerConnection?.addTrack(track, stream);
-      });
+      // Check if we already have audio tracks to avoid duplicates
+      const senders = this.peerConnection.getSenders();
+      const hasSenders = senders.length > 0;
+      console.log(`[WebRTC] Current peer connection has ${senders.length} senders`);
+      
+      if (!hasSenders) {
+        // Only add tracks if none exist
+        stream.getAudioTracks().forEach(track => {
+          console.log('[WebRTC] Adding audio track:', track.label);
+          this.peerConnection?.addTrack(track, stream);
+        });
+      } else {
+        console.log('[WebRTC] Audio tracks already added, skipping');
+      }
     } catch (error) {
       console.error('[WebRTC] Error adding audio track:', error);
     }
