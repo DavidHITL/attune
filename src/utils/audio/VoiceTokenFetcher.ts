@@ -18,9 +18,16 @@ export class VoiceTokenFetcher {
         throw new Error('VoiceConnectionError: Invalid offer object');
       }
       
+      // ENHANCED VALIDATION: Check for audio section in SDP
+      if (!offer.sdp.includes('m=audio')) {
+        console.error('[VoiceTokenFetcher] SDP offer does not contain audio media section:', offer.sdp);
+        throw new Error('VoiceConnectionError: SDP offer missing audio media section');
+      }
+      
       // Log the offer details for debugging
       console.log('[VoiceTokenFetcher] Fetching voice token with offer type:', offer.type);
       console.log('[VoiceTokenFetcher] Offer SDP length:', offer.sdp?.length || 0);
+      console.log('[VoiceTokenFetcher] SDP offer contains audio section:', offer.sdp.includes('m=audio'));
       
       // Format the request body properly
       const requestBody = {

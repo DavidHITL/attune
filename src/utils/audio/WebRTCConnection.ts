@@ -23,7 +23,7 @@ export class WebRTCConnection extends PeerConnectionBase {
     this.dataChannelManager.setMessageCallback(messageCallback);
     
     try {
-      // Create WebRTC peer connection
+      // Create WebRTC peer connection with specific configuration for audio
       console.log('[WebRTCConnection] Creating peer connection');
       this.peerConnection = new RTCPeerConnection({
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
@@ -49,10 +49,46 @@ export class WebRTCConnection extends PeerConnectionBase {
         }
       };
       
-      // Create offer
-      console.log('[WebRTCConnection] Creating offer');
-      const offer = await this.peerConnection.createOffer();
+      // CRITICAL CHANGE: Add audio track to ensure the SDP offer includes audio media section
+      try {
+        console.log('[WebRTCConnection] Adding local audio track');
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+        
+        // Add all audio tracks from the stream to the peer connection
+        stream.getAudioTracks().forEach(track => {
+          console.log('[WebRTCConnection] Adding audio track:', track.label);
+          this.peerConnection.addTrack(track, stream);
+        });
+      } catch (err) {
+        console.error('[WebRTCConnection] Error adding audio track:', err);
+        this.setCallError('Unable to access microphone. Please ensure microphone permissions are granted.');
+        throw err;
+      }
+      
+      // Create offer with specific audio constraints
+      console.log('[WebRTCConnection] Creating offer with audio constraints');
+      const offerOptions = {
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: false
+      };
+      
+      const offer = await this.peerConnection.createOffer(offerOptions);
       await this.peerConnection.setLocalDescription(offer);
+      
+      // Verify that SDP has audio section
+      if (offer.sdp && !offer.sdp.includes('m=audio')) {
+        console.error('[WebRTCConnection] Generated SDP offer does not contain audio section!');
+        console.log('[WebRTCConnection] SDP offer:', offer.sdp);
+        throw new Error('WebRTC offer missing audio section. Check microphone access.');
+      } else {
+        console.log('[WebRTCConnection] SDP offer contains audio section');
+      }
       
       // Wait for ICE gathering to complete
       console.log('[WebRTCConnection] Waiting for ICE gathering to complete');
