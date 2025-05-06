@@ -400,7 +400,8 @@ export class WebRTCConnection extends PeerConnectionBase {
     const connectionState = this.peerConnection.connectionState;
     const iceConnectionState = this.peerConnection.iceConnectionState;
     
-    return (connectionState === 'connected' || connectionState === 'completed') &&
+    // Fix: Use correct states for RTCPeerConnectionState and RTCIceConnectionState
+    return connectionState === 'connected' && 
            (iceConnectionState === 'connected' || iceConnectionState === 'completed');
   }
 }
