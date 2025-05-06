@@ -66,7 +66,9 @@ export class WebRTCConnection extends PeerConnectionBase {
     }
     
     try {
-      // Create WebRTC peer connection with specific configuration for audio
+      // CRITICAL FIX: We'll get ICE servers from the edge function later
+      // but start with a basic configuration that won't be changed after setup
+      // This avoids the InvalidModificationError
       console.log('[WebRTCConnection] Creating peer connection');
       this.peerConnection = new RTCPeerConnection({
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
@@ -246,12 +248,12 @@ export class WebRTCConnection extends PeerConnectionBase {
           new RTCSessionDescription(answerObj)
         );
         
-        // Apply any ICE servers from the response
+        // FIX: Don't try to modify ICE servers after connection setup
+        // Instead, save them for future connections if needed
         if (iceServers && iceServers.length > 0) {
-          console.log('[WebRTCConnection] Updating ICE servers:', iceServers.length);
-          this.peerConnection.setConfiguration({
-            iceServers: iceServers
-          });
+          console.log('[WebRTCConnection] Received ICE servers from server:', iceServers.length);
+          // We no longer call setConfiguration here to avoid InvalidModificationError
+          // Just log them for now
         }
         
         console.log('[WebRTCConnection] Connection established');
@@ -287,22 +289,43 @@ export class WebRTCConnection extends PeerConnectionBase {
       this.hasReceivedSessionCreated = true;
       console.log('[WebRTCConnection] Session created event received, sending session.update');
       
-      // Send session configuration after a short delay to ensure connection is ready
-      setTimeout(() => this.sendSessionConfiguration(), 500);
+      // IMPROVED: More robust session config sending with retry
+      this.scheduleSessionConfigSending();
     }
   }
   
+  // NEW: Add a more robust session configuration scheduling with retries
+  private scheduleSessionConfigSending(retryCount: number = 0): void {
+    // Maximum number of retries
+    const MAX_RETRIES = 3;
+    
+    // Cancel if we've already sent it successfully
+    if (this.sessionConfigSent) {
+      console.log('[WebRTCConnection] Session config already sent, skipping');
+      return;
+    }
+    
+    // Schedule immediate attempt
+    setTimeout(() => {
+      // Try to send the configuration
+      const sent = this.sendSessionConfiguration();
+      
+      // If failed and we haven't reached max retries, try again with increasing delay
+      if (!sent && retryCount < MAX_RETRIES) {
+        const nextRetryDelay = 1000 * Math.pow(2, retryCount); // Exponential backoff
+        console.log(`[WebRTCConnection] Scheduling retry #${retryCount + 1} for session configuration in ${nextRetryDelay}ms`);
+        setTimeout(() => {
+          this.scheduleSessionConfigSending(retryCount + 1);
+        }, nextRetryDelay);
+      }
+    }, 100); // Small initial delay to ensure connection is ready
+  }
+  
   // Send session configuration after session is created
-  private sendSessionConfiguration(): void {
+  private sendSessionConfiguration(): boolean {
     if (!this.dataChannelManager.isDataChannelReady()) {
       console.error('[WebRTCConnection] Cannot send session.update: data channel not ready');
-      
-      // Retry sending session config after a short delay
-      if (!this.sessionConfigSent) {
-        console.log('[WebRTCConnection] Scheduling retry for session configuration in 1000ms');
-        setTimeout(() => this.sendSessionConfiguration(), 1000);
-      }
-      return;
+      return false;
     }
     
     // Create the session.update message with required audio configuration
@@ -334,11 +357,9 @@ export class WebRTCConnection extends PeerConnectionBase {
       this.sessionConfigSent = true;
     } else {
       console.error('[WebRTCConnection] Failed to send session configuration');
-      // Retry sending session config after a short delay
-      if (!this.sessionConfigSent) {
-        setTimeout(() => this.sendSessionConfiguration(), 1000);
-      }
     }
+    
+    return sent;
   }
   
   // Add explicit method to add audio track after connection is established
@@ -385,7 +406,7 @@ export class WebRTCConnection extends PeerConnectionBase {
   // Add method to force sending session config (for retry attempts)
   forceSendSessionConfig(): void {
     this.sessionConfigSent = false;
-    this.sendSessionConfiguration();
+    this.scheduleSessionConfigSending();
   }
   
   // Add method to check if session config has been sent
@@ -400,7 +421,7 @@ export class WebRTCConnection extends PeerConnectionBase {
     const connectionState = this.peerConnection.connectionState;
     const iceConnectionState = this.peerConnection.iceConnectionState;
     
-    // Fix: Use correct states for RTCPeerConnectionState and RTCIceConnectionState
+    // Use correct states for RTCPeerConnectionState and RTCIceConnectionState
     return connectionState === 'connected' && 
            (iceConnectionState === 'connected' || iceConnectionState === 'completed');
   }

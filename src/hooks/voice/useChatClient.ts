@@ -19,6 +19,9 @@ export const useChatClient = () => {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [voiceActivityState, setVoiceActivityState] = useState<VoiceActivityState>(VoiceActivityState.Idle);
   const [connectionInProgress, setConnectionInProgress] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRY_COUNT = 2;
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Use our custom message handler from useMessageEventHandler
   const {
@@ -53,16 +56,29 @@ export const useChatClient = () => {
     setConnectionError(null);
     
     try {
+      // Clear any existing retry timeout
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+      
       // Start the conversation
       console.log("[useChatClient] Starting conversation");
       await startConversation();
       
+      // Reset retry count on success
+      setRetryCount(0);
+      
       // Play a test tone to ensure audio is working
       console.log("[useChatClient] Playing audio test tone");
-      VoicePlayer.testAudioOutput();
+      try {
+        VoicePlayer.testAudioOutput();
+      } catch (err) {
+        console.warn("[useChatClient] Could not play test tone:", err);
+      }
       
       // For debugging - log after 3 seconds to check if session config was sent
-      setTimeout(() => {
+      const sessionCheckTimeout = setTimeout(() => {
         if (chatClientRef.current && 
             typeof chatClientRef.current.getWebRTCConnection === 'function' && 
             typeof chatClientRef.current.getWebRTCConnection().hasSessionConfigBeenSent === 'function') {
@@ -82,14 +98,36 @@ export const useChatClient = () => {
       console.error("[useChatClient] Failed to start conversation:", error);
       setConnectionError(error instanceof Error ? error.message : "Failed to start conversation");
       
-      // Ensure cleanup on error
-      if (chatClientRef.current) {
-        endConversation();
+      // Implement retry logic
+      if (retryCount < MAX_RETRY_COUNT) {
+        const nextRetry = retryCount + 1;
+        setRetryCount(nextRetry);
+        
+        const retryDelay = 1000 * Math.pow(2, retryCount); // Exponential backoff
+        
+        console.log(`[useChatClient] Scheduling retry #${nextRetry} in ${retryDelay}ms`);
+        toast.info(`Connection failed, retrying... (${nextRetry}/${MAX_RETRY_COUNT})`);
+        
+        // Schedule retry
+        retryTimeoutRef.current = setTimeout(() => {
+          console.log(`[useChatClient] Executing retry #${nextRetry}`);
+          handleStartConversation();
+        }, retryDelay);
+      } else {
+        // Max retries reached, show error
+        toast.error("Connection failed after multiple attempts", {
+          description: "Please try again later."
+        });
+        
+        // Ensure cleanup on error
+        if (chatClientRef.current) {
+          endConversation();
+        }
       }
     } finally {
       setConnectionInProgress(false);
     }
-  }, [startConversation, endConversation, connectionInProgress]);
+  }, [startConversation, endConversation, connectionInProgress, retryCount]);
 
   // Toggle mute status
   const toggleMute = useCallback(() => {
@@ -109,6 +147,12 @@ export const useChatClient = () => {
   // Ensure proper cleanup on unmount
   useEffect(() => {
     return () => {
+      // Clear any retry timeout
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+      
       if (chatClientRef.current) {
         console.log("[useChatClient] Cleaning up on unmount");
         endConversation();
@@ -126,6 +170,7 @@ export const useChatClient = () => {
     startConversation: handleStartConversation,
     endConversation,
     toggleMute,
-    connectionInProgress
+    connectionInProgress,
+    retryCount
   };
 };

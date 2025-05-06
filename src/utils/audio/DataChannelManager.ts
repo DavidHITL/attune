@@ -6,6 +6,7 @@ export class DataChannelManager {
   private isOpen: boolean = false;
   private messageCounter: number = 0;
   private readonly MAX_RETRY_ATTEMPTS = 3;
+  private channelReadinessTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this.dataChannel = null;
@@ -13,6 +14,7 @@ export class DataChannelManager {
     this.messageCallback = null;
     this.isOpen = false;
     this.messageCounter = 0;
+    this.channelReadinessTimeout = null;
   }
 
   setupDataChannel(peerConnection: RTCPeerConnection): RTCDataChannel {
@@ -26,12 +28,31 @@ export class DataChannelManager {
       this.dataChannel.onopen = () => {
         console.log('[DataChannelManager] Data channel opened');
         this.isOpen = true;
-        this.flushQueuedMessages();
+        
+        // Clear any existing timeout
+        if (this.channelReadinessTimeout) {
+          clearTimeout(this.channelReadinessTimeout);
+          this.channelReadinessTimeout = null;
+        }
+        
+        // IMPROVED: More reliable queue flushing with delay to ensure stability
+        // This avoids timing issues where the channel appears open but isn't fully ready
+        this.channelReadinessTimeout = setTimeout(() => {
+          console.log('[DataChannelManager] Data channel ready timer fired, flushing queue');
+          this.flushQueuedMessages();
+          this.channelReadinessTimeout = null;
+        }, 300); // Small delay to ensure browser has fully established data channel
       };
       
       this.dataChannel.onclose = () => {
         console.log('[DataChannelManager] Data channel closed');
         this.isOpen = false;
+        
+        // Clear any existing timeout
+        if (this.channelReadinessTimeout) {
+          clearTimeout(this.channelReadinessTimeout);
+          this.channelReadinessTimeout = null;
+        }
       };
       
       this.dataChannel.onmessage = (event) => {
@@ -62,14 +83,26 @@ export class DataChannelManager {
     this.messageCallback = callback;
   }
 
+  // IMPROVED: More reliable data channel readiness check
   isDataChannelReady(): boolean {
-    return this.dataChannel !== null && this.dataChannel.readyState === 'open';
+    if (!this.dataChannel) {
+      console.log('[DataChannelManager] No data channel established');
+      return false;
+    }
+    
+    const isReady = this.dataChannel.readyState === 'open';
+    if (!isReady) {
+      console.log('[DataChannelManager] Data channel not ready, state:', this.dataChannel.readyState);
+    }
+    
+    return isReady;
   }
 
   sendMessage(message: any, retryCount: number = 0): boolean {
+    // Check readiness with more detailed logging
     if (!this.isDataChannelReady()) {
       console.log('[DataChannelManager] Data channel not ready, queueing message:', message.type);
-      this.messageQueue.push({ message, retryCount });
+      this.messageQueue.push({ message, retryCount, timestamp: Date.now() });
       return false;
     }
     
@@ -100,16 +133,22 @@ export class DataChannelManager {
   }
 
   flushQueuedMessages(): boolean {
+    // More detailed readiness check
     if (!this.isDataChannelReady()) {
       console.log('[DataChannelManager] Cannot flush queue, data channel not ready');
       return false;
     }
     
+    // Print queue status
     console.log(`[DataChannelManager] Flushing ${this.messageQueue.length} queued messages`);
     
+    // Send oldest messages first (FIFO)
     let allSent = true;
     const queueCopy = [...this.messageQueue];
     this.messageQueue = [];
+    
+    // Sort by timestamp to ensure oldest first
+    queueCopy.sort((a, b) => a.timestamp - b.timestamp);
     
     for (const item of queueCopy) {
       const sent = this.sendMessage(item.message, item.retryCount);
@@ -123,7 +162,14 @@ export class DataChannelManager {
     return allSent;
   }
 
+  // IMPROVED: Better cleanup
   close(): void {
+    // Clear any existing timeout
+    if (this.channelReadinessTimeout) {
+      clearTimeout(this.channelReadinessTimeout);
+      this.channelReadinessTimeout = null;
+    }
+    
     if (this.dataChannel) {
       try {
         console.log('[DataChannelManager] Closing data channel');

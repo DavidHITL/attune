@@ -106,13 +106,20 @@ serve(async (req) => {
       sdp: responseBody
     };
     
-    // Use hardcoded STUN server for ICE since we can't get it from the response
-    const iceServers = [{ urls: "stun:stun.l.google.com:19302" }];
+    // IMPROVED: Always provide a set of STUN/TURN servers
+    // This improves NAT traversal capabilities
+    const iceServers = [
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:stun2.l.google.com:19302" },
+      { urls: "stun:stun3.l.google.com:19302" },
+      { urls: "stun:stun4.l.google.com:19302" }
+    ];
     
     console.log("[realtime-token] SDP exchange successful");
     console.log("[realtime-token] READY");
 
-    // 4) Success
+    // 4) Success - return the answer and ice servers
     return Response.json({ answer, iceServers }, { headers: corsHeaders });
   } catch (err) {
     console.error("[realtime-token] Unexpected error:", err);

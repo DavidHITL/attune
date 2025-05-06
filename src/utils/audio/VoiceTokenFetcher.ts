@@ -119,6 +119,8 @@ export class VoiceTokenFetcher {
         }
         
         console.log('[VoiceTokenFetcher] Successfully received token');
+        
+        // Return the data directly, don't modify it
         return data as { answer: RTCSessionDescriptionInit; iceServers?: RTCIceServer[] };
       } catch (error) {
         console.error('[VoiceTokenFetcher] Error parsing JSON response:', error);
