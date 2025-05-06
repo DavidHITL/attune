@@ -3,6 +3,7 @@
 import { ConnectionManager } from '../audio/ConnectionManager';
 import { MessageCallback, StatusCallback, SaveMessageCallback } from '../types';
 import { MicrophoneControlManager } from './microphone/MicrophoneControlManager';
+import { WebRTCConnection } from '../audio/WebRTCConnection';
 
 /**
  * Main class for handling Realtime Chat interactions
@@ -48,6 +49,11 @@ export class RealtimeChat {
       this.updateStatus('error');
       throw error;
     }
+  }
+
+  // Add a method to get the WebRTCConnection
+  getWebRTCConnection(): WebRTCConnection {
+    return this.connectionManager.getWebRTCConnection();
   }
 
   /**

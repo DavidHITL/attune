@@ -115,7 +115,6 @@ export class DataChannelManager {
   private flushQueuedMessages(): void {
     console.log(`[DataChannelManager] Flushing ${this.queuedMessages.length} queued messages`);
     
-    let success = true;
     const failedMessages: any[] = [];
     
     while (this.queuedMessages.length > 0) {
@@ -123,7 +122,6 @@ export class DataChannelManager {
       if (message) {
         if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
           failedMessages.push(message);
-          success = false;
           continue;
         }
         
@@ -134,7 +132,6 @@ export class DataChannelManager {
         } catch (error) {
           console.error('[DataChannelManager] Error sending queued message:', error);
           failedMessages.push(message);
-          success = false;
         }
       }
     }
@@ -146,8 +143,6 @@ export class DataChannelManager {
     if (this.queuedMessages.length > 0) {
       setTimeout(() => this.flushQueuedMessages(), 1000);
     }
-    
-    return success;
   }
 
   // Check if data channel is ready to send messages
