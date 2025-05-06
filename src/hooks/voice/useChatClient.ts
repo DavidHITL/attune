@@ -18,6 +18,7 @@ export const useChatClient = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [voiceActivityState, setVoiceActivityState] = useState<VoiceActivityState>(VoiceActivityState.Idle);
+  const [connectionInProgress, setConnectionInProgress] = useState(false);
 
   // Use our custom message handler from useMessageEventHandler
   const {
@@ -40,6 +41,55 @@ export const useChatClient = () => {
     setVoiceActivityState,
     setConnectionError
   );
+
+  // Enhanced start conversation function with retry logic
+  const handleStartConversation = useCallback(async () => {
+    if (connectionInProgress) {
+      console.log("[useChatClient] Connection already in progress, ignoring duplicate request");
+      return;
+    }
+    
+    setConnectionInProgress(true);
+    setConnectionError(null);
+    
+    try {
+      // Start the conversation
+      console.log("[useChatClient] Starting conversation");
+      await startConversation();
+      
+      // Play a test tone to ensure audio is working
+      console.log("[useChatClient] Playing audio test tone");
+      VoicePlayer.testAudioOutput();
+      
+      // For debugging - log after 3 seconds to check if session config was sent
+      setTimeout(() => {
+        if (chatClientRef.current && 
+            typeof chatClientRef.current.getWebRTCConnection === 'function' && 
+            typeof chatClientRef.current.getWebRTCConnection().hasSessionConfigBeenSent === 'function') {
+          
+          const sessionConfigSent = chatClientRef.current.getWebRTCConnection().hasSessionConfigBeenSent();
+          console.log("[useChatClient] Session config sent status:", sessionConfigSent);
+          
+          // If session config wasn't sent, try to force send it
+          if (!sessionConfigSent) {
+            console.log("[useChatClient] Session config not sent, forcing send");
+            chatClientRef.current.getWebRTCConnection().forceSendSessionConfig();
+          }
+        }
+      }, 3000);
+      
+    } catch (error) {
+      console.error("[useChatClient] Failed to start conversation:", error);
+      setConnectionError(error instanceof Error ? error.message : "Failed to start conversation");
+      
+      // Ensure cleanup on error
+      if (chatClientRef.current) {
+        endConversation();
+      }
+    } finally {
+      setConnectionInProgress(false);
+    }
+  }, [startConversation, endConversation, connectionInProgress]);
 
   // Toggle mute status
   const toggleMute = useCallback(() => {
@@ -66,20 +116,6 @@ export const useChatClient = () => {
     };
   }, [endConversation]);
 
-  // Before returning, try to play a test audio sound
-  // This can help wake up audio systems on devices where audio is "sleeping"
-  useEffect(() => {
-    if (isConnected) {
-      // Play a test sound to validate audio is working
-      try {
-        console.log("[useChatClient] Playing audio test tone");
-        VoicePlayer.testAudioOutput();
-      } catch (e) {
-        console.error("[useChatClient] Audio test failed:", e);
-      }
-    }
-  }, [isConnected]);
-
   return {
     status,
     isConnected,
@@ -87,8 +123,9 @@ export const useChatClient = () => {
     isMuted,
     voiceActivityState,
     connectionError,
-    startConversation,
+    startConversation: handleStartConversation,
     endConversation,
-    toggleMute
+    toggleMute,
+    connectionInProgress
   };
 };

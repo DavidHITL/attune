@@ -56,7 +56,7 @@ const CallControls: React.FC<CallControlsProps> = ({
       ) : (
         <Button
           onClick={(e) => handleActionClick(onStartConversation, e)}
-          className="bg-emerald-600 hover:bg-emerald-700 h-16 w-16 rounded-full p-0 flex items-center justify-center animate-pulse"
+          className="bg-emerald-600 hover:bg-emerald-700 h-16 w-16 rounded-full p-0 flex items-center justify-center"
           disabled={disabled}
           aria-label="Start call"
         >

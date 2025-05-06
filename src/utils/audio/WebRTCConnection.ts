@@ -11,6 +11,7 @@ export class WebRTCConnection extends PeerConnectionBase {
   private isTestMode: boolean;
   private audioStream: MediaStream | null = null;
   private hasReceivedSessionCreated: boolean = false;
+  private sessionConfigSent: boolean = false;
   
   constructor(testMode: boolean = false) {
     super();
@@ -19,6 +20,7 @@ export class WebRTCConnection extends PeerConnectionBase {
     this.dataChannelManager = new DataChannelManager();
     this.isTestMode = testMode;
     this.hasReceivedSessionCreated = false;
+    this.sessionConfigSent = false;
   }
   
   async init(messageCallback: MessageCallback): Promise<void> {
@@ -26,13 +28,13 @@ export class WebRTCConnection extends PeerConnectionBase {
     
     // Wrap the message callback to handle session events
     const enhancedMessageCallback: MessageCallback = (event) => {
-      // First pass the event to the original callback
+      // First process specific events that need immediate response
+      this.handleSessionEvents(event);
+      
+      // Then pass the event to the original callback
       if (this.messageCallback) {
         this.messageCallback(event);
       }
-      
-      // Process specific events that need immediate response
-      this.handleSessionEvents(event);
     };
     
     this.dataChannelManager.setMessageCallback(enhancedMessageCallback);
@@ -89,7 +91,11 @@ export class WebRTCConnection extends PeerConnectionBase {
           
           if (this.messageCallback) {
             // Forward the track event to the message handler
-            this.messageCallback(event);
+            this.messageCallback({
+              type: 'track',
+              track: event.track,
+              streams: event.streams
+            });
           }
         }
       };
@@ -202,25 +208,27 @@ export class WebRTCConnection extends PeerConnectionBase {
     }
   }
   
-  // CRITICAL NEW METHOD: Handle session events and respond with appropriate configuration
+  // CRITICAL METHOD: Handle session events and respond with appropriate configuration
   private handleSessionEvents(event: any): void {
     // Only process events with a valid type
     if (!event || !event.type) return;
     
     // When session.created event is received, send session configuration
-    if (event.type === 'session.created' && !this.hasReceivedSessionCreated) {
+    if (event.type === 'session.created' && !this.sessionConfigSent) {
       console.log('[WebRTCConnection] Session created event received, sending session.update');
-      this.hasReceivedSessionCreated = true;
       
-      // Send session configuration
-      this.sendSessionConfiguration();
+      // Send session configuration immediately
+      setTimeout(() => this.sendSessionConfiguration(), 0);
     }
   }
   
-  // NEW METHOD: Send session configuration after session is created
+  // Send session configuration after session is created
   private sendSessionConfiguration(): void {
     if (!this.dataChannelManager.isDataChannelReady()) {
       console.error('[WebRTCConnection] Cannot send session.update: data channel not ready');
+      
+      // Retry sending session config after a short delay
+      setTimeout(() => this.sendSessionConfiguration(), 500);
       return;
     }
     
@@ -247,6 +255,7 @@ export class WebRTCConnection extends PeerConnectionBase {
     // Send the configuration through the data channel
     console.log('[WebRTCConnection] Sending session configuration:', sessionConfig);
     this.dataChannelManager.sendMessage(sessionConfig);
+    this.sessionConfigSent = true;
   }
   
   // Add explicit method to add audio track after connection is established
@@ -286,5 +295,17 @@ export class WebRTCConnection extends PeerConnectionBase {
     this.channelId = null;
     this.messageCallback = null;
     this.hasReceivedSessionCreated = false;
+    this.sessionConfigSent = false;
+  }
+  
+  // Add method to force sending session config (for retry attempts)
+  forceSendSessionConfig(): void {
+    this.sessionConfigSent = false;
+    this.sendSessionConfiguration();
+  }
+  
+  // Add method to check if session config has been sent
+  hasSessionConfigBeenSent(): boolean {
+    return this.sessionConfigSent;
   }
 }

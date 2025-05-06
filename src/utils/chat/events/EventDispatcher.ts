@@ -15,7 +15,8 @@ export class EventDispatcher {
   private dispatchedEventCount = {
     user: 0,
     assistant: 0,
-    unknown: 0
+    unknown: 0,
+    session: 0
   };
   
   constructor(
@@ -39,6 +40,39 @@ export class EventDispatcher {
     if (!event || !event.type) {
       console.log('[EventDispatcher] Skipping event with no type');
       return;
+    }
+    
+    // CRITICAL: Handle session events first and with high priority
+    if (event.type === 'session.created') {
+      console.log('[EventDispatcher] Processing high-priority session.created event');
+      this.dispatchedEventCount.session++;
+      
+      // Send to specialized session handler
+      handleSessionCreated(event)
+        .then((conversationId) => {
+          if (conversationId) {
+            console.log(`[EventDispatcher] Session created with conversation ID: ${conversationId}`);
+            
+            // Dispatch event to notify other components that conversation ID is ready
+            if (typeof document !== 'undefined') {
+              document.dispatchEvent(
+                new CustomEvent('conversationIdReady', { detail: { conversationId } })
+              );
+            }
+            
+            // Mark the message queue as initialized with the conversation ID
+            const messageQueue = getMessageQueue();
+            if (messageQueue) {
+              console.log(`[EventDispatcher] Setting message queue as initialized with conversation ID: ${conversationId}`);
+              messageQueue.setConversationInitialized();
+            }
+          }
+        })
+        .catch((error) => {
+          console.error('[EventDispatcher] Error handling session creation:', error);
+        });
+        
+      // Don't return - continue processing to make sure all handlers see this event
     }
     
     // ENHANCED: Handle Whisper transcription events specifically with increased logging
@@ -78,41 +112,9 @@ export class EventDispatcher {
       } else {
         console.log('[EventDispatcher] No valid transcript text in event');
       }
-      
-      return; // Handled this event, don't fall through to other handlers
-    }
-    
-    // NEW: First handle session events which require special processing
-    if (event.type === 'session.created') {
-      console.log('[EventDispatcher] Processing session.created event');
-      // Call session event handler first to establish conversation ID early
-      handleSessionCreated(event)
-        .then((conversationId) => {
-          if (conversationId) {
-            console.log(`[EventDispatcher] Session created with conversation ID: ${conversationId}`);
-            
-            // Trigger event to notify other components that conversation ID is ready
-            if (typeof document !== 'undefined') {
-              document.dispatchEvent(
-                new CustomEvent('conversationIdReady', { detail: { conversationId } })
-              );
-            }
-            
-            // Mark the message queue as initialized with the conversation ID
-            const messageQueue = getMessageQueue();
-            if (messageQueue) {
-              console.log(`[EventDispatcher] Setting message queue as initialized with conversation ID: ${conversationId}`);
-              messageQueue.setConversationInitialized();
-            }
-          }
-        })
-        .catch((error) => {
-          console.error('[EventDispatcher] Error handling session creation:', error);
-        });
     }
     
     // IMPROVED: Handle conversation item created events with strict role checking 
-    // and skip assistant role to prevent duplicate message handling
     if (event.type === 'conversation.item.created') {
       // Extract role and content from event with improved validation
       const role = event.item?.role;
@@ -212,8 +214,8 @@ export class EventDispatcher {
     }
     
     // Periodically log dispatch statistics for debugging
-    if ((this.dispatchedEventCount.user + this.dispatchedEventCount.assistant) % 100 === 0) {
-      console.log(`[EventDispatcher] Event stats - User: ${this.dispatchedEventCount.user}, Assistant: ${this.dispatchedEventCount.assistant}, Unknown: ${this.dispatchedEventCount.unknown}`);
+    if ((this.dispatchedEventCount.user + this.dispatchedEventCount.assistant + this.dispatchedEventCount.session) % 50 === 0) {
+      console.log(`[EventDispatcher] Event stats - User: ${this.dispatchedEventCount.user}, Assistant: ${this.dispatchedEventCount.assistant}, Session: ${this.dispatchedEventCount.session}, Unknown: ${this.dispatchedEventCount.unknown}`);
     }
   }
 }
