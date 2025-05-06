@@ -75,17 +75,21 @@ serve(async (req) => {
     const { id: sessionId } = await sessionRes.json();
     console.log('[token] session', sessionId);
 
-    // 3) Exchange SDP with updated URL
+    // 3) Exchange SDP with updated URL - CRITICAL FIX: Use the correct SDP exchange endpoint format
+    // The OpenAI API expects /realtime/exchanges/sdp not /realtime/sessions/{sessionId}/sdp-exchange
     console.log("[realtime-token] Exchanging SDP with session:", sessionId);
     const exchangeRes = await fetch(
-      `${OPENAI_BASE}/sessions/${sessionId}/sdp-exchange`,
+      `${OPENAI_BASE}/exchanges/sdp`,
       {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ offer })
+        body: JSON.stringify({ 
+          session_id: sessionId,
+          offer 
+        })
       }
     );
     
