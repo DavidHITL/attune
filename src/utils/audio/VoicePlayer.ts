@@ -6,6 +6,7 @@ export class VoicePlayer {
   private static audioEl: HTMLAudioElement | null = null;
   private static audioCtx: AudioContext | null = null;
   private static connectedStreamIds = new Set<string>();
+  private static audioSources: MediaStreamAudioSourceNode[] = [];
   
   /**
    * Attach a remote MediaStream (assistant audio) so it plays out loud.
@@ -74,7 +75,7 @@ export class VoicePlayer {
           console.error('[VoicePlayer] AudioContext not supported in this browser');
           return;
         }
-        this.audioCtx = new AudioContext();
+        this.audioCtx = new AudioContext({ latencyHint: 'interactive' });
         console.log('[VoicePlayer] Created new AudioContext');
       }
       
@@ -87,6 +88,10 @@ export class VoicePlayer {
       // Connect stream to audio output
       const src = this.audioCtx.createMediaStreamSource(stream);
       src.connect(this.audioCtx.destination);
+      
+      // Store source for cleanup
+      this.audioSources.push(src);
+      
       console.info('[VoicePlayer] Connected stream to Web Audio successfully');
     } catch (e) {
       console.error('[VoicePlayer] Error connecting stream to Web Audio:', e);
@@ -100,7 +105,16 @@ export class VoicePlayer {
     try {
       if (!this.audioCtx) {
         const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-        this.audioCtx = new AudioContext();
+        if (!AudioContext) {
+          console.error('[VoicePlayer] AudioContext not supported');
+          return false;
+        }
+        this.audioCtx = new AudioContext({ latencyHint: 'interactive' });
+      }
+      
+      // Make sure audio context is running
+      if (this.audioCtx.state === 'suspended') {
+        this.audioCtx.resume().catch(e => console.warn('[VoicePlayer] Failed to resume AudioContext:', e));
       }
       
       // Create a short beep tone
@@ -125,6 +139,45 @@ export class VoicePlayer {
   }
   
   /**
+   * Wake up audio system - useful for iOS devices that need user interaction
+   */
+  static wakeUpAudioSystem() {
+    // Create silent audio context to wake up audio system
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new AudioContext();
+      
+      // Create silent oscillator
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      // Set gain to 0 for silence
+      gainNode.gain.value = 0;
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      // Start and stop immediately
+      oscillator.start();
+      oscillator.stop(0.001);
+      
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      
+      console.log('[VoicePlayer] Audio system wake-up attempt complete');
+      
+      // Clean up
+      setTimeout(() => {
+        ctx.close().catch(() => {});
+      }, 1000);
+      
+    } catch (e) {
+      console.warn('[VoicePlayer] Audio wake-up failed:', e);
+    }
+  }
+  
+  /**
    * Clean up resources when call ends
    */
   static cleanup() {
@@ -135,6 +188,16 @@ export class VoicePlayer {
       this.audioEl.remove();
       this.audioEl = null;
     }
+    
+    // Disconnect all audio sources
+    this.audioSources.forEach(src => {
+      try {
+        src.disconnect();
+      } catch (e) {
+        console.warn('[VoicePlayer] Error disconnecting audio source:', e);
+      }
+    });
+    this.audioSources = [];
     
     if (this.audioCtx) {
       this.audioCtx.close().catch(() => {});

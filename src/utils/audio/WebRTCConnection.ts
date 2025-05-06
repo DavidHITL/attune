@@ -14,6 +14,9 @@ export class WebRTCConnection extends PeerConnectionBase {
   private sessionConfigSent: boolean = false;
   private connectionAttempts: number = 0;
   private readonly MAX_CONNECTION_ATTEMPTS = 3;
+  private sessionConfigRetryCount: number = 0;
+  private readonly MAX_SESSION_CONFIG_ATTEMPTS = 5;
+  private sessionConfigTimer: ReturnType<typeof setTimeout> | null = null;
   
   constructor(testMode: boolean = false) {
     super();
@@ -66,12 +69,16 @@ export class WebRTCConnection extends PeerConnectionBase {
     }
     
     try {
-      // CRITICAL FIX: We'll get ICE servers from the edge function later
-      // but start with a basic configuration that won't be changed after setup
+      // CRITICAL FIX: Start with basic STUN servers in initial configuration 
+      // We'll use these ICE servers from the start and won't modify them later
       // This avoids the InvalidModificationError
-      console.log('[WebRTCConnection] Creating peer connection');
+      console.log('[WebRTCConnection] Creating peer connection with STUN servers');
       this.peerConnection = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' }
+        ],
         iceCandidatePoolSize: 10 // Increase candidate pool for better connectivity
       });
       
@@ -101,6 +108,15 @@ export class WebRTCConnection extends PeerConnectionBase {
       // Connection state monitoring
       this.peerConnection.onconnectionstatechange = () => {
         console.log('[WebRTCConnection] Connection state changed:', this.peerConnection?.connectionState);
+        
+        if (this.peerConnection?.connectionState === 'connected') {
+          // When we're connected, make sure we attempt to send session config if we haven't
+          // sometimes the session.created event arrives late or we miss it
+          if (!this.sessionConfigSent && this.hasReceivedSessionCreated) {
+            console.log('[WebRTCConnection] Connection established, trying session config');
+            this.scheduleSessionConfigSending();
+          }
+        }
         
         if (this.peerConnection?.connectionState === 'failed') {
           console.warn('[WebRTCConnection] Connection failed, attempting retry');
@@ -248,12 +264,10 @@ export class WebRTCConnection extends PeerConnectionBase {
           new RTCSessionDescription(answerObj)
         );
         
-        // FIX: Don't try to modify ICE servers after connection setup
-        // Instead, save them for future connections if needed
+        // CRITICAL FIX: Don't modify ICE servers after setup
+        // Just log them for reference, we won't use them since we already configured ICE servers
         if (iceServers && iceServers.length > 0) {
           console.log('[WebRTCConnection] Received ICE servers from server:', iceServers.length);
-          // We no longer call setConfiguration here to avoid InvalidModificationError
-          // Just log them for now
         }
         
         console.log('[WebRTCConnection] Connection established');
@@ -284,6 +298,8 @@ export class WebRTCConnection extends PeerConnectionBase {
     // Only process events with a valid type
     if (!event || !event.type) return;
     
+    console.log('[WebRTCConnection] Processing event:', event.type);
+    
     // When session.created event is received, send session configuration
     if (event.type === 'session.created') {
       this.hasReceivedSessionCreated = true;
@@ -296,8 +312,11 @@ export class WebRTCConnection extends PeerConnectionBase {
   
   // NEW: Add a more robust session configuration scheduling with retries
   private scheduleSessionConfigSending(retryCount: number = 0): void {
-    // Maximum number of retries
-    const MAX_RETRIES = 3;
+    // Clear existing timer if any
+    if (this.sessionConfigTimer) {
+      clearTimeout(this.sessionConfigTimer);
+      this.sessionConfigTimer = null;
+    }
     
     // Cancel if we've already sent it successfully
     if (this.sessionConfigSent) {
@@ -305,20 +324,20 @@ export class WebRTCConnection extends PeerConnectionBase {
       return;
     }
     
+    this.sessionConfigRetryCount = retryCount;
+    
     // Schedule immediate attempt
-    setTimeout(() => {
+    this.sessionConfigTimer = setTimeout(() => {
       // Try to send the configuration
       const sent = this.sendSessionConfiguration();
       
       // If failed and we haven't reached max retries, try again with increasing delay
-      if (!sent && retryCount < MAX_RETRIES) {
-        const nextRetryDelay = 1000 * Math.pow(2, retryCount); // Exponential backoff
-        console.log(`[WebRTCConnection] Scheduling retry #${retryCount + 1} for session configuration in ${nextRetryDelay}ms`);
-        setTimeout(() => {
-          this.scheduleSessionConfigSending(retryCount + 1);
-        }, nextRetryDelay);
+      if (!sent && this.sessionConfigRetryCount < this.MAX_SESSION_CONFIG_ATTEMPTS) {
+        const nextRetryDelay = 1000 * Math.pow(2, this.sessionConfigRetryCount); // Exponential backoff
+        console.log(`[WebRTCConnection] Scheduling retry #${this.sessionConfigRetryCount + 1} for session configuration in ${nextRetryDelay}ms`);
+        this.scheduleSessionConfigSending(this.sessionConfigRetryCount + 1);
       }
-    }, 100); // Small initial delay to ensure connection is ready
+    }, 200); // Small initial delay to ensure connection is ready
   }
   
   // Send session configuration after session is created
@@ -394,6 +413,12 @@ export class WebRTCConnection extends PeerConnectionBase {
   }
   
   override disconnect(): void {
+    // Clear any session config timer
+    if (this.sessionConfigTimer) {
+      clearTimeout(this.sessionConfigTimer);
+      this.sessionConfigTimer = null;
+    }
+    
     this.dataChannelManager.close();
     super.disconnect();
     this.channelId = null;
@@ -401,6 +426,7 @@ export class WebRTCConnection extends PeerConnectionBase {
     this.hasReceivedSessionCreated = false;
     this.sessionConfigSent = false;
     this.connectionAttempts = 0;
+    this.sessionConfigRetryCount = 0;
   }
   
   // Add method to force sending session config (for retry attempts)
@@ -420,9 +446,19 @@ export class WebRTCConnection extends PeerConnectionBase {
     
     const connectionState = this.peerConnection.connectionState;
     const iceConnectionState = this.peerConnection.iceConnectionState;
+    const dataChannelReady = this.dataChannelManager.isDataChannelReady();
     
     // Use correct states for RTCPeerConnectionState and RTCIceConnectionState
-    return connectionState === 'connected' && 
+    const validConnection = connectionState === 'connected' && 
            (iceConnectionState === 'connected' || iceConnectionState === 'completed');
+           
+    const healthyConnection = validConnection && dataChannelReady;
+    
+    if (validConnection && !dataChannelReady) {
+      console.warn('[WebRTCConnection] Connection appears healthy but data channel is not ready');
+    }
+    
+    return healthyConnection;
   }
 }
+

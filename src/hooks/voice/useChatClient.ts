@@ -45,7 +45,7 @@ export const useChatClient = () => {
     setConnectionError
   );
 
-  // Enhanced start conversation function with retry logic
+  // Enhanced start conversation function with retry logic and audio wake-up
   const handleStartConversation = useCallback(async () => {
     if (connectionInProgress) {
       console.log("[useChatClient] Connection already in progress, ignoring duplicate request");
@@ -61,6 +61,9 @@ export const useChatClient = () => {
         clearTimeout(retryTimeoutRef.current);
         retryTimeoutRef.current = null;
       }
+      
+      // Wake up audio system - especially important for mobile devices
+      VoicePlayer.wakeUpAudioSystem();
       
       // Start the conversation
       console.log("[useChatClient] Starting conversation");
@@ -90,6 +93,26 @@ export const useChatClient = () => {
           if (!sessionConfigSent) {
             console.log("[useChatClient] Session config not sent, forcing send");
             chatClientRef.current.getWebRTCConnection().forceSendSessionConfig();
+          }
+          
+          // Check connection health
+          if (typeof chatClientRef.current.getWebRTCConnection().isConnectionHealthy === 'function') {
+            const isHealthy = chatClientRef.current.getWebRTCConnection().isConnectionHealthy();
+            console.log("[useChatClient] Connection health check:", isHealthy);
+            
+            // If connection isn't healthy, try to send a test message
+            if (!isHealthy && chatClientRef.current) {
+              console.log("[useChatClient] Connection doesn't appear healthy, sending test message");
+              try {
+                // Force a simple test message to the data channel to see if it's working
+                chatClientRef.current.getWebRTCConnection().sendMessage({
+                  type: "client.ping",
+                  timestamp: Date.now()
+                });
+              } catch (err) {
+                console.error("[useChatClient] Error sending test message:", err);
+              }
+            }
           }
         }
       }, 3000);

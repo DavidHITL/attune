@@ -7,6 +7,8 @@ export class DataChannelManager {
   private messageCounter: number = 0;
   private readonly MAX_RETRY_ATTEMPTS = 3;
   private channelReadinessTimeout: ReturnType<typeof setTimeout> | null = null;
+  private channelReadyPromise: Promise<boolean> | null = null;
+  private channelReadyResolver: ((value: boolean) => void) | null = null;
 
   constructor() {
     this.dataChannel = null;
@@ -15,6 +17,17 @@ export class DataChannelManager {
     this.isOpen = false;
     this.messageCounter = 0;
     this.channelReadinessTimeout = null;
+    this.channelReadyPromise = null;
+    this.channelReadyResolver = null;
+    
+    // Initialize the promise
+    this.resetChannelReadyPromise();
+  }
+  
+  private resetChannelReadyPromise() {
+    this.channelReadyPromise = new Promise<boolean>((resolve) => {
+      this.channelReadyResolver = resolve;
+    });
   }
 
   setupDataChannel(peerConnection: RTCPeerConnection): RTCDataChannel {
@@ -35,6 +48,11 @@ export class DataChannelManager {
           this.channelReadinessTimeout = null;
         }
         
+        // Resolve the channel ready promise
+        if (this.channelReadyResolver) {
+          this.channelReadyResolver(true);
+        }
+        
         // IMPROVED: More reliable queue flushing with delay to ensure stability
         // This avoids timing issues where the channel appears open but isn't fully ready
         this.channelReadinessTimeout = setTimeout(() => {
@@ -47,6 +65,9 @@ export class DataChannelManager {
       this.dataChannel.onclose = () => {
         console.log('[DataChannelManager] Data channel closed');
         this.isOpen = false;
+        
+        // Reset the channel ready promise
+        this.resetChannelReadyPromise();
         
         // Clear any existing timeout
         if (this.channelReadinessTimeout) {
@@ -70,6 +91,8 @@ export class DataChannelManager {
       
       this.dataChannel.onerror = (error) => {
         console.error('[DataChannelManager] Data channel error:', error);
+        // Reset the channel ready promise
+        this.resetChannelReadyPromise();
       };
       
       return this.dataChannel;
@@ -96,6 +119,29 @@ export class DataChannelManager {
     }
     
     return isReady;
+  }
+  
+  // NEW: Wait for data channel to be ready with timeout
+  async waitForDataChannelReady(timeoutMs: number = 5000): Promise<boolean> {
+    if (this.isDataChannelReady()) {
+      return true;
+    }
+    
+    console.log('[DataChannelManager] Waiting for data channel to be ready...');
+    
+    // Create a timeout promise
+    const timeoutPromise = new Promise<boolean>((resolve) => {
+      setTimeout(() => resolve(false), timeoutMs);
+    });
+    
+    // Race the channel ready promise against the timeout
+    const ready = await Promise.race([
+      this.channelReadyPromise,
+      timeoutPromise
+    ]);
+    
+    console.log('[DataChannelManager] Data channel ready wait completed:', ready);
+    return ready;
   }
 
   sendMessage(message: any, retryCount: number = 0): boolean {
@@ -169,6 +215,9 @@ export class DataChannelManager {
       clearTimeout(this.channelReadinessTimeout);
       this.channelReadinessTimeout = null;
     }
+    
+    // Reset channel ready promise
+    this.resetChannelReadyPromise();
     
     if (this.dataChannel) {
       try {
