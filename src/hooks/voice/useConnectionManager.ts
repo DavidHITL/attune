@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { RealtimeChat as RealtimeChatClient } from '@/utils/chat/RealtimeChat';
 import { MessageCallback, StatusCallback, SaveMessageCallback } from '@/utils/types';
@@ -23,8 +22,8 @@ export const useConnectionManager = (
   const { user } = useAuth();
   const connectionId = Math.random().toString(36).substring(2, 9);
   
-  // Use test mode in development for safer testing
-  const useTestMode = true; // Always use test mode for now to help debug
+  // Disable test mode to use real WebRTC connection
+  const useTestMode = false;
   
   const startConversation = useCallback(async (): Promise<void> => {
     try {
