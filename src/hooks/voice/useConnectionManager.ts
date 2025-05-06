@@ -5,6 +5,7 @@ import { MessageCallback, StatusCallback, SaveMessageCallback } from '@/utils/ty
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { EventTypeRegistry } from '@/utils/chat/events/EventTypeRegistry';
+import { VoiceActivityState } from '@/components/VoiceActivityIndicator';
 
 /**
  * Hook for managing connection to the voice chat service with improved event flow
@@ -16,7 +17,7 @@ export const useConnectionManager = (
   saveMessage: SaveMessageCallback,
   setIsConnected: (isConnected: boolean) => void,
   setIsMicOn: (isMicOn: boolean) => void,
-  setVoiceActivityState: (state: any) => void,
+  setVoiceActivityState: (state: VoiceActivityState) => void,
   setConnectionError: (error: string | null) => void
 ) => {
   const { user } = useAuth();
@@ -124,7 +125,7 @@ export const useConnectionManager = (
     
     // Reset all states
     setIsConnected(false);
-    setVoiceActivityState(0); // Idle state
+    setVoiceActivityState(VoiceActivityState.Idle); // Use the proper enum value
     setIsMicOn(false);
     setStatus("Disconnected");
     setConnectionError(null);

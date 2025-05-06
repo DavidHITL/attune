@@ -9,7 +9,7 @@ import { VoicePlayer } from '@/utils/audio/VoicePlayer';
 import { toast } from 'sonner';
 
 export const useChatClient = () => {
-  const { saveMessage, updateIsRecording } = useConversation();
+  const { saveMessage } = useConversation();
   const chatClientRef = useRef<RealtimeChat | null>(null);
   
   // State
@@ -17,7 +17,7 @@ export const useChatClient = () => {
   const [isMicOn, setIsMicOn] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
-  const [voiceActivityState, setVoiceActivityState] = useState<VoiceActivityState>(0);
+  const [voiceActivityState, setVoiceActivityState] = useState<VoiceActivityState>(VoiceActivityState.Idle);
 
   // Use our custom message handler from useMessageEventHandler
   const {
