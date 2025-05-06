@@ -8,18 +8,34 @@ export class RecorderManager {
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
   private activityCallback: (state: 'start' | 'stop') => void;
+  private audioStream: MediaStream | null = null;
   
   constructor(activityCallback: (state: 'start' | 'stop') => void) {
     this.activityCallback = activityCallback;
+    this.audioStream = null;
   }
   
   /**
    * Start recording from the provided audio stream
    */
-  startRecording(audioStream: MediaStream) {
-    if (!audioStream) {
-      console.error("[RecorderManager] No audio stream available");
-      return;
+  async startRecording(audioStream?: MediaStream) {
+    if (audioStream) {
+      this.audioStream = audioStream;
+    }
+    
+    if (!this.audioStream) {
+      try {
+        this.audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+      } catch (error) {
+        console.error("[RecorderManager] Error accessing microphone:", error);
+        throw error;
+      }
     }
     
     if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
@@ -28,7 +44,7 @@ export class RecorderManager {
     }
     
     this.audioChunks = [];
-    this.mediaRecorder = new MediaRecorder(audioStream);
+    this.mediaRecorder = new MediaRecorder(this.audioStream);
     
     this.mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
@@ -38,6 +54,7 @@ export class RecorderManager {
     
     this.mediaRecorder.onstop = () => {
       console.log("[RecorderManager] Recording stopped");
+      this.activityCallback('stop');
     };
     
     this.mediaRecorder.start();
@@ -51,7 +68,6 @@ export class RecorderManager {
   stopRecording() {
     if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
       this.mediaRecorder.stop();
-      this.activityCallback('stop');
       console.log("[RecorderManager] Stopping recording...");
     } else {
       console.warn("[RecorderManager] MediaRecorder is not currently recording");
@@ -83,9 +99,24 @@ export class RecorderManager {
       } catch (e) {
         console.warn("[RecorderManager] Error stopping media recorder:", e);
       }
-      this.mediaRecorder = null;
     }
     
+    if (this.audioStream) {
+      this.audioStream.getTracks().forEach(track => {
+        track.stop();
+        console.log("[RecorderManager] Audio track stopped:", track.label);
+      });
+      this.audioStream = null;
+    }
+    
+    this.mediaRecorder = null;
     this.audioChunks = [];
+  }
+  
+  /**
+   * Check if media recorder exists and is recording
+   */
+  isPaused(): boolean {
+    return !this.mediaRecorder || this.mediaRecorder.state !== 'recording';
   }
 }

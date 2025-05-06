@@ -1,11 +1,11 @@
 
 import { WebRTCConnection } from './WebRTCConnection';
 import { MessageCallback, SaveMessageCallback } from '../types';
-import { MicrophoneProcessor } from './processors/RecorderManager';
+import { RecorderManager } from './processors/RecorderManager';
 
 export class ConnectionManager {
   private webRTCConnection: WebRTCConnection | null = null;
-  private microphoneProcessor: MicrophoneProcessor | null = null;
+  private microphoneProcessor: RecorderManager | null = null;
   private isMuted: boolean = false;
 
   constructor(
@@ -28,9 +28,8 @@ export class ConnectionManager {
       // Initialize WebRTC connection with message handler
       await this.webRTCConnection.init(this.messageCallback);
       
-      // Initialize microphone processor
-      // This is where we would set up the microphone connection
-      // but for now, we're assuming it's handled separately
+      // Initialize recorder manager
+      this.microphoneProcessor = new RecorderManager(this.audioActivityCallback);
       
       return true;
     } catch (error) {
@@ -49,7 +48,7 @@ export class ConnectionManager {
   }
 
   isMicrophonePaused(): boolean {
-    return this.microphoneProcessor?.isPaused() || false;
+    return this.microphoneProcessor?.getRecordingState() === 'inactive' || false;
   }
 
   setMuted(muted: boolean): void {
@@ -59,25 +58,34 @@ export class ConnectionManager {
 
   pauseMicrophone(): void {
     if (this.microphoneProcessor) {
-      this.microphoneProcessor.pause();
+      this.microphoneProcessor.stopRecording();
     }
   }
 
   resumeMicrophone(): void {
-    if (this.microphoneProcessor) {
-      this.microphoneProcessor.resume();
+    if (this.microphoneProcessor && !this.isMuted) {
+      // Only resume if not muted
+      this.microphoneProcessor.startRecording();
     }
   }
 
   forceStopMicrophone(): void {
     if (this.microphoneProcessor) {
-      this.microphoneProcessor.stop();
+      this.microphoneProcessor.stopRecording();
+    }
+  }
+
+  // Add this method to match what MicrophoneControlManager is calling
+  completelyStopMicrophone(): void {
+    if (this.microphoneProcessor) {
+      this.microphoneProcessor.stopRecording();
+      this.microphoneProcessor.cleanup();
     }
   }
 
   forceResumeMicrophone(): void {
-    if (this.microphoneProcessor) {
-      this.microphoneProcessor.start();
+    if (this.microphoneProcessor && !this.isMuted) {
+      this.microphoneProcessor.startRecording();
     }
   }
 
@@ -86,7 +94,7 @@ export class ConnectionManager {
     
     // Stop the microphone processor
     if (this.microphoneProcessor) {
-      this.microphoneProcessor.stop();
+      this.microphoneProcessor.cleanup();
       this.microphoneProcessor = null;
     }
     

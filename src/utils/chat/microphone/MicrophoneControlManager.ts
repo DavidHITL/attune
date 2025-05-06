@@ -25,6 +25,6 @@ export class MicrophoneControlManager {
   }
 
   isMicrophonePaused(): boolean {
-    return this.connectionManager?.audioProcessor.isMicrophonePaused() || false;
+    return this.connectionManager?.isMicrophonePaused() || false;
   }
 }
