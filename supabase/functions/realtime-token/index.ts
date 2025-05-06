@@ -45,7 +45,6 @@ serve(async (req) => {
     }
     
     // Using the CORRECT OpenAI Realtime API endpoints
-    // Base URL for all realtime API operations
     const OPENAI_BASE = 'https://api.openai.com/v1/realtime';
 
     // 2) Create realtime session
@@ -72,45 +71,48 @@ serve(async (req) => {
       );
     }
     
-    const { id: sessionId } = await sessionRes.json();
-    console.log('[token] session', sessionId);
+    const sessionData = await sessionRes.json();
+    const sessionId = sessionData.id;
+    console.log('[realtime-token] session created with ID:', sessionId);
 
-    // 3) Exchange SDP with updated URL - CRITICAL FIX: Use the correct SDP exchange endpoint format
-    // The OpenAI API expects /realtime/exchanges/sdp not /realtime/sessions/{sessionId}/sdp-exchange
-    console.log("[realtime-token] Exchanging SDP with session:", sessionId);
-    const exchangeRes = await fetch(
-      `${OPENAI_BASE}/exchanges/sdp`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          session_id: sessionId,
-          offer 
-        })
-      }
-    );
+    // Try SDP exchange directly without session ID in URL
+    console.log("[realtime-token] Using direct SDP exchange at base URL");
+    const exchangeRes = await fetch(`${OPENAI_BASE}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/sdp'
+      },
+      body: offer.sdp
+    });
     
     // Add enhanced logging
-    console.log('[realtime-token] OpenAI status', exchangeRes.status);
-    console.log('[realtime-token] OpenAI body', await exchangeRes.clone().text());
+    console.log('[realtime-token] OpenAI SDP exchange status:', exchangeRes.status);
+    const responseBody = await exchangeRes.clone().text();
+    console.log('[realtime-token] OpenAI response body:', responseBody);
     
-    // Return OpenAI's response directly if not successful, but now WITH CORS headers
+    // Return OpenAI's response directly if not successful, but WITH CORS headers
     if (!exchangeRes.ok) {
-      return new Response(await exchangeRes.text(), { 
+      return new Response(responseBody, { 
         status: exchangeRes.status,
-        headers: corsHeaders 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       });
     }
     
-    const { answer, ice_servers } = await exchangeRes.json();
+    // If we get a successful response, it's the SDP answer directly
+    const answer = {
+      type: 'answer',
+      sdp: responseBody
+    };
+    
+    // Use hardcoded STUN server for ICE since we can't get it from the response
+    const iceServers = [{ urls: "stun:stun.l.google.com:19302" }];
+    
     console.log("[realtime-token] SDP exchange successful");
     console.log("[realtime-token] READY");
 
     // 4) Success
-    return Response.json({ answer, iceServers: ice_servers }, { headers: corsHeaders });
+    return Response.json({ answer, iceServers }, { headers: corsHeaders });
   } catch (err) {
     console.error("[realtime-token] Unexpected error:", err);
     return Response.json({ error: err.message ?? 'unknown' }, { status: 500, headers: corsHeaders });
