@@ -46,10 +46,11 @@ serve(async (req) => {
     
     // Using the CORRECT OpenAI Realtime API endpoints
     const OPENAI_BASE = 'https://api.openai.com/v1/realtime';
+    const MODEL = 'gpt-4o-realtime-preview-2024-12-17';
 
     // 2) Create realtime session
     console.log("[realtime-token] Creating session with API key:", apiKey ? "Present (hidden)" : "Missing");
-    console.log("[realtime-token] Using model: gpt-4o-realtime-preview-2024-12-17");
+    console.log("[realtime-token] Using model:", MODEL);
     const sessionRes = await fetch(`${OPENAI_BASE}/sessions`, {
       method: 'POST',
       headers: {
@@ -58,7 +59,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         modalities: ['audio', 'text'], // adjust to your use-case
-        model: 'gpt-4o-realtime-preview-2024-12-17' // Using the correct model name
+        model: MODEL // Using the correct model name
       })
     });
     
@@ -75,9 +76,9 @@ serve(async (req) => {
     const sessionId = sessionData.id;
     console.log('[realtime-token] session created with ID:', sessionId);
 
-    // Try SDP exchange directly without session ID in URL
-    console.log("[realtime-token] Using direct SDP exchange at base URL");
-    const exchangeRes = await fetch(`${OPENAI_BASE}`, {
+    // CRITICAL FIX: Add model parameter to the URL when making the SDP exchange request
+    console.log(`[realtime-token] Using direct SDP exchange at URL: ${OPENAI_BASE}?model=${MODEL}`);
+    const exchangeRes = await fetch(`${OPENAI_BASE}?model=${MODEL}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
