@@ -78,6 +78,8 @@ export class EventDispatcher {
       } else {
         console.log('[EventDispatcher] No valid transcript text in event');
       }
+      
+      return; // Handled this event, don't fall through to other handlers
     }
     
     // NEW: First handle session events which require special processing
@@ -157,6 +159,19 @@ export class EventDispatcher {
       this.userEventHandler.handleEvent(event);
       
       return; // handled, don't fall through
+    }
+    
+    // IMPORTANT: Look specifically for input_audio_activity_started/stopped events
+    if (event.type === 'input_audio_activity_started') {
+      console.log('[EventDispatcher] User started speaking');
+      // This is important for UI updates to show the user is speaking
+      return;
+    }
+    
+    if (event.type === 'input_audio_activity_stopped') {
+      console.log('[EventDispatcher] User stopped speaking');
+      // This is important for UI updates to show the user has stopped speaking
+      return;
     }
     
     // Determine event type from registry - NO DEFAULTS

@@ -4,12 +4,14 @@ import { MessageCallback } from '../types';
 export class DataChannelManager {
   private dataChannel: RTCDataChannel | null = null;
   private messageCallback: MessageCallback | null = null;
-  private messageQueue: string[] = []; // Queue to store messages before channel is open
+  private queuedMessages: any[] = [];
+  private isOpen: boolean = false;
 
-  constructor(messageCallback: MessageCallback | null = null) {
+  constructor() {
     this.dataChannel = null;
-    this.messageCallback = messageCallback;
-    this.messageQueue = [];
+    this.messageCallback = null;
+    this.queuedMessages = [];
+    this.isOpen = false;
   }
 
   setMessageCallback(callback: MessageCallback): void {
@@ -17,92 +19,78 @@ export class DataChannelManager {
   }
 
   setupDataChannel(peerConnection: RTCPeerConnection): RTCDataChannel {
-    // Create data channel
-    this.dataChannel = peerConnection.createDataChannel('messages');
-    
-    // Set up event handlers
-    this.dataChannel.onmessage = (event) => {
-      if (this.messageCallback) {
-        try {
-          const message = JSON.parse(event.data);
-          this.messageCallback(message);
-        } catch (error) {
-          console.error('[DataChannelManager] Error parsing message:', error);
-        }
-      }
-    };
+    // Create the data channel with improved reliability settings
+    this.dataChannel = peerConnection.createDataChannel('oai-realtime', {
+      ordered: true,
+      maxRetransmits: 3
+    });
 
     this.dataChannel.onopen = () => {
       console.log('[DataChannelManager] Data channel opened');
-      this.flushMessageQueue();
+      this.isOpen = true;
+      this.flushQueuedMessages();
     };
 
     this.dataChannel.onclose = () => {
       console.log('[DataChannelManager] Data channel closed');
+      this.isOpen = false;
     };
 
-    this.dataChannel.onerror = (error) => {
-      console.error('[DataChannelManager] Data channel error:', error);
+    this.dataChannel.onmessage = (event) => {
+      try {
+        const parsedData = JSON.parse(event.data);
+        if (this.messageCallback) {
+          this.messageCallback(parsedData);
+        }
+      } catch (error) {
+        console.error('[DataChannelManager] Error parsing message:', error);
+      }
     };
 
     return this.dataChannel;
   }
 
+  // Send message through the data channel, queue if not ready
   sendMessage(message: any): void {
-    const messageString = typeof message === 'string' ? message : JSON.stringify(message);
-    
     if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
-      console.log('[DataChannelManager] Data channel not open yet, queuing message');
-      this.messageQueue.push(messageString);
+      console.log('[DataChannelManager] Data channel not ready, queueing message:', message.type);
+      this.queuedMessages.push(message);
       return;
     }
-    
+
     try {
+      const messageString = JSON.stringify(message);
       this.dataChannel.send(messageString);
       console.log('[DataChannelManager] Message sent successfully');
     } catch (error) {
       console.error('[DataChannelManager] Error sending message:', error);
-      // Queue the message if there was an error sending it
-      this.messageQueue.push(messageString);
     }
   }
 
-  // Flush any queued messages if the data channel is open
-  private flushMessageQueue(): void {
-    if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
-      console.warn('[DataChannelManager] Cannot flush queue - data channel not open');
-      return;
-    }
+  // Flush queued messages when data channel is ready
+  private flushQueuedMessages(): void {
+    console.log(`[DataChannelManager] Flushing ${this.queuedMessages.length} queued messages`);
     
-    console.log(`[DataChannelManager] Flushing ${this.messageQueue.length} queued messages`);
-    
-    while (this.messageQueue.length > 0) {
-      const message = this.messageQueue.shift();
+    while (this.queuedMessages.length > 0) {
+      const message = this.queuedMessages.shift();
       if (message) {
-        try {
-          this.dataChannel.send(message);
-          console.log('[DataChannelManager] Sent queued message');
-        } catch (error) {
-          console.error('[DataChannelManager] Error sending queued message:', error);
-          // If sending fails, put it back at the front of the queue and stop trying
-          this.messageQueue.unshift(message);
-          break;
-        }
+        this.sendMessage(message);
       }
     }
   }
 
-  // Method to check if data channel is ready for sending
+  // Check if data channel is ready to send messages
   isDataChannelReady(): boolean {
     return this.dataChannel !== null && this.dataChannel.readyState === 'open';
   }
 
+  // Close and clean up the data channel
   close(): void {
     if (this.dataChannel) {
       this.dataChannel.close();
       this.dataChannel = null;
     }
-    // Clear message queue
-    this.messageQueue = [];
+    this.isOpen = false;
+    this.queuedMessages = [];
   }
 }

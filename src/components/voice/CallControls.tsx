@@ -1,90 +1,67 @@
 
 import React from 'react';
-import { Phone, PhoneOff, MicOff, Mic } from 'lucide-react';
-import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Phone, PhoneOff, Mic, MicOff } from 'lucide-react';
 import { createRipple } from '@/lib/animation-utils';
 
 interface CallControlsProps {
   isConnected: boolean;
   isMuted: boolean;
-  disabled?: boolean;
   onToggleMute: () => void;
   onEndConversation: () => void;
   onStartConversation: () => void;
+  disabled?: boolean;
 }
 
 const CallControls: React.FC<CallControlsProps> = ({
   isConnected,
   isMuted,
-  disabled = false,
   onToggleMute,
   onEndConversation,
-  onStartConversation
+  onStartConversation,
+  disabled = false
 }) => {
-  // Handle button clicks with improved feedback
-  const handleCallButton = (e: React.MouseEvent<HTMLButtonElement>) => {
+  // Enhanced click handler with visual feedback
+  const handleActionClick = (handler: () => void, e: React.MouseEvent<HTMLButtonElement>) => {
     createRipple(e);
-    
-    if (isConnected) {
-      console.log("CallControls: Ending conversation");
-      onEndConversation();
-      toast.info("Call ended");
-    } else {
-      console.log("CallControls: Starting conversation");
-      onStartConversation();
-      toast.success("Starting conversation...");
+    if (!disabled) {
+      handler();
     }
-  };
-  
-  const handleMuteButton = (e: React.MouseEvent<HTMLButtonElement>) => {
-    console.log("Mute button clicked");
-    createRipple(e);
-    onToggleMute();
   };
 
   return (
-    <div className="flex justify-center space-x-6">
-      {/* Call/End Call Button */}
-      <button
-        onClick={handleCallButton}
-        disabled={disabled}
-        className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95 overflow-hidden ${
-          disabled ? 'opacity-50 cursor-not-allowed' : ''
-        } ${
-          isConnected 
-            ? 'bg-red-500 hover:bg-red-600' 
-            : 'bg-white hover:bg-gray-100'
-        }`}
-        aria-label={isConnected ? "End call" : "Start call"}
-      >
-        {isConnected ? (
-          <PhoneOff className="h-6 w-6 text-white" strokeWidth={2} />
-        ) : (
-          <Phone className="h-6 w-6 text-[#1B4965]" strokeWidth={2} />
-        )}
-      </button>
+    <div className="flex justify-center items-center space-x-6">
+      {isConnected ? (
+        <>
+          <Button
+            onClick={(e) => handleActionClick(onToggleMute, e)}
+            className={`h-14 w-14 rounded-full p-0 flex items-center justify-center transition-colors ${
+              isMuted ? 'bg-amber-600 hover:bg-amber-700' : 'bg-white/20 hover:bg-white/30'
+            }`}
+            disabled={disabled}
+            aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
+          >
+            {isMuted ? <MicOff className="h-6 w-6 text-white" /> : <Mic className="h-6 w-6 text-white" />}
+          </Button>
 
-      {/* Mute Button - only show when connected */}
-      {isConnected && (
-        <button
-          onClick={handleMuteButton}
+          <Button
+            onClick={(e) => handleActionClick(onEndConversation, e)}
+            className="bg-red-600 hover:bg-red-700 h-16 w-16 rounded-full p-0 flex items-center justify-center"
+            disabled={disabled}
+            aria-label="End call"
+          >
+            <PhoneOff className="h-8 w-8 text-white" />
+          </Button>
+        </>
+      ) : (
+        <Button
+          onClick={(e) => handleActionClick(onStartConversation, e)}
+          className="bg-emerald-600 hover:bg-emerald-700 h-16 w-16 rounded-full p-0 flex items-center justify-center animate-pulse"
           disabled={disabled}
-          className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95 overflow-hidden ${
-            disabled ? 'opacity-50 cursor-not-allowed' : ''
-          } ${
-            isMuted 
-              ? 'bg-red-500 hover:bg-red-600' 
-              : 'bg-white/90 hover:bg-white'
-          }`}
-          aria-label={isMuted ? "Enable microphone" : "Disable microphone completely"}
-          title={isMuted ? "Enable microphone" : "Disable microphone completely"}
+          aria-label="Start call"
         >
-          {isMuted ? (
-            <MicOff className="h-6 w-6 text-white" strokeWidth={2} />
-          ) : (
-            <Mic className="h-6 w-6 text-[#1B4965]" strokeWidth={2} />
-          )}
-        </button>
+          <Phone className="h-8 w-8 text-white" />
+        </Button>
       )}
     </div>
   );
