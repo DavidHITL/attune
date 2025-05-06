@@ -9,6 +9,7 @@ export class WebRTCConnection extends PeerConnectionBase {
   private messageCallback: MessageCallback | null = null;
   private dataChannelManager: DataChannelManager;
   private isTestMode: boolean;
+  private audioStream: MediaStream | null = null;
   
   constructor(testMode: boolean = false) {
     super();
@@ -40,12 +41,42 @@ export class WebRTCConnection extends PeerConnectionBase {
         }
       };
       
-      // Handle tracks (for receiving audio)
+      // ENHANCED: Improved track handling with detailed logging
       this.peerConnection.ontrack = (event) => {
         console.log('[WebRTCConnection] Remote track received:', event.track.kind);
-        if (this.messageCallback) {
-          // Forward the track event to the message handler
-          this.messageCallback(event);
+        console.log('[WebRTCConnection] Track ID:', event.track.id);
+        console.log('[WebRTCConnection] Stream ID:', event.streams[0]?.id);
+        
+        if (event.track.kind === 'audio' && event.streams && event.streams.length > 0) {
+          const stream = event.streams[0];
+          
+          // Save audio stream reference for potential troubleshooting
+          this.audioStream = stream;
+          
+          // Log incoming audio track details
+          console.log('[WebRTCConnection] Audio track received:', {
+            trackId: event.track.id,
+            trackLabel: event.track.label,
+            trackEnabled: event.track.enabled,
+            streamId: stream.id,
+            streamActive: stream.active,
+            audioTracks: stream.getAudioTracks().length
+          });
+          
+          // Try to play a test tone to verify audio output is working
+          // This can help wake up the audio system on some browsers
+          import('../audio/VoicePlayer').then(module => {
+            const VoicePlayer = module.VoicePlayer;
+            // Play a test tone to verify audio system is working
+            VoicePlayer.testAudioOutput();
+            // Connect the incoming audio stream
+            VoicePlayer.attachRemoteStream(stream);
+          });
+          
+          if (this.messageCallback) {
+            // Forward the track event to the message handler
+            this.messageCallback(event);
+          }
         }
       };
       
@@ -129,6 +160,9 @@ export class WebRTCConnection extends PeerConnectionBase {
           ? { type: 'answer' as RTCSdpType, sdp: answer } 
           : answer;
         
+        // Log the complete SDP answer before applying it
+        console.log('[WebRTCConnection] SDP answer:', answerObj.sdp);
+        
         await this.peerConnection.setRemoteDescription(
           new RTCSessionDescription(answerObj)
         );
@@ -154,8 +188,35 @@ export class WebRTCConnection extends PeerConnectionBase {
     }
   }
   
+  // Add explicit method to add audio track after connection is established
+  addAudioTrack(stream: MediaStream): void {
+    if (!this.peerConnection) {
+      console.error('[WebRTCConnection] Cannot add track, no peer connection');
+      return;
+    }
+    
+    stream.getAudioTracks().forEach(track => {
+      console.log('[WebRTCConnection] Adding additional audio track:', track.label);
+      this.peerConnection?.addTrack(track, stream);
+    });
+  }
+  
   sendMessage(message: any): void {
     this.dataChannelManager.sendMessage(message);
+  }
+  
+  // Check connection state
+  getConnectionState(): RTCPeerConnectionState | null {
+    return this.peerConnection?.connectionState || null;
+  }
+  
+  // Get audio levels for debugging
+  getAudioStatus(): { localTracks: number, remoteTracks: number, streamActive: boolean } {
+    return {
+      localTracks: this.peerConnection?.getSenders().filter(s => s.track?.kind === 'audio').length || 0,
+      remoteTracks: this.peerConnection?.getReceivers().filter(r => r.track?.kind === 'audio').length || 0,
+      streamActive: this.audioStream?.active || false
+    };
   }
   
   override disconnect(): void {

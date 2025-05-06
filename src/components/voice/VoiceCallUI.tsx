@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import AttuneLogo from '@/components/AttuneLogo';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
+import { UnmuteBanner, useAudioMuteDetection } from '@/components/ui/unmute-banner';
 
 interface VoiceCallUIProps {
   isConnected: boolean;
@@ -33,6 +34,9 @@ const VoiceCallUI: React.FC<VoiceCallUIProps> = ({
   connectionError,
   isStartDisabled = false
 }) => {
+  // Use our new hook to detect audio issues
+  const { showUnmutePrompt, fixAudioIssues } = useAudioMuteDetection();
+
   // Show a loading skeleton while conversation data is loading
   if (conversationLoading) {
     return (
@@ -75,6 +79,11 @@ const VoiceCallUI: React.FC<VoiceCallUIProps> = ({
             </AlertDescription>
           </Alert>
         </div>
+      )}
+      
+      {/* Audio unmute banner - show when we detect possible audio system issues */}
+      {isConnected && showUnmutePrompt && (
+        <UnmuteBanner onActionClick={fixAudioIssues} />
       )}
       
       {/* Voice assistant display */}

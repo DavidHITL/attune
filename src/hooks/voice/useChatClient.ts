@@ -1,128 +1,94 @@
-import { useCallback, useRef } from 'react';
-import { toast } from 'sonner';
-import { useMessageEventHandler } from './useMessageEventHandler';
-import { useWebSocketConnection } from './chat-client/useWebSocketConnection';
-import { useSessionManagement } from './chat-client/useSessionManagement';
-import { useAudioControls } from './chat-client/useAudioControls';
-import { createEnhancedMessageHandler } from './chat-client/useEnhancedMessageHandler';
 
-/**
- * Custom hook for managing the chat client and its connection
- */
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { RealtimeChat } from '@/utils/chat/RealtimeChat';
+import { useConnectionManager } from './useConnectionManager';
+import { useMessageEventHandler } from './useMessageEventHandler';
+import { VoiceActivityState } from '@/components/VoiceActivityIndicator';
+import { useConversation } from '../useConversation';
+import { VoicePlayer } from '@/utils/audio/VoicePlayer';
+import { toast } from 'sonner';
+
 export const useChatClient = () => {
-  // Create a ref for the WebSocket to avoid circular dependencies
-  const chatClientRef = useRef<WebSocket | null>(null);
+  const { saveMessage, updateIsRecording } = useConversation();
+  const chatClientRef = useRef<RealtimeChat | null>(null);
   
-  const { 
-    voiceActivityState,
+  // State
+  const [isConnected, setIsConnected] = useState(false);
+  const [isMicOn, setIsMicOn] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [voiceActivityState, setVoiceActivityState] = useState<VoiceActivityState>(0);
+
+  // Use our custom message handler from useMessageEventHandler
+  const {
+    status,
+    setStatus,
     combinedMessageHandler
   } = useMessageEventHandler();
-  
-  const {
-    conversationId,
-    setConversationId,
-    hasReceivedSessionCreated,
-    handleSessionCreated,
-    sendSessionUpdate,
-    resetSession
-  } = useSessionManagement();
-  
-  const {
-    isMuted,
-    toggleMute
-  } = useAudioControls();
 
-  // Keep track of whether we've sent a session update
-  const sessionUpdateSentRef = useRef<boolean>(false);
-  
-  // Create a base message handler
-  const baseMessageHandler = useCallback((event: any) => {
-    // Process the event using our combined handler
-    combinedMessageHandler(event);
-    
-    // Special handling for session.created event
-    if (event.type === 'session.created') {
-      console.log("[ChatClient] Received session.created event");
-      handleSessionCreated();
+  // Use our connection manager hook
+  const {
+    startConversation,
+    endConversation
+  } = useConnectionManager(
+    chatClientRef, 
+    combinedMessageHandler,
+    setStatus, 
+    saveMessage,
+    setIsConnected,
+    setIsMicOn,
+    setVoiceActivityState,
+    setConnectionError
+  );
+
+  // Toggle mute status
+  const toggleMute = useCallback(() => {
+    if (chatClientRef.current) {
+      const newMuteState = !isMuted;
+      chatClientRef.current.setMuted(newMuteState);
+      setIsMuted(newMuteState);
       
-      // Send session.update if we haven't already
-      if (chatClientRef.current && !sessionUpdateSentRef.current) {
-        console.log("[ChatClient] Sending session.update after session.created");
-        sendSessionUpdate(chatClientRef.current);
-        sessionUpdateSentRef.current = true;
+      if (newMuteState) {
+        toast.info("Microphone muted");
+      } else {
+        toast.info("Microphone unmuted");
       }
     }
-  }, [combinedMessageHandler, handleSessionCreated, sendSessionUpdate]);
-  
-  // Use the WebSocket connection hook with our base handler
-  const {
-    isConnected,
-    status,
-    connectionError,
-    websocketRef,
-    startConnection,
-    closeConnection
-  } = useWebSocketConnection(baseMessageHandler);
-  
-  // Update the chatClientRef whenever websocketRef changes
-  if (chatClientRef.current !== websocketRef.current) {
-    chatClientRef.current = websocketRef.current;
-  }
-  
-  // Function to start the WebSocket connection
-  const startConversation = useCallback(async () => {
+  }, [isMuted]);
+
+  // Ensure proper cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (chatClientRef.current) {
+        console.log("[useChatClient] Cleaning up on unmount");
+        endConversation();
+      }
+    };
+  }, [endConversation]);
+
+  // Before returning, try to play a test audio sound
+  // This can help wake up audio systems on devices where audio is "sleeping"
+  useEffect(() => {
     if (isConnected) {
-      console.log("[ChatClient] Already connected");
-      return;
+      // Play a test sound to validate audio is working
+      try {
+        console.log("[useChatClient] Playing audio test tone");
+        VoicePlayer.testAudioOutput();
+      } catch (e) {
+        console.error("[useChatClient] Audio test failed:", e);
+      }
     }
-    
-    try {
-      // Reset the session update tracking
-      sessionUpdateSentRef.current = false;
-      
-      // Start the WebSocket connection
-      await startConnection();
-      
-      // We're not sending session.create anymore since it's not supported
-      // The WebRTC connection already establishes the session
-      console.log("[ChatClient] Connection established, waiting for session.created event");
-      
-    } catch (error) {
-      console.error('[ChatClient] Failed to start conversation:', error);
-      
-      // Show toast notification
-      toast.error("Failed to start conversation", {
-        description: "Please try again.",
-        duration: 3000
-      });
-    }
-  }, [isConnected, startConnection]);
-  
-  // Function to end the WebSocket connection
-  const endConversation = useCallback(() => {
-    closeConnection();
-    resetSession();
-    
-    // Reset our session update tracking
-    sessionUpdateSentRef.current = false;
-    
-    // Show toast notification
-    toast.success("Call ended", {
-      description: "You have disconnected from the voice server.",
-      duration: 2000
-    });
-  }, [closeConnection, resetSession]);
-  
+  }, [isConnected]);
+
   return {
     status,
     isConnected,
-    voiceActivityState,
+    isMicOn,
     isMuted,
+    voiceActivityState,
     connectionError,
-    hasReceivedSessionCreated,
     startConversation,
     endConversation,
-    toggleMute,
-    chatClientRef
+    toggleMute
   };
 };
