@@ -12,6 +12,8 @@ export class WebRTCConnection extends PeerConnectionBase {
   private audioStream: MediaStream | null = null;
   private hasReceivedSessionCreated: boolean = false;
   private sessionConfigSent: boolean = false;
+  private connectionAttempts: number = 0;
+  private readonly MAX_CONNECTION_ATTEMPTS = 3;
   
   constructor(testMode: boolean = false) {
     super();
@@ -21,6 +23,7 @@ export class WebRTCConnection extends PeerConnectionBase {
     this.isTestMode = testMode;
     this.hasReceivedSessionCreated = false;
     this.sessionConfigSent = false;
+    this.connectionAttempts = 0;
   }
   
   async init(messageCallback: MessageCallback): Promise<void> {
@@ -40,10 +43,34 @@ export class WebRTCConnection extends PeerConnectionBase {
     this.dataChannelManager.setMessageCallback(enhancedMessageCallback);
     
     try {
+      await this.initializeConnection();
+    } catch (error) {
+      console.error('[WebRTCConnection] Error initializing connection:', error);
+      throw error;
+    }
+  }
+
+  private async initializeConnection(isRetry: boolean = false): Promise<void> {
+    if (this.connectionAttempts >= this.MAX_CONNECTION_ATTEMPTS) {
+      console.error('[WebRTCConnection] Maximum connection attempts reached');
+      throw new Error('Failed to establish connection after multiple attempts');
+    }
+    
+    this.connectionAttempts++;
+    console.log(`[WebRTCConnection] Connection attempt ${this.connectionAttempts}/${this.MAX_CONNECTION_ATTEMPTS}`);
+    
+    // Cleanup existing connection if this is a retry
+    if (isRetry && this.peerConnection) {
+      console.log('[WebRTCConnection] Cleaning up previous connection for retry');
+      this.teardownPeer();
+    }
+    
+    try {
       // Create WebRTC peer connection with specific configuration for audio
       console.log('[WebRTCConnection] Creating peer connection');
       this.peerConnection = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+        iceCandidatePoolSize: 10 // Increase candidate pool for better connectivity
       });
       
       // Set up data channel for messages
@@ -54,6 +81,30 @@ export class WebRTCConnection extends PeerConnectionBase {
       this.peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
           console.log('[WebRTCConnection] New ICE candidate');
+        }
+      };
+      
+      this.peerConnection.oniceconnectionstatechange = () => {
+        console.log('[WebRTCConnection] ICE connection state changed:', this.peerConnection?.iceConnectionState);
+        
+        // Handle failed ICE connections
+        if (this.peerConnection?.iceConnectionState === 'failed') {
+          console.warn('[WebRTCConnection] ICE connection failed, attempting retry');
+          if (this.connectionAttempts < this.MAX_CONNECTION_ATTEMPTS) {
+            setTimeout(() => this.initializeConnection(true), 1000);
+          }
+        }
+      };
+      
+      // Connection state monitoring
+      this.peerConnection.onconnectionstatechange = () => {
+        console.log('[WebRTCConnection] Connection state changed:', this.peerConnection?.connectionState);
+        
+        if (this.peerConnection?.connectionState === 'failed') {
+          console.warn('[WebRTCConnection] Connection failed, attempting retry');
+          if (this.connectionAttempts < this.MAX_CONNECTION_ATTEMPTS) {
+            setTimeout(() => this.initializeConnection(true), 1000);
+          }
         }
       };
       
@@ -87,6 +138,8 @@ export class WebRTCConnection extends PeerConnectionBase {
             VoicePlayer.testAudioOutput();
             // Connect the incoming audio stream
             VoicePlayer.attachRemoteStream(stream);
+          }).catch(err => {
+            console.error('[WebRTCConnection] Error importing VoicePlayer:', err);
           });
           
           if (this.messageCallback) {
@@ -114,7 +167,7 @@ export class WebRTCConnection extends PeerConnectionBase {
         // Add all audio tracks from the stream to the peer connection
         stream.getAudioTracks().forEach(track => {
           console.log('[WebRTCConnection] Adding audio track:', track.label);
-          this.peerConnection.addTrack(track, stream);
+          this.peerConnection?.addTrack(track, stream);
         });
       } catch (err) {
         console.error('[WebRTCConnection] Error adding audio track:', err);
@@ -126,7 +179,8 @@ export class WebRTCConnection extends PeerConnectionBase {
       console.log('[WebRTCConnection] Creating offer with audio constraints');
       const offerOptions = {
         offerToReceiveAudio: true,
-        offerToReceiveVideo: false
+        offerToReceiveVideo: false,
+        voiceActivityDetection: true
       };
       
       const offer = await this.peerConnection.createOffer(offerOptions);
@@ -145,7 +199,7 @@ export class WebRTCConnection extends PeerConnectionBase {
       console.log('[WebRTCConnection] Waiting for ICE gathering to complete');
       await this.waitForIceGatheringComplete();
       
-      if (!this.peerConnection.localDescription) {
+      if (!this.peerConnection?.localDescription) {
         throw new Error('No local description available');
       }
       
@@ -183,6 +237,11 @@ export class WebRTCConnection extends PeerConnectionBase {
         // Log the complete SDP answer before applying it
         console.log('[WebRTCConnection] SDP answer:', answerObj.sdp);
         
+        if (!this.peerConnection) {
+          console.error('[WebRTCConnection] Peer connection is null when setting remote description');
+          throw new Error('Peer connection is null when setting remote description');
+        }
+        
         await this.peerConnection.setRemoteDescription(
           new RTCSessionDescription(answerObj)
         );
@@ -196,14 +255,24 @@ export class WebRTCConnection extends PeerConnectionBase {
         }
         
         console.log('[WebRTCConnection] Connection established');
+        
+        // Reset connection attempts on success
+        this.connectionAttempts = 0;
       } catch (e) {
         console.error('[WebRTCConnection] Connection error:', e);
-        this.setCallError('Voice connection failed. Please refresh your API keys or try later.');
-        this.teardownPeer();
-        throw e;
+        
+        if (this.connectionAttempts < this.MAX_CONNECTION_ATTEMPTS) {
+          console.log(`[WebRTCConnection] Retrying connection (attempt ${this.connectionAttempts}/${this.MAX_CONNECTION_ATTEMPTS})`);
+          this.teardownPeer();
+          return this.initializeConnection(true);
+        } else {
+          this.setCallError('Voice connection failed. Please refresh your API keys or try later.');
+          this.teardownPeer();
+          throw e;
+        }
       }
     } catch (error) {
-      console.error('[WebRTCConnection] Error initializing connection:', error);
+      console.error('[WebRTCConnection] Error in connection initialization:', error);
       throw error;
     }
   }
@@ -214,11 +283,12 @@ export class WebRTCConnection extends PeerConnectionBase {
     if (!event || !event.type) return;
     
     // When session.created event is received, send session configuration
-    if (event.type === 'session.created' && !this.sessionConfigSent) {
+    if (event.type === 'session.created') {
+      this.hasReceivedSessionCreated = true;
       console.log('[WebRTCConnection] Session created event received, sending session.update');
       
-      // Send session configuration immediately
-      setTimeout(() => this.sendSessionConfiguration(), 0);
+      // Send session configuration after a short delay to ensure connection is ready
+      setTimeout(() => this.sendSessionConfiguration(), 500);
     }
   }
   
@@ -228,7 +298,10 @@ export class WebRTCConnection extends PeerConnectionBase {
       console.error('[WebRTCConnection] Cannot send session.update: data channel not ready');
       
       // Retry sending session config after a short delay
-      setTimeout(() => this.sendSessionConfiguration(), 500);
+      if (!this.sessionConfigSent) {
+        console.log('[WebRTCConnection] Scheduling retry for session configuration in 1000ms');
+        setTimeout(() => this.sendSessionConfiguration(), 1000);
+      }
       return;
     }
     
@@ -254,8 +327,18 @@ export class WebRTCConnection extends PeerConnectionBase {
     
     // Send the configuration through the data channel
     console.log('[WebRTCConnection] Sending session configuration:', sessionConfig);
-    this.dataChannelManager.sendMessage(sessionConfig);
-    this.sessionConfigSent = true;
+    const sent = this.dataChannelManager.sendMessage(sessionConfig);
+    
+    if (sent) {
+      console.log('[WebRTCConnection] Session configuration sent successfully');
+      this.sessionConfigSent = true;
+    } else {
+      console.error('[WebRTCConnection] Failed to send session configuration');
+      // Retry sending session config after a short delay
+      if (!this.sessionConfigSent) {
+        setTimeout(() => this.sendSessionConfiguration(), 1000);
+      }
+    }
   }
   
   // Add explicit method to add audio track after connection is established
@@ -280,7 +363,7 @@ export class WebRTCConnection extends PeerConnectionBase {
     return this.peerConnection?.connectionState || null;
   }
   
-  // Get audio levels for debugging
+  // Get audio status for debugging
   getAudioStatus(): { localTracks: number, remoteTracks: number, streamActive: boolean } {
     return {
       localTracks: this.peerConnection?.getSenders().filter(s => s.track?.kind === 'audio').length || 0,
@@ -296,6 +379,7 @@ export class WebRTCConnection extends PeerConnectionBase {
     this.messageCallback = null;
     this.hasReceivedSessionCreated = false;
     this.sessionConfigSent = false;
+    this.connectionAttempts = 0;
   }
   
   // Add method to force sending session config (for retry attempts)
@@ -307,5 +391,16 @@ export class WebRTCConnection extends PeerConnectionBase {
   // Add method to check if session config has been sent
   hasSessionConfigBeenSent(): boolean {
     return this.sessionConfigSent;
+  }
+  
+  // Method to check if connection is healthy
+  isConnectionHealthy(): boolean {
+    if (!this.peerConnection) return false;
+    
+    const connectionState = this.peerConnection.connectionState;
+    const iceConnectionState = this.peerConnection.iceConnectionState;
+    
+    return (connectionState === 'connected' || connectionState === 'completed') &&
+           (iceConnectionState === 'connected' || iceConnectionState === 'completed');
   }
 }
