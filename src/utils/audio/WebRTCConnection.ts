@@ -10,6 +10,7 @@ export class WebRTCConnection extends PeerConnectionBase {
   private dataChannelManager: DataChannelManager;
   private isTestMode: boolean;
   private audioStream: MediaStream | null = null;
+  private hasReceivedSessionCreated: boolean = false;
   
   constructor(testMode: boolean = false) {
     super();
@@ -17,11 +18,24 @@ export class WebRTCConnection extends PeerConnectionBase {
     this.messageCallback = null;
     this.dataChannelManager = new DataChannelManager();
     this.isTestMode = testMode;
+    this.hasReceivedSessionCreated = false;
   }
   
   async init(messageCallback: MessageCallback): Promise<void> {
     this.messageCallback = messageCallback;
-    this.dataChannelManager.setMessageCallback(messageCallback);
+    
+    // Wrap the message callback to handle session events
+    const enhancedMessageCallback: MessageCallback = (event) => {
+      // First pass the event to the original callback
+      if (this.messageCallback) {
+        this.messageCallback(event);
+      }
+      
+      // Process specific events that need immediate response
+      this.handleSessionEvents(event);
+    };
+    
+    this.dataChannelManager.setMessageCallback(enhancedMessageCallback);
     
     try {
       // Create WebRTC peer connection with specific configuration for audio
@@ -188,6 +202,53 @@ export class WebRTCConnection extends PeerConnectionBase {
     }
   }
   
+  // CRITICAL NEW METHOD: Handle session events and respond with appropriate configuration
+  private handleSessionEvents(event: any): void {
+    // Only process events with a valid type
+    if (!event || !event.type) return;
+    
+    // When session.created event is received, send session configuration
+    if (event.type === 'session.created' && !this.hasReceivedSessionCreated) {
+      console.log('[WebRTCConnection] Session created event received, sending session.update');
+      this.hasReceivedSessionCreated = true;
+      
+      // Send session configuration
+      this.sendSessionConfiguration();
+    }
+  }
+  
+  // NEW METHOD: Send session configuration after session is created
+  private sendSessionConfiguration(): void {
+    if (!this.dataChannelManager.isDataChannelReady()) {
+      console.error('[WebRTCConnection] Cannot send session.update: data channel not ready');
+      return;
+    }
+    
+    // Create the session.update message with required audio configuration
+    const sessionConfig = {
+      type: "session.update",
+      session: {
+        modalities: ["text", "audio"],
+        voice: "alloy",
+        input_audio_format: "pcm16",
+        output_audio_format: "pcm16",
+        input_audio_transcription: { 
+          model: "whisper-1" 
+        },
+        turn_detection: {
+          type: "server_vad", // Let the server detect turns
+          threshold: 0.5,
+          prefix_padding_ms: 300,
+          silence_duration_ms: 1000
+        }
+      }
+    };
+    
+    // Send the configuration through the data channel
+    console.log('[WebRTCConnection] Sending session configuration:', sessionConfig);
+    this.dataChannelManager.sendMessage(sessionConfig);
+  }
+  
   // Add explicit method to add audio track after connection is established
   addAudioTrack(stream: MediaStream): void {
     if (!this.peerConnection) {
@@ -224,5 +285,6 @@ export class WebRTCConnection extends PeerConnectionBase {
     super.disconnect();
     this.channelId = null;
     this.messageCallback = null;
+    this.hasReceivedSessionCreated = false;
   }
 }
