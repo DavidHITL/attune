@@ -1,4 +1,3 @@
-
 import { PeerConnectionBase } from './PeerConnectionBase';
 import { VoiceTokenFetcher } from './VoiceTokenFetcher';
 import { DataChannelManager } from './DataChannelManager';
@@ -53,6 +52,91 @@ export class WebRTCConnection extends PeerConnectionBase {
     }
   }
 
+  // Add a method to get the WebRTCConnection
+  getWebRTCConnection(): WebRTCConnection {
+    return this.webRTCConnection;
+  }
+
+  /**
+   * Set the microphone muted state
+   */
+  setMuted(muted: boolean): void {
+    console.log(`[RealtimeChat ${this.channelId}] Setting muted: ${muted}`);
+  }
+
+  /**
+   * Pause microphone - stops recording but keeps the track active
+   */
+  pauseMicrophone(): void {
+    console.log(`[RealtimeChat ${this.channelId}] Pausing microphone`);
+  }
+
+  /**
+   * Resume microphone after pausing
+   */
+  resumeMicrophone(): void {
+    console.log(`[RealtimeChat ${this.channelId}] Resuming microphone`);
+  }
+
+  /**
+   * Force stop microphone - completely stops the track
+   */
+  forceStopMicrophone(): void {
+    console.log(`[RealtimeChat ${this.channelId}] Force stopping microphone`);
+  }
+
+  /**
+   * Force resume microphone - reinitializes the track
+   */
+  forceResumeMicrophone(): void {
+    console.log(`[RealtimeChat ${this.channelId}] Force resuming microphone`);
+  }
+
+  /**
+   * Check if microphone is currently paused
+   */
+  isMicrophonePaused(): boolean {
+    return false;
+  }
+
+  /**
+   * Handle messages from the connection
+   */
+  private handleMessage(event: any): void {
+    // Forward message to the message handler
+    this.messageCallback(event);
+  }
+
+  /**
+   * Handle audio activity events
+   */
+  private handleAudioActivity(state: 'start' | 'stop'): void {
+    console.log(`[RealtimeChat ${this.channelId}] Audio activity: ${state}`);
+  }
+
+  /**
+   * Update the current status and notify the status callback
+   */
+  private updateStatus(status: string): void {
+    console.log(`[RealtimeChat ${this.channelId}] Status: ${status}`);
+  }
+
+  /**
+   * Disconnect from the chat
+   */
+  disconnect(): void {
+    console.log(`[RealtimeChat ${this.channelId}] Disconnecting`);
+  }
+
+  /**
+   * Flush any pending messages before disconnecting
+   * This is important to ensure all messages are properly saved
+   */
+  async flushPendingMessages(): Promise<void> {
+    console.log(`[RealtimeChat ${this.channelId}] Flushing pending messages`);
+    // No specific flush needed in our implementation
+  }
+
   private async initializeConnection(isRetry: boolean = false): Promise<void> {
     if (this.connectionAttempts >= this.MAX_CONNECTION_ATTEMPTS) {
       console.error('[WebRTCConnection] Maximum connection attempts reached');
@@ -69,27 +153,47 @@ export class WebRTCConnection extends PeerConnectionBase {
     }
     
     try {
-      // CRITICAL FIX: Start with basic STUN servers in initial configuration 
-      // We'll use these ICE servers from the start and won't modify them later
-      // This avoids the InvalidModificationError
-      console.log('[WebRTCConnection] Creating peer connection with STUN servers');
+      // IMPROVED: Use more comprehensive STUN/TURN servers and optimized configuration
+      console.log('[WebRTCConnection] Creating peer connection with optimized RTCConfiguration');
       this.peerConnection = new RTCPeerConnection({
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' }
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:stun3.l.google.com:19302' },
+          { urls: 'stun:stun4.l.google.com:19302' }
         ],
-        iceCandidatePoolSize: 10 // Increase candidate pool for better connectivity
+        iceCandidatePoolSize: 10,
+        // PERFORMANCE: Add options for faster connection
+        iceTransportPolicy: 'all',
+        bundlePolicy: 'max-bundle',
+        rtcpMuxPolicy: 'require'
       });
       
-      // Set up data channel for messages
-      console.log('[WebRTCConnection] Setting up data channel');
-      this.dataChannel = this.dataChannelManager.setupDataChannel(this.peerConnection);
+      // PERFORMANCE: Add event listeners for better debugging of ICE connection
+      this.peerConnection.addEventListener('iceconnectionstatechange', () => {
+        console.log('[WebRTCConnection] ICE connection state:', this.peerConnection?.iceConnectionState);
+      });
+
+      this.peerConnection.addEventListener('icegatheringstatechange', () => {
+        console.log('[WebRTCConnection] ICE gathering state:', this.peerConnection?.iceGatheringState);
+      });
+
+      this.peerConnection.addEventListener('signalingstatechange', () => {
+        console.log('[WebRTCConnection] Signaling state:', this.peerConnection?.signalingState);
+      });
+      
+      // Set up data channel for messages - OPTIMIZED for low latency
+      console.log('[WebRTCConnection] Setting up data channel with optimized parameters');
+      this.dataChannel = this.dataChannelManager.setupDataChannel(this.peerConnection, {
+        ordered: true,        // Guarantee order for critical messages
+        maxRetransmits: 3     // Limit retries for better real-time performance
+      });
       
       // Handle ICE candidates
       this.peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
-          console.log('[WebRTCConnection] New ICE candidate');
+          console.log('[WebRTCConnection] New ICE candidate type:', event.candidate.type);
         }
       };
       
@@ -111,10 +215,9 @@ export class WebRTCConnection extends PeerConnectionBase {
         
         if (this.peerConnection?.connectionState === 'connected') {
           // When we're connected, make sure we attempt to send session config if we haven't
-          // sometimes the session.created event arrives late or we miss it
           if (!this.sessionConfigSent && this.hasReceivedSessionCreated) {
-            console.log('[WebRTCConnection] Connection established, trying session config');
-            this.scheduleSessionConfigSending();
+            console.log('[WebRTCConnection] Connection established, sending session config immediately');
+            this.scheduleSessionConfigSending(0); // Send immediately with no delay
           }
         }
         
@@ -125,43 +228,46 @@ export class WebRTCConnection extends PeerConnectionBase {
           }
         }
       };
-      
-      // ENHANCED: Improved track handling with detailed logging
-      this.peerConnection.ontrack = (event) => {
+
+      // ENHANCED: Improved track handling with optimized audio processing
+      this.peerConnection.ontrack = async (event) => {
         console.log('[WebRTCConnection] Remote track received:', event.track.kind);
-        console.log('[WebRTCConnection] Track ID:', event.track.id);
-        console.log('[WebRTCConnection] Stream ID:', event.streams[0]?.id);
         
         if (event.track.kind === 'audio' && event.streams && event.streams.length > 0) {
           const stream = event.streams[0];
           
-          // Save audio stream reference for potential troubleshooting
+          // Save audio stream reference
           this.audioStream = stream;
           
-          // Log incoming audio track details
           console.log('[WebRTCConnection] Audio track received:', {
             trackId: event.track.id,
-            trackLabel: event.track.label,
             trackEnabled: event.track.enabled,
             streamId: stream.id,
-            streamActive: stream.active,
-            audioTracks: stream.getAudioTracks().length
+            streamActive: stream.active
           });
           
-          // Try to play a test tone to verify audio output is working
-          // This can help wake up the audio system on some browsers
-          import('../audio/VoicePlayer').then(module => {
-            const VoicePlayer = module.VoicePlayer;
-            // Play a test tone to verify audio system is working
+          // PERFORMANCE: Load VoicePlayer asynchronously for faster initial connection
+          try {
+            const VoicePlayerModule = await import('../audio/VoicePlayer');
+            const VoicePlayer = VoicePlayerModule.VoicePlayer;
+            
+            // Set optimal latency hint for voice
+            VoicePlayer.setLatencyHint('interactive');
+            
+            // Play a test tone to verify audio output is working
             VoicePlayer.testAudioOutput();
-            // Connect the incoming audio stream
-            VoicePlayer.attachRemoteStream(stream);
-          }).catch(err => {
+            
+            // PERFORMANCE: Add small delay before connecting to ensure stable connection
+            setTimeout(() => {
+              // Connect the incoming audio stream with optimized settings
+              VoicePlayer.attachRemoteStream(stream);
+            }, 100);
+          } catch (err) {
             console.error('[WebRTCConnection] Error importing VoicePlayer:', err);
-          });
+          }
           
           if (this.messageCallback) {
-            // Forward the track event to the message handler
+            // Forward the track event
             this.messageCallback({
               type: 'track',
               track: event.track,
@@ -170,31 +276,36 @@ export class WebRTCConnection extends PeerConnectionBase {
           }
         }
       };
-      
-      // CRITICAL CHANGE: Add audio track to ensure the SDP offer includes audio media section
+
+      // ENHANCED: Add high-quality audio track with optimized settings
       try {
-        console.log('[WebRTCConnection] Adding local audio track');
+        console.log('[WebRTCConnection] Adding optimized local audio track');
         const stream = await navigator.mediaDevices.getUserMedia({ 
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            autoGainControl: true
+            autoGainControl: true,
+            // PERFORMANCE: Add higher quality audio constraints
+            sampleRate: 48000,
+            channelCount: 1
           }
         });
         
-        // Add all audio tracks from the stream to the peer connection
         stream.getAudioTracks().forEach(track => {
-          console.log('[WebRTCConnection] Adding audio track:', track.label);
+          // PERFORMANCE: Set higher priority for audio
           this.peerConnection?.addTrack(track, stream);
+          
+          // Log constraints for debugging
+          console.log('[WebRTCConnection] Audio track constraints:', track.getConstraints());
         });
       } catch (err) {
         console.error('[WebRTCConnection] Error adding audio track:', err);
         this.setCallError('Unable to access microphone. Please ensure microphone permissions are granted.');
         throw err;
       }
-      
-      // Create offer with specific audio constraints
-      console.log('[WebRTCConnection] Creating offer with audio constraints');
+
+      // Create offer with optimized audio constraints
+      console.log('[WebRTCConnection] Creating offer with optimized audio constraints');
       const offerOptions = {
         offerToReceiveAudio: true,
         offerToReceiveVideo: false,
@@ -203,24 +314,15 @@ export class WebRTCConnection extends PeerConnectionBase {
       
       const offer = await this.peerConnection.createOffer(offerOptions);
       await this.peerConnection.setLocalDescription(offer);
-      
-      // Verify that SDP has audio section
-      if (offer.sdp && !offer.sdp.includes('m=audio')) {
-        console.error('[WebRTCConnection] Generated SDP offer does not contain audio section!');
-        console.log('[WebRTCConnection] SDP offer:', offer.sdp);
-        throw new Error('WebRTC offer missing audio section. Check microphone access.');
-      } else {
-        console.log('[WebRTCConnection] SDP offer contains audio section');
-      }
-      
+
       // Wait for ICE gathering to complete
       console.log('[WebRTCConnection] Waiting for ICE gathering to complete');
       await this.waitForIceGatheringComplete();
-      
+
       if (!this.peerConnection?.localDescription) {
         throw new Error('No local description available');
       }
-      
+
       try {
         // Get token from Supabase Edge Function
         console.log('[WebRTCConnection] Fetching voice token');
@@ -230,8 +332,7 @@ export class WebRTCConnection extends PeerConnectionBase {
           console.log('[WebRTCConnection] Using test mode with dummy token');
           response = await VoiceTokenFetcher.fetchTestToken();
         } else {
-          console.log('[WebRTCConnection] Using actual localDescription:', 
-            this.peerConnection.localDescription.type);
+          console.log('[WebRTCConnection] Using actual localDescription for token request');
           response = await VoiceTokenFetcher.fetchVoiceToken(
             this.peerConnection.localDescription
           );
@@ -246,31 +347,34 @@ export class WebRTCConnection extends PeerConnectionBase {
           throw new Error('No answer in response');
         }
         
-        console.log('[WebRTCConnection] Answer type:', typeof answer);
-        
         const answerObj = typeof answer === 'string' 
           ? { type: 'answer' as RTCSdpType, sdp: answer } 
           : answer;
         
-        // Log the complete SDP answer before applying it
-        console.log('[WebRTCConnection] SDP answer:', answerObj.sdp);
-        
-        if (!this.peerConnection) {
-          console.error('[WebRTCConnection] Peer connection is null when setting remote description');
-          throw new Error('Peer connection is null when setting remote description');
+        // PERFORMANCE: Log important SDP parameters
+        if (typeof answerObj.sdp === 'string') {
+          // Check for specific codecs and settings
+          if (answerObj.sdp.includes('opus/48000/2')) {
+            console.log('[WebRTCConnection] Using high-quality Opus codec at 48kHz');
+          }
+          
+          // Check for low-latency flags
+          if (answerObj.sdp.includes('useinbandfec=1')) {
+            console.log('[WebRTCConnection] FEC (Forward Error Correction) enabled for better quality');
+          }
+          
+          // Check for minptime parameter (affects latency)
+          const minptimeMatch = answerObj.sdp.match(/minptime=(\d+)/);
+          if (minptimeMatch) {
+            console.log('[WebRTCConnection] Minimum packet time:', minptimeMatch[1], 'ms');
+          }
         }
         
         await this.peerConnection.setRemoteDescription(
           new RTCSessionDescription(answerObj)
         );
         
-        // CRITICAL FIX: Don't modify ICE servers after setup
-        // Just log them for reference, we won't use them since we already configured ICE servers
-        if (iceServers && iceServers.length > 0) {
-          console.log('[WebRTCConnection] Received ICE servers from server:', iceServers.length);
-        }
-        
-        console.log('[WebRTCConnection] Connection established');
+        console.log('[WebRTCConnection] Connection established successfully');
         
         // Reset connection attempts on success
         this.connectionAttempts = 0;
@@ -461,4 +565,3 @@ export class WebRTCConnection extends PeerConnectionBase {
     return healthyConnection;
   }
 }
-

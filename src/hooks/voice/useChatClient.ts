@@ -45,7 +45,25 @@ export const useChatClient = () => {
     setConnectionError
   );
 
-  // Enhanced start conversation function with retry logic and audio wake-up
+  // ENHANCED: Wake up audio system proactively before connection
+  const preloadAudioSystem = useCallback(() => {
+    console.log("[useChatClient] Preloading audio system");
+    
+    // Wake up audio system early, especially important for mobile devices
+    VoicePlayer.wakeUpAudioSystem();
+    
+    // Preload test tone for better responsiveness
+    setTimeout(() => {
+      console.log("[useChatClient] Playing preload test tone");
+      try {
+        VoicePlayer.testAudioOutput();
+      } catch (err) {
+        console.warn("[useChatClient] Could not play preload test tone:", err);
+      }
+    }, 100);
+  }, []);
+  
+  // Enhanced start conversation function with better error handling and audio preparation
   const handleStartConversation = useCallback(async () => {
     if (connectionInProgress) {
       console.log("[useChatClient] Connection already in progress, ignoring duplicate request");
@@ -62,8 +80,11 @@ export const useChatClient = () => {
         retryTimeoutRef.current = null;
       }
       
-      // Wake up audio system - especially important for mobile devices
-      VoicePlayer.wakeUpAudioSystem();
+      // PERFORMANCE: Preload audio system before starting conversation
+      preloadAudioSystem();
+      
+      // Add small delay to ensure audio system is initialized
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // Start the conversation
       console.log("[useChatClient] Starting conversation");
@@ -72,40 +93,43 @@ export const useChatClient = () => {
       // Reset retry count on success
       setRetryCount(0);
       
-      // Play a test tone to ensure audio is working
-      console.log("[useChatClient] Playing audio test tone");
-      try {
-        VoicePlayer.testAudioOutput();
-      } catch (err) {
-        console.warn("[useChatClient] Could not play test tone:", err);
-      }
+      // PERFORMANCE: Play a test tone after successful connection
+      console.log("[useChatClient] Playing audio test tone after connection");
+      setTimeout(() => {
+        try {
+          VoicePlayer.testAudioOutput();
+        } catch (err) {
+          console.warn("[useChatClient] Could not play test tone:", err);
+        }
+      }, 100);
       
-      // For debugging - log after 3 seconds to check if session config was sent
-      const sessionCheckTimeout = setTimeout(() => {
+      // PERFORMANCE: Check connection health after a brief delay
+      setTimeout(() => {
         if (chatClientRef.current && 
-            typeof chatClientRef.current.getWebRTCConnection === 'function' && 
-            typeof chatClientRef.current.getWebRTCConnection().hasSessionConfigBeenSent === 'function') {
+            typeof chatClientRef.current.getWebRTCConnection === 'function') {
           
-          const sessionConfigSent = chatClientRef.current.getWebRTCConnection().hasSessionConfigBeenSent();
-          console.log("[useChatClient] Session config sent status:", sessionConfigSent);
+          const webRTCConnection = chatClientRef.current.getWebRTCConnection();
           
-          // If session config wasn't sent, try to force send it
-          if (!sessionConfigSent) {
-            console.log("[useChatClient] Session config not sent, forcing send");
-            chatClientRef.current.getWebRTCConnection().forceSendSessionConfig();
+          if (typeof webRTCConnection.hasSessionConfigBeenSent === 'function') {
+            const sessionConfigSent = webRTCConnection.hasSessionConfigBeenSent();
+            console.log("[useChatClient] Session config sent status:", sessionConfigSent);
+            
+            // If session config wasn't sent, try to force send it
+            if (!sessionConfigSent) {
+              console.log("[useChatClient] Session config not sent, forcing send");
+              webRTCConnection.forceSendSessionConfig();
+            }
           }
           
           // Check connection health
-          if (typeof chatClientRef.current.getWebRTCConnection().isConnectionHealthy === 'function') {
-            const isHealthy = chatClientRef.current.getWebRTCConnection().isConnectionHealthy();
+          if (typeof webRTCConnection.isConnectionHealthy === 'function') {
+            const isHealthy = webRTCConnection.isConnectionHealthy();
             console.log("[useChatClient] Connection health check:", isHealthy);
             
-            // If connection isn't healthy, try to send a test message
             if (!isHealthy && chatClientRef.current) {
-              console.log("[useChatClient] Connection doesn't appear healthy, sending test message");
+              console.log("[useChatClient] Connection doesn't appear healthy, sending ping");
               try {
-                // Force a simple test message to the data channel to see if it's working
-                chatClientRef.current.getWebRTCConnection().sendMessage({
+                webRTCConnection.sendMessage({
                   type: "client.ping",
                   timestamp: Date.now()
                 });
@@ -115,7 +139,7 @@ export const useChatClient = () => {
             }
           }
         }
-      }, 3000);
+      }, 2000); // Reduced delay for faster health check
       
     } catch (error) {
       console.error("[useChatClient] Failed to start conversation:", error);
@@ -126,7 +150,7 @@ export const useChatClient = () => {
         const nextRetry = retryCount + 1;
         setRetryCount(nextRetry);
         
-        const retryDelay = 1000 * Math.pow(2, retryCount); // Exponential backoff
+        const retryDelay = 1000 * Math.pow(1.5, retryCount); // Faster exponential backoff
         
         console.log(`[useChatClient] Scheduling retry #${nextRetry} in ${retryDelay}ms`);
         toast.info(`Connection failed, retrying... (${nextRetry}/${MAX_RETRY_COUNT})`);
@@ -150,7 +174,7 @@ export const useChatClient = () => {
     } finally {
       setConnectionInProgress(false);
     }
-  }, [startConversation, endConversation, connectionInProgress, retryCount]);
+  }, [startConversation, endConversation, connectionInProgress, retryCount, MAX_RETRY_COUNT, preloadAudioSystem]);
 
   // Toggle mute status
   const toggleMute = useCallback(() => {
@@ -166,6 +190,11 @@ export const useChatClient = () => {
       }
     }
   }, [isMuted]);
+
+  // PERFORMANCE: Preload audio system on component mount
+  useEffect(() => {
+    preloadAudioSystem();
+  }, [preloadAudioSystem]);
 
   // Ensure proper cleanup on unmount
   useEffect(() => {

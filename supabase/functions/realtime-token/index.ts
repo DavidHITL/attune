@@ -44,11 +44,13 @@ serve(async (req) => {
       return Response.json({ error: 'OPENAI_API_KEY not set' }, { status: 500, headers: corsHeaders });
     }
     
-    // Using the CORRECT OpenAI Realtime API endpoints
+    // Using the CORRECT OpenAI Realtime API endpoints with latest model
     const OPENAI_BASE = 'https://api.openai.com/v1/realtime';
+    
+    // PERFORMANCE: Use the latest model for best voice quality
     const MODEL = 'gpt-4o-realtime-preview-2024-12-17';
 
-    // 2) Create realtime session
+    // 2) Create realtime session with optimized parameters
     console.log("[realtime-token] Creating session with API key:", apiKey ? "Present (hidden)" : "Missing");
     console.log("[realtime-token] Using model:", MODEL);
     const sessionRes = await fetch(`${OPENAI_BASE}/sessions`, {
@@ -58,8 +60,12 @@ serve(async (req) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        modalities: ['audio', 'text'], // adjust to your use-case
-        model: MODEL // Using the correct model name
+        modalities: ['audio', 'text'], 
+        model: MODEL,
+        // PERFORMANCE: Add voice parameter directly in session creation
+        voice: 'alloy', // This is the default voice
+        // PERFORMANCE: Add low latency parameters
+        low_latency: true  // Request low latency processing from OpenAI
       })
     });
     
@@ -76,13 +82,16 @@ serve(async (req) => {
     const sessionId = sessionData.id;
     console.log('[realtime-token] session created with ID:', sessionId);
 
-    // CRITICAL FIX: Add model parameter to the URL when making the SDP exchange request
-    console.log(`[realtime-token] Using direct SDP exchange at URL: ${OPENAI_BASE}?model=${MODEL}`);
-    const exchangeRes = await fetch(`${OPENAI_BASE}?model=${MODEL}`, {
+    // PERFORMANCE: Use model parameter in URL and add session ID
+    console.log(`[realtime-token] Using direct SDP exchange at URL: ${OPENAI_BASE}?model=${MODEL}&session_id=${sessionId}`);
+    const exchangeRes = await fetch(`${OPENAI_BASE}?model=${MODEL}&session_id=${sessionId}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/sdp'
+        'Content-Type': 'application/sdp',
+        // PERFORMANCE: Add additional headers for better debugging
+        'X-Request-ID': `req_${Date.now()}`,
+        'X-Session-ID': sessionId
       },
       body: offer.sdp
     });
@@ -90,10 +99,10 @@ serve(async (req) => {
     // Add enhanced logging
     console.log('[realtime-token] OpenAI SDP exchange status:', exchangeRes.status);
     const responseBody = await exchangeRes.clone().text();
-    console.log('[realtime-token] OpenAI response body:', responseBody);
     
     // Return OpenAI's response directly if not successful, but WITH CORS headers
     if (!exchangeRes.ok) {
+      console.error('[realtime-token] SDP exchange failed:', exchangeRes.status, responseBody);
       return new Response(responseBody, { 
         status: exchangeRes.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -106,14 +115,17 @@ serve(async (req) => {
       sdp: responseBody
     };
     
-    // IMPROVED: Always provide a set of STUN/TURN servers
+    // ENHANCED: Provide a comprehensive set of STUN/TURN servers
     // This improves NAT traversal capabilities
     const iceServers = [
       { urls: "stun:stun.l.google.com:19302" },
       { urls: "stun:stun1.l.google.com:19302" },
       { urls: "stun:stun2.l.google.com:19302" },
       { urls: "stun:stun3.l.google.com:19302" },
-      { urls: "stun:stun4.l.google.com:19302" }
+      { urls: "stun:stun4.l.google.com:19302" },
+      // Add more public STUN servers for better connectivity
+      { urls: "stun:stun.services.mozilla.com" },
+      { urls: "stun:stun.stunprotocol.org:3478" }
     ];
     
     console.log("[realtime-token] SDP exchange successful");
